@@ -94,8 +94,8 @@ static PyObject *method_get_standard_regs(PyObject *self, PyObject *args)
         return NULL;
     }
     struct user_regs_struct regs;
-    int res = ptrace(PTRACE_GETREGS, child_pid, NT_PRSTATUS, &regs);
-    if (res == -1)
+    int ptrace_res = ptrace(PTRACE_GETREGS, child_pid, NT_PRSTATUS, &regs);
+    if (ptrace_res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;

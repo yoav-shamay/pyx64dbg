@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "Debugger"
 version = "0.1.0"
-description = "A simple debugger implemented in Python"
+description = "A debugger implemented in Python"
 authors = [
     { name = "Yoav Shamay", email = "yoavsh97@gmail.com" }
 ]
