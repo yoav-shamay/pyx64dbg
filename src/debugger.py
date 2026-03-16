@@ -4,14 +4,15 @@ import termios
 from breakpoint import Breakpoints
 from memory import Memory
 import ptrace
+from registers import Registers
 
 class Debugger:
     def __init__(self, child_pid, child_pty):
         self.child_pid = child_pid
         self.breakpoints = Breakpoints(child_pid)
         self.child_pty = child_pty
-        self.standard_regs = ptrace.get_standard_regs(child_pid)
         self.memory = Memory(child_pid)
+        self.registers = Registers(child_pid)
     
     @staticmethod
     def _start_as_child(file_name : str):
@@ -33,8 +34,5 @@ class Debugger:
         os.wait() # wait for child to start execve, raising a signal
         res = Debugger(child_pid, pty_fd)
         return res
-
-    def _refresh_registers(self):
-        self.standard_regs = ptrace.get_standard_regs(self.child_pid)
     
     from movement_functions import step, cont, next

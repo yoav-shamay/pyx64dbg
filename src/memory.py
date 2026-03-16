@@ -10,7 +10,7 @@ class Memory:
         word = ptrace.peekdata(self.child_pid, address)
         return get_first_byte(word)
 
-    def _get_byte_range(self, start_address, end_address, step=1):
+    def _get_byte_range(self, start_address, end_address, step):
         bytes_list = []
         if step == 1:
             # take 2 bytes at a time, as peekdata returns a word, to prevent unneccessary calls
@@ -37,7 +37,7 @@ class Memory:
         new_word = change_first_byte(word, value)
         ptrace.pokedata(self.child_pid, address, new_word)
 
-    def _set_byte_range(self, data, start_address, end_address, step=1):
+    def _set_byte_range(self, data, start_address, end_address, step):
         if step == 1:
             # set 2 bytes at a time, as pokedata takes a word, to prevent unneccessary calls
             # except for the last byte if the range is odd
@@ -56,3 +56,6 @@ class Memory:
             self._set_byte_range(value, key.start, key.stop, key.step)
         else:
             self._set_byte(key, value)
+    
+    def read_instruction(self, address):
+        pass # TODO should this be here?
