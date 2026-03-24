@@ -1,5 +1,7 @@
+from cint import CInt
 import ptrace
-from utils import get_bits_range, set_bits_range, signed_to_unsigned, unsigned_to_signed, in_range
+from utils import get_bits_range, set_bits_range, signed_to_unsigned, in_range
+from types import signed_integers_by_width, unsigned_integers_by_width
 
 # format: "reg_name": ["reg_name_in_struct", (offset, size_in_bits)]
 STANDARD_REGS = {
@@ -82,7 +84,9 @@ class Registers:
             reg_name, (offset, reg_size) = STANDARD_REGS[reg_name]
             res = get_bits_range(self.standard_regs[reg_name], offset, reg_size)
             if signed:
-                res = unsigned_to_signed(res, reg_size)
+                res = signed_integers_by_width[reg_size](res)
+            else:
+                res = unsigned_integers_by_width[reg_size](res)
             return res
             # TODO add support for more register sets
         else:
@@ -91,6 +95,8 @@ class Registers:
     def set(self, reg_name, value, signed=True):
         if reg_name in STANDARD_REGS:
             reg_name, (offset, reg_size) = STANDARD_REGS[reg_name]
+            if isinstance(value, CInt):
+                value = int(value)
             if not in_range(value, reg_size, signed):
                 raise ValueError(f"Value {value} too large for register {reg_name}")
             if signed:

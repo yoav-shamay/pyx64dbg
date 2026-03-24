@@ -32,7 +32,7 @@ class Breakpoints:
         del self.original_bytes[address]
     
     
-    def step_from_breakpoint(self, address):
+    def _step_from_breakpoint(self, address):
         original_byte = self.original_bytes[address]
         breakpoint_word = ptrace.peekdata(self.child_pid, address)
         non_breakpoint_word = change_first_byte(breakpoint_word, original_byte)
