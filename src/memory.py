@@ -5,6 +5,15 @@ from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 
 
 class Memory: # TODO handle reading on breakpoints, which requires reading the original byte instead of the breakpoint instruction
+    """
+    Represents the memory of the debugged process.
+    Can read and write bytes from the memory using the following syntax:
+    memory[address] -> reads a byte from the given address
+    memory[start:end] -> reads the bytes at [start,end), returning a bytes object
+    memory[address] = value -> writes a byte to the given address. Value should be an int in the range [0, 255]
+    memory[start:end] = value -> writes a range of bytes to the given address. Value should be a bytes object of length end - start.
+    Can also use memory[start:end:step] for reading/writing with a step.
+    """
     def __init__(self, child_pid):
         self.child_pid = child_pid
         self.cs = Cs(CS_ARCH_X86, CS_MODE_64)
@@ -84,6 +93,11 @@ class Memory: # TODO handle reading on breakpoints, which requires reading the o
 
     
     def read_number(self, address, type, cnt = None):
+        """
+        Reads a number of the given type from the given address.
+        Type should be one of the number types defined in number_types, such as Int32, UInt64, etc.
+        If cnt is provided, reads cnt numbers of the given type and returns them as a list
+        """
         act_cnt = 1 if cnt is None else cnt
         byte_cnt = type.size * act_cnt
         data = self[address:address + byte_cnt]

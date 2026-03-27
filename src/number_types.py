@@ -1,3 +1,12 @@
+"""
+C-like number types for the debugger.
+Available types:
+- Int8, UInt8 / Char, UChar
+- Int16, UInt16 / Short, UShort
+- Int32, UInt32 / Int, UInt
+- Int64, UInt64 / Long, ULong
+"""
+
 import ctypes
 from cint import CInt
 

@@ -11,9 +11,15 @@ class Breakpoints:
         self.child_pid = child_pid
     
     def get_breakpoints(self):
+        """
+        Returns a list of the current breakpoints.
+        """
         return self.addresses
     
     def add_breakpoint(self, address : CInt | int):
+        """
+        Adds a breakpoint at the given address.
+        """
         address = int(address) # convert to int if it's a CInt
         if address in self.addresses:
             return
@@ -24,6 +30,9 @@ class Breakpoints:
         self.original_bytes[address] = get_first_byte(original_word)
     
     def remove_breakpoint(self, address : CInt | int):
+        """
+        Removes a breakpoint at the given address.
+        """
         address = int(address) # convert to int if it's a CInt
         if address not in self.addresses:
             raise ValueError("Addresses isn't a breakpoint")

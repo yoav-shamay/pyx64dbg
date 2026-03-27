@@ -19,6 +19,9 @@ def _handle_signal(self, status, stepped=False):
 
 
 def single_step(self):
+    """
+    Steps a single instruction.
+    """
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
         self.breakpoints.step_from_breakpoint(rip)
@@ -28,6 +31,9 @@ def single_step(self):
     self._handle_signal(status, stepped=True)
 
 def continue_execution(self):
+    """
+    Continues execution until the next breakpoint or exit.
+    """
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
         self.breakpoints.step_from_breakpoint(rip)
@@ -36,6 +42,9 @@ def continue_execution(self):
     self._handle_signal(status)
 
 def next(self):
+    """
+    Steps over to the next instruction, stepping over function calls.
+    """
     rip = int(self.registers["rip"])
     cur_instruction = self.memory.read_instruction(rip)
     if CS_GRP_CALL in cur_instruction.groups:
@@ -54,5 +63,8 @@ def next(self):
 
 
 def finish(self):
+    """
+    Steps out of the current function.
+    """
     # TODO implement finish, which steps out of the current function
     pass

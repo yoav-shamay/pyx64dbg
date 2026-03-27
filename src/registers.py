@@ -72,6 +72,13 @@ STANDARD_REGS = {
 }
 
 class Registers:
+    """
+    Represents the registers of the debugged process.
+    Can read and write registers using the following syntax:
+    registers[reg_name] / registers.reg_name -> accesses the value of the register with the given name.
+    Can also use registers.get(reg_name) and registers.set(reg_name, value) for more explicit access.
+    Can provide signed=True/False to get/set for signed or unsigned values. By default, it's True.
+    """
     def __init__(self, child_pid):
         self.child_pid = child_pid
         self._refresh_registers()
