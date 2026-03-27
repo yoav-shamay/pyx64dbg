@@ -56,7 +56,7 @@ class Memory: # TODO handle reading on breakpoints, which requires reading the o
                 remaining_amt = length % WORD_SIZE
                 address = end_address - remaining_amt + 1
                 word = ptrace.peekdata(self.child_pid, address)
-                data_num = create_word(data[-remaining_amt:], remaining_amt)
+                data_num = create_word(data[-remaining_amt:])
                 new_word = change_byte_prefix(word, data_num, remaining_amt)
                 ptrace.pokedata(self.child_pid, address, new_word)
         else:
@@ -72,7 +72,7 @@ class Memory: # TODO handle reading on breakpoints, which requires reading the o
         else:
             self._set_byte(key, value)
     
-    def read_instruction(self, address, instruction_cnt=None):
+    def read_instruction(self, address, instruction_cnt=None): # TODO should this and the next one be here or in a seperate reading / disassembly module?
         act_cnt = 1 if instruction_cnt is None else instruction_cnt
         MAX_INSTRUCTION_BYTES = 15
         code = self[address:address + act_cnt * MAX_INSTRUCTION_BYTES]
@@ -83,7 +83,7 @@ class Memory: # TODO handle reading on breakpoints, which requires reading the o
             return instructions
 
     
-    def read_number(self, address, type : CInt, cnt = None):
+    def read_number(self, address, type, cnt = None):
         act_cnt = 1 if cnt is None else cnt
         byte_cnt = type.size * act_cnt
         data = self[address:address + byte_cnt]

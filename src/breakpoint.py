@@ -1,5 +1,6 @@
 from utils import get_first_byte, change_first_byte
 import ptrace
+from cint import CInt
 
 BREAKPOINT_INSTRUCTION = 0xCC
 
@@ -12,7 +13,8 @@ class Breakpoints:
     def get_breakpoints(self):
         return self.addresses
     
-    def add_breakpoint(self, address):
+    def add_breakpoint(self, address : CInt | int):
+        address = int(address) # convert to int if it's a CInt
         if address in self.addresses:
             return
         original_word = ptrace.peekdata(self.child_pid, address)
@@ -21,7 +23,8 @@ class Breakpoints:
         self.addresses.add(address)
         self.original_bytes[address] = get_first_byte(original_word)
     
-    def remove_breakpoint(self, address):
+    def remove_breakpoint(self, address : CInt | int):
+        address = int(address) # convert to int if it's a CInt
         if address not in self.addresses:
             raise ValueError("Addresses isn't a breakpoint")
         original_byte = self.original_bytes[address]
@@ -32,7 +35,8 @@ class Breakpoints:
         del self.original_bytes[address]
     
     
-    def _step_from_breakpoint(self, address):
+    def _step_from_breakpoint(self, address : CInt | int):
+        address = int(address) # convert to int if it's a CInt
         original_byte = self.original_bytes[address]
         breakpoint_word = ptrace.peekdata(self.child_pid, address)
         non_breakpoint_word = change_first_byte(breakpoint_word, original_byte)

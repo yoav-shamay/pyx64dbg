@@ -1,5 +1,11 @@
-from IPython import embed
 import number_types
+from IPython.terminal.embed import InteractiveShellEmbed
+from IPython.terminal.prompts import Prompts, Token
+
+class ConsolePrompt(Prompts):
+    def in_prompt_tokens(self, cli=None):
+        return [(Token.Prompt, "PyDbg> ")]
+
 
 class InteractiveConsole:
     """
@@ -14,6 +20,12 @@ class InteractiveConsole:
         instructions = self.debugger.memory.read_instruction(address, instruction_cnt)
         for instruction in instructions:
             print(f"0x{instruction.address:016x}: {instruction.mnemonic:<8} {instruction.op_str}")
+    
+    def _print_breakpoints(self):
+        breakpoints = self.debugger.breakpoints.get_breakpoints()
+        print("Current breakpoints:")
+        for bp in breakpoints:
+            print(f"0x{bp:016x}")
 
     def _get_aliases(self):
         """
@@ -22,18 +34,27 @@ class InteractiveConsole:
         return {
             "single_step": self.debugger.single_step,
             "step": self.debugger.single_step,
+            "s": self.debugger.single_step,
 
             "continue_execution": self.debugger.continue_execution,
             "cont": self.debugger.continue_execution,
+            "c": self.debugger.continue_execution,
 
             "next": self.debugger.next,
+            "n": self.debugger.next,
+
             "finish": self.debugger.finish,
+            "fin": self.debugger.finish,
+            "f": self.debugger.finish,
 
             "registers": self.debugger.registers,
             "regs": self.debugger.registers,
 
             "memory": self.debugger.memory,
             "mem": self.debugger.memory,
+
+            "read_number": self.debugger.memory.read_number,
+            "read_num": self.debugger.memory.read_number,
 
             "Int8": number_types.Int8,
             "UInt8": number_types.UInt8,
@@ -57,11 +78,17 @@ class InteractiveConsole:
 
             "add_breakpoint": self.debugger.breakpoints.add_breakpoint,
             "brk": self.debugger.breakpoints.add_breakpoint,
+            "b": self.debugger.breakpoints.add_breakpoint,
             "remove_breakpoint": self.debugger.breakpoints.remove_breakpoint,
-            "breakpoints": self.debugger.breakpoints.get_breakpoints,
-            "brks": self.debugger.breakpoints.get_breakpoints,
-            "get_breakpoints": self.debugger.breakpoints.get_breakpoints,
+            "breakpoints": self._print_breakpoints,
+            "brks": self._print_breakpoints,
+            
+            "debugger": self.debugger,
+            "dbg": self.debugger,
         }
     
     def run(self):
-        embed(colors='linux', user_ns=self._get_aliases())
+        shell = InteractiveShellEmbed(colors='linux',user_ns=self._get_aliases())
+        shell.prompts = ConsolePrompt(shell)
+        shell.run_line_magic("autocall", "2") # enable autocall, so that we don't have to type parentheses for function calls
+        shell()

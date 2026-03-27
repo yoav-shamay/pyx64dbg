@@ -96,7 +96,8 @@ class Registers:
         if reg_name in STANDARD_REGS:
             reg_name, (offset, reg_size) = STANDARD_REGS[reg_name]
             if isinstance(value, CInt):
-                value = int(value)
+                signed = value.is_signed
+                value = int(value) # convert to int if it's a CInt
             if not in_range(value, reg_size, signed):
                 raise ValueError(f"Value {value} too large for register {reg_name}") # TODO should I do automatic reduction to the size (mod)? might use the types for auto conversion
             if signed:
