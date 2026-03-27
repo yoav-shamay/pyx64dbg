@@ -1,7 +1,7 @@
 from cint import CInt
 import ptrace
 from utils import get_bits_range, set_bits_range, signed_to_unsigned, in_range
-from types import signed_integers_by_width, unsigned_integers_by_width
+from number_types import signed_integers_by_width, unsigned_integers_by_width
 
 # format: "reg_name": ["reg_name_in_struct", (offset, size_in_bits)]
 STANDARD_REGS = {
@@ -98,12 +98,13 @@ class Registers:
             if isinstance(value, CInt):
                 value = int(value)
             if not in_range(value, reg_size, signed):
-                raise ValueError(f"Value {value} too large for register {reg_name}")
+                raise ValueError(f"Value {value} too large for register {reg_name}") # TODO should I do automatic reduction to the size (mod)? might use the types for auto conversion
             if signed:
                 value = signed_to_unsigned(value, reg_size)
             full_reg_value = self.standard_regs[reg_name]
             new_full_reg_value = set_bits_range(full_reg_value, offset, reg_size, value)
-            ptrace.set_standard_regs(self.child_pid, {reg_name: new_full_reg_value})
+            self.standard_regs[reg_name] = new_full_reg_value
+            ptrace.set_standard_regs(self.child_pid, self.standard_regs)
             self._refresh_registers()
             # TODO add support for more register sets
         else:
@@ -114,3 +115,12 @@ class Registers:
     
     def __setitem__(self, key, value):
         self.set(key, value)
+
+    def __getattr__(self, name):
+        return self.get(name)
+
+    def __setattr__(self, name, value):
+        if name in STANDARD_REGS: # TODO add more sets of registers once added
+            self.set(name, value)
+        else:
+            super().__setattr__(name, value)

@@ -41,10 +41,10 @@ static PyObject *method_peekdata(PyObject *self, PyObject *args)
     {
         return NULL;
     }
-    int res = ptrace(PTRACE_PEEKDATA, child_pid, (void *)address, NULL);
+    unsigned long res = ptrace(PTRACE_PEEKDATA, child_pid, (void *)address, NULL);
     if (errno == 0)
     {
-        return PyLong_FromLong(res);
+        return PyLong_FromUnsignedLong(res);
     }
     else
     {
@@ -55,9 +55,10 @@ static PyObject *method_peekdata(PyObject *self, PyObject *args)
 
 static PyObject *method_pokedata(PyObject *self, PyObject *args)
 {
-    int child_pid, data;
+    int child_pid;
+    unsigned long data;
     size_t address;
-    if (!PyArg_ParseTuple(args, "iki", &child_pid, &address, &data))
+    if (!PyArg_ParseTuple(args, "ikL", &child_pid, &address, &data))
     {
         return NULL;
     }
@@ -94,7 +95,10 @@ static PyObject *method_get_standard_regs(PyObject *self, PyObject *args)
         return NULL;
     }
     struct user_regs_struct regs;
-    int ptrace_res = ptrace(PTRACE_GETREGS, child_pid, NT_PRSTATUS, &regs);
+    struct iovec iov;
+    iov.iov_base = &regs;
+    iov.iov_len = sizeof(regs);
+    int ptrace_res = ptrace(PTRACE_GETREGSET, child_pid, NT_PRSTATUS, &iov);
     if (ptrace_res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -143,7 +147,6 @@ static PyObject *method_get_debug_regs(PyObject *self, PyObject *args)
 
 static PyObject *method_set_standard_regs(PyObject *self, PyObject *args)
 {
-
     int child_pid;
     PyObject *regs_dict;
     if (!PyArg_ParseTuple(args, "iO!", &child_pid, &PyDict_Type, &regs_dict))
@@ -181,7 +184,7 @@ static PyObject *method_set_standard_regs(PyObject *self, PyObject *args)
     struct iovec iov;
     iov.iov_base = &regs;
     iov.iov_len = sizeof(regs);
-    int res = ptrace(PTRACE_SETREGS, child_pid, NT_PRSTATUS, &iov);
+    int res = ptrace(PTRACE_SETREGSET, child_pid, NT_PRSTATUS, &iov);
     if (res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);

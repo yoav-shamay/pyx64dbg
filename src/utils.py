@@ -1,17 +1,21 @@
-SECOND_BYTE_MASK = 0xFF00
 FIRST_BYTE_MASK = 0xFF
+WORD_SIZE = 8
 
 def get_first_byte(word):
     return word & FIRST_BYTE_MASK
 
 def change_first_byte(word, new_first_byte):
-    return new_first_byte | (word & SECOND_BYTE_MASK)
+    return new_first_byte | (word & ~FIRST_BYTE_MASK)
 
-def split_bytes(word):
-    return [word & FIRST_BYTE_MASK, (word & SECOND_BYTE_MASK) >> 8]
+def change_byte_prefix(word, pref, byte_cnt):
+    mask = (1 << (byte_cnt * 8)) - 1
+    return pref | (word & ~mask)
 
-def create_word(first_byte, second_byte):
-    return first_byte | (second_byte << 8)
+def split_bytes(word, byte_cnt=WORD_SIZE):
+    return list(word.to_bytes(byte_cnt, byteorder='little'))
+
+def create_word(byte_list):
+    return int.from_bytes(byte_list, byteorder='little')
 
 def get_bits_range(value, start_bit, num_bits):
     mask = (1 << num_bits) - 1

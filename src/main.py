@@ -1,6 +1,7 @@
 import argparse
 from debugger import Debugger
-from IPython import embed
+
+from interactive_console import InteractiveConsole
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -14,7 +15,8 @@ def main():
     args = parse_arguments()
     file_name = args.filename
     debugger = Debugger.start_and_debug(file_name)
-    embed(colors='linux')
+    console = InteractiveConsole(debugger)
+    console.run()
 
 if __name__ == "__main__":
     main()

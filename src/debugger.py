@@ -9,8 +9,8 @@ from registers import Registers
 class Debugger:
     def __init__(self, child_pid, child_pty):
         self.child_pid = child_pid
-        self.breakpoints = Breakpoints(child_pid)
         self.child_pty = child_pty
+        self.breakpoints = Breakpoints(child_pid)
         self.memory = Memory(child_pid)
         self.registers = Registers(child_pid)
     
@@ -35,4 +35,4 @@ class Debugger:
         res = Debugger(child_pid, pty_fd)
         return res
     
-    from movement_functions import step, cont, next
+    from movement_functions import single_step, continue_execution, next, finish, _handle_signal
