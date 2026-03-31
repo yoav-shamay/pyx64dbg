@@ -1,5 +1,5 @@
 import inspect
-from commands import get_commands
+from console_commands import get_commands, get_number_types
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
 
@@ -32,7 +32,7 @@ class InteractiveConsole:
         Prints the disassembly of the instructions at the given address.
         Disassembles instruction_cnt instructions.
         """
-        instructions = self.debugger.memory.read_instruction(address, instruction_cnt)
+        instructions = self.debugger.read_instruction(address, instruction_cnt)
         for instruction in instructions:
             print(f"0x{instruction.address:016x}: {instruction.mnemonic:<8} {instruction.op_str}")
     
@@ -73,6 +73,10 @@ class InteractiveConsole:
         for names, func, _ in commands:
             for name in names:
                 aliases_dict[name] = func
+        # add number types
+        for name, type in get_number_types():
+            aliases_dict[name] = type
+
         return aliases_dict
     
     def _init_help_message(self):
