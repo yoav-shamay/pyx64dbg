@@ -11,7 +11,7 @@ class Debugger:
         self.child_pid = child_pid
         self.child_pty = child_pty
         self.breakpoints = Breakpoints(child_pid)
-        self.memory = Memory(child_pid)
+        self.memory = Memory(child_pid, self.breakpoints)
         self.registers = Registers(child_pid)
     
     @staticmethod

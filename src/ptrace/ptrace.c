@@ -41,6 +41,7 @@ static PyObject *method_peekdata(PyObject *self, PyObject *args)
     {
         return NULL;
     }
+    errno = 0;
     unsigned long res = ptrace(PTRACE_PEEKDATA, child_pid, (void *)address, NULL);
     if (errno == 0)
     {
@@ -203,6 +204,62 @@ static PyObject *method_set_debug_regs(PyObject *self, PyObject *args)
     //TODO implement this function, using ptrace with PTRACE_SETREGSET and NT_X86_IOTRAP
 }
 
+static PyObject *method_get_memory_range(PyObject *self, PyObject *args)
+{
+    int child_pid;
+    size_t address;
+    size_t length;
+    if (!PyArg_ParseTuple(args, "ikk", &child_pid, &address, &length))
+    {
+        return NULL;
+    }
+    PyObject *buffer = PyBytes_FromStringAndSize(NULL, length);
+    if (buffer == NULL)
+    {
+        return NULL;
+    }
+    struct iovec local_iov[1];
+    local_iov[0].iov_base = PyBytes_AS_STRING(buffer);
+    local_iov[0].iov_len = length;
+    struct iovec remote_iov[1];
+    remote_iov[0].iov_base = (void *)address;
+    remote_iov[0].iov_len = length;
+    ssize_t nread = process_vm_readv(child_pid, local_iov, 1, remote_iov, 1, 0);
+    if (nread == -1 || nread < (ssize_t) length)
+    {
+        Py_DECREF(buffer);
+        PyErr_SetFromErrno(PyExc_OSError);
+        return NULL;
+    }
+    return buffer;
+}
+
+static PyObject *method_write_memory_range(PyObject *self, PyObject *args)
+{
+    int child_pid;
+    size_t address;
+    Py_buffer buf;
+    if (!PyArg_ParseTuple(args, "iky*", &child_pid, &address, &buf))
+    {
+        return NULL;
+    }
+
+    struct iovec local_iov[1];
+    local_iov[0].iov_base = buf.buf;
+    local_iov[0].iov_len = buf.len;
+    struct iovec remote_iov[1];
+    remote_iov[0].iov_base = (void *)address;
+    remote_iov[0].iov_len = buf.len;
+    ssize_t nwritten = process_vm_writev(child_pid, local_iov, 1, remote_iov, 1, 0);
+    PyBuffer_Release(&buf);
+    if (nwritten == -1 || nwritten < buf.len)
+    {
+        PyErr_SetFromErrno(PyExc_OSError);
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef Ptrace_methods[] = {
     {"traceme", method_traceme, METH_NOARGS, "ptrace call with PTRACE_TRACEME"},
     {"cont", method_cont, METH_VARARGS, "ptrace call with PTRACE_CONT"},
@@ -215,6 +272,8 @@ static PyMethodDef Ptrace_methods[] = {
     {"set_standard_regs", method_set_standard_regs, METH_VARARGS, "ptrace call with PTRACE_SETREGSET on NT_PRSTATUS"},
     {"set_extended_regs", method_set_extended_regs, METH_VARARGS, "ptrace call with PTRACE_SETREGSET on NT_X86_XSTATE"},
     {"set_debug_regs", method_set_debug_regs, METH_VARARGS, "ptrace call with PTRACE_SETREGSET on NT_X86_IOTRAP"},
+    {"get_memory_range", method_get_memory_range, METH_VARARGS, "read memory range of the child process using process_vm_readv"},
+    {"write_memory_range", method_write_memory_range, METH_VARARGS, "write memory range of the child process using process_vm_writev"},
     {NULL, NULL, 0, NULL}
 };
 

@@ -1,5 +1,5 @@
 import inspect
-import number_types
+from commands import get_commands
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
 
@@ -10,20 +10,11 @@ class ConsolePrompt(Prompts):
 banner = """Welcome to the PyDbg interactive console!
 Type help for more information."""
 
-help_message = """Available methods / properties:
-- single_step / step / s: Step into the next instruction.
-- continue_execution / cont / c: Continue execution until the next breakpoint or the program exits.
-- next / n: Step over to the next instruction, stepping over function calls.
-- finish / fin / f: Step out of the current function.
-- registers / regs: View the current register values.
-- memory / mem: Access the memory of the debugged process. Supports indexing and slicing.
-- read_number / read_num: Read a number from memory at a given address.
-- disassemble / dis: Disassemble instructions at a given address.
-- add_breakpoint / brk / b: Add a breakpoint at a given address.
-- remove_breakpoint: Remove a breakpoint at a given address.
-- breakpoints / brks: View the current breakpoints.
-- debugger / dbg: Access the underlying Debugger object for more advanced operations.
+help_message = """This is an interactive python console.
+Available methods / objects:
+<METHODS_LIST>
 You can also use the number types defined in the number_types module, such as Int32, UInt64, etc., for reading numbers from memory.
+You can also call functions without parenthesis, e. g. "s" or "dis regs.rip,10".
 Use help(object) to view the docstring for any of the above methods or properties for more details on their usage, or help(number_types) to view the available number types and their details."""
 
 class InteractiveConsole:
@@ -34,6 +25,7 @@ class InteractiveConsole:
     """
     def __init__(self, debugger):
         self.debugger = debugger
+        self._init_help_message()
     
     def print_disassembly(self, address : int, instruction_cnt : int) -> None:
         """
@@ -60,7 +52,7 @@ class InteractiveConsole:
         Prints the docstring of the object if it exists.
         """
         if obj is None:
-            print(help_message)
+            print(self.help_message)
         else:
             # if a function, print its signature
             if callable(obj):
@@ -76,65 +68,23 @@ class InteractiveConsole:
         """
         Define aliases for commonly used functions and attributes to make them easier to access in the interactive console.
         """
-        return {
-            "single_step": self.debugger.single_step,
-            "step": self.debugger.single_step,
-            "s": self.debugger.single_step,
-
-            "continue_execution": self.debugger.continue_execution,
-            "cont": self.debugger.continue_execution,
-            "c": self.debugger.continue_execution,
-
-            "next": self.debugger.next,
-            "n": self.debugger.next,
-
-            "finish": self.debugger.finish,
-            "fin": self.debugger.finish,
-            "f": self.debugger.finish,
-
-            "registers": self.debugger.registers,
-            "regs": self.debugger.registers,
-
-            "memory": self.debugger.memory,
-            "mem": self.debugger.memory,
-
-            "read_number": self.debugger.memory.read_number,
-            "read_num": self.debugger.memory.read_number,
-
-            "Int8": number_types.Int8,
-            "UInt8": number_types.UInt8,
-            "Int16": number_types.Int16,
-            "UInt16": number_types.UInt16,
-            "Int32": number_types.Int32,
-            "UInt32": number_types.UInt32,
-            "Int64": number_types.Int64,
-            "UInt64": number_types.UInt64,
-            "Char": number_types.Char,
-            "UChar": number_types.UChar,
-            "Short": number_types.Short,
-            "UShort": number_types.UShort,
-            "Int": number_types.Int,
-            "UInt": number_types.UInt,
-            "Long": number_types.Long,
-            "ULong": number_types.ULong,
-
-            "disassemble": self.print_disassembly,
-            "dis": self.print_disassembly,
-
-            "add_breakpoint": self.debugger.breakpoints.add_breakpoint,
-            "brk": self.debugger.breakpoints.add_breakpoint,
-            "b": self.debugger.breakpoints.add_breakpoint,
-            "remove_breakpoint": self.debugger.breakpoints.remove_breakpoint,
-            "breakpoints": self.print_breakpoints,
-            "brks": self.print_breakpoints,
-            
-            "debugger": self.debugger,
-            "dbg": self.debugger,
-
-            "help": self.help,
-            "number_types": number_types,
-        }
+        commands = get_commands(self)
+        aliases_dict = {}
+        for names, func, _ in commands:
+            for name in names:
+                aliases_dict[name] = func
+        return aliases_dict
     
+    def _init_help_message(self):
+        """
+        Initializes the help message by replacing the <METHODS_LIST> placeholder with a list of the available methods and their descriptions.
+        """
+        commands = get_commands(self)
+        methods_list = ""
+        for names, _, description in commands:
+            methods_list += f"- {' / '.join(names)}: {description}\n"
+        self.help_message = help_message.replace("<METHODS_LIST>", methods_list)
+
     def run(self):
         shell = InteractiveShellEmbed(colors='linux',user_ns=self._get_aliases() ,display_banner=False)
         shell.prompts = ConsolePrompt(shell)
