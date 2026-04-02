@@ -97,7 +97,7 @@ class Registers:
             return res
             # TODO add support for more register sets
         else:
-            raise KeyError(f"Register {reg_name} not found")
+            raise KeyError(reg_name)
     
     def set(self, reg_name, value, signed=True):
         if reg_name in STANDARD_REGS:
@@ -116,7 +116,7 @@ class Registers:
             self._refresh_registers()
             # TODO add support for more register sets
         else:
-            raise KeyError(f"Register {reg_name} not found")
+            raise KeyError(reg_name)
     
     def __getitem__(self, key):
         return self.get(key)
@@ -125,7 +125,10 @@ class Registers:
         self.set(key, value)
 
     def __getattr__(self, name):
-        return self.get(name)
+        if name in STANDARD_REGS:
+            return self.get(name)
+        else:
+            raise AttributeError(name)
 
     def __setattr__(self, name, value):
         if name in STANDARD_REGS: # TODO add more sets of registers once added

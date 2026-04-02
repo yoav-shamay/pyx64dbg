@@ -1,7 +1,12 @@
 import inspect
+import sys
 from console_commands import get_commands, get_number_types
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
+import number_types
+from stack import StackFrame
+from IPython.utils.coloransi import TermColors as tc
+from prompt_toolkit import print_formatted_text, HTML
 
 class ConsolePrompt(Prompts):
     def in_prompt_tokens(self, cli=None):
@@ -13,9 +18,9 @@ Type help for more information."""
 help_message = """This is an interactive python console.
 Available methods / objects:
 <METHODS_LIST>
-You can also use the number types defined in the number_types module, such as Int32, UInt64, etc., for reading numbers from memory.
+You can also use the number types such as Int32, UInt64, etc., for constant-size integers. See help(number_types) for more details.
 You can also call functions without parenthesis, e. g. "s" or "dis regs.rip,10".
-Use help(object) to view the docstring for any of the above methods or properties for more details on their usage, or help(number_types) to view the available number types and their details."""
+Use help(object) to view the docstring for any of the above methods or properties for more details on their usage."""
 
 class InteractiveConsole:
     """
@@ -62,6 +67,7 @@ class InteractiveConsole:
             if docstring is None:
                 print("No help available for this object.")
             else:
+                docstring = docstring.strip() # strip leading and trailing newlines
                 print(docstring)
 
     def _get_aliases(self):
@@ -76,7 +82,9 @@ class InteractiveConsole:
         # add number types
         for name, type in get_number_types():
             aliases_dict[name] = type
-
+        # add classes for help: number_types and StackFrame
+        aliases_dict["number_types"] = number_types
+        aliases_dict["StackFrame"] = StackFrame
         return aliases_dict
     
     def _init_help_message(self):
@@ -89,9 +97,23 @@ class InteractiveConsole:
             methods_list += f"- {' / '.join(names)}: {description}\n"
         self.help_message = help_message.replace("<METHODS_LIST>", methods_list)
 
+    def _show_traceback(self, exc_tuple=None, filename=None, tb=None, tb_offset=None,
+                          exception_only=False, running_compiled_code=False):
+        """
+        Shows error message only, without overwhelming the user with internal errors of the console, which are not relevant to the user and can be confusing.
+        """
+        if exc_tuple is not None:
+            exc_type, exc_value, _ = exc_tuple
+        else:
+            exc_type, exc_value, _ = sys.exc_info()
+        output = f"<ansired><b>{exc_type.__name__}</b></ansired>: {exc_value}"
+        print_formatted_text(HTML(output))
+
     def run(self):
-        shell = InteractiveShellEmbed(colors='linux',user_ns=self._get_aliases() ,display_banner=False)
-        shell.prompts = ConsolePrompt(shell)
-        shell.autocall = 2 # automatically call functions without parentheses, e. g. "s" instead of "s()"
+        self.shell = InteractiveShellEmbed(colors='linux',user_ns=self._get_aliases() ,display_banner=False)
+        self.shell.prompts = ConsolePrompt(self.shell)
+        # disable tracebacks to avoid overwhelming the user with internal errors of the console, which are not relevant to the user and can be confusing
+        self.shell.showtraceback = self._show_traceback
+        self.shell.autocall = 2 # automatically call functions without parentheses, e. g. "s" instead of "s()"
         print(banner)
-        shell()
+        self.shell()

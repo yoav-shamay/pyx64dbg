@@ -51,7 +51,7 @@ class StackFrame:
             self.memory[self.rbp + key] = value
     @property
     def saved_rbp(self):
-        return UInt64(self[0:8])
+        return UInt64.from_bytes(self[0:8])
     
     @saved_rbp.setter
     def saved_rbp(self, value : int | CInt):
@@ -65,7 +65,7 @@ class StackFrame:
     
     @property    
     def saved_rip(self):
-        return UInt64(self[8:16])
+        return UInt64.from_bytes(self[8:16])
     
     @saved_rip.setter
     def saved_rip(self, value : int | CInt):
@@ -77,25 +77,47 @@ class StackFrame:
         
         self[8:16] = value
 
+    def read_number(self, offset, type, cnt=None):
+        """
+        Reads a number of the given type from the given offset in the stack frame.
+        Type should be one of the number types defined in number_types, such as Int32, UInt64, etc.
+        If cnt is provided, reads cnt numbers of the given type and returns them as a list
+        """
+        act_cnt = 1 if cnt is None else cnt
+        byte_cnt = type.size * act_cnt
+        data = self[offset : offset + byte_cnt]
+        res = []
+        for i in range(act_cnt):
+            res.append(type.from_bytes(data[i * type.size : (i + 1) * type.size]))
+        if cnt is None: # if the user didn't specify a count, return a single number instead of a list
+            return res[0]
+        else:
+            return res
+
 
 class Stack:
     """
     Represents the call stack of the debugged program, allowing access to individual stack frames.
     Allows accessing current frame using current_frame(), and specific frame using [index].
     The current frame is index 0, the caller's frame is index 1, etc.
+    To get help on usage of StackFrames, use help(StackFrame) in the console.
     """
     def __init__(self, memory, registers):
         self.memory = memory
         self.registers = registers
     
     def current_frame(self):
+        if self.registers.rbp == 0:
+            raise IndexError("No stack frames available")
         return StackFrame(self.registers.rbp, self.registers.rsp, self.memory)
 
-    def __getitem__(self, index : int):
+    def __getitem__(self, index : int | CInt):
         """
         Get the index-th stack frame.
         0 is the current frame, 1 is the caller's frame, etc.
         """
+        if index < 0:
+            raise IndexError("Stack frame index cannot be negative")
         current_frame = self.current_frame()
         for _ in range(index):
             if current_frame.saved_rbp == 0: # reached the end of the stack frames

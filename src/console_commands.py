@@ -15,6 +15,7 @@ def get_commands(console : "InteractiveConsole"):
         (["remove_breakpoint"], console.debugger.breakpoints.remove_breakpoint, "Remove a breakpoint at a given address."),
         (["breakpoints", "brks", "bps"], console.print_breakpoints, "View the current breakpoints."),
         (["debugger", "dbg"], console.debugger, "Access the underlying Debugger object for more advanced operations."),
+        (["stack"], console.debugger.stack, "Access the call stack and stack frames."),
         (["help"], console.help, "Show this help message or get help for a specific command or object.")
     ]
 
