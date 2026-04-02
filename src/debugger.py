@@ -7,6 +7,8 @@ import ptrace
 from registers import Registers
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 
+from stack import Stack
+
 class Debugger:
     def __init__(self, child_pid, child_pty):
         self.child_pid = child_pid
@@ -14,6 +16,7 @@ class Debugger:
         self.breakpoints = Breakpoints(child_pid)
         self.memory = Memory(child_pid, self.breakpoints)
         self.registers = Registers(child_pid)
+        self.stack = Stack(self.memory, self.registers)
 
         self.cs = Cs(CS_ARCH_X86, CS_MODE_64)
         self.cs.detail = True
