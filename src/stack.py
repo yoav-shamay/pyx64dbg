@@ -84,11 +84,12 @@ class StackFrame:
         If cnt is provided, reads cnt numbers of the given type and returns them as a list
         """
         act_cnt = 1 if cnt is None else cnt
-        byte_cnt = type.size * act_cnt
+        type_byte_width = type.size // 8
+        byte_cnt = act_cnt * type_byte_width
         data = self[offset : offset + byte_cnt]
         res = []
         for i in range(act_cnt):
-            res.append(type.from_bytes(data[i * type.size : (i + 1) * type.size]))
+            res.append(type.from_bytes(data[i * type_byte_width : (i + 1) * type_byte_width]))
         if cnt is None: # if the user didn't specify a count, return a single number instead of a list
             return res[0]
         else:
@@ -123,5 +124,5 @@ class Stack:
             if current_frame.saved_rbp == 0: # reached the end of the stack frames
                 raise IndexError("Stack frame index out of range")
             # move to the caller's frame by reading the saved RBP and using RSP + 16 (exclude the saved RBP and saved RIP) as the new RSP
-            current_frame = StackFrame(current_frame.saved_rbp(), current_frame.rbp + 16, self.memory)
+            current_frame = StackFrame(current_frame.saved_rbp, current_frame.rbp + 16, self.memory)
         return current_frame

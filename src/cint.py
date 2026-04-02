@@ -314,5 +314,5 @@ class CInt(Generic[CT]):
         return cls(int_value)
 
     def to_bytes(self, byteorder="little"):
-        size = self.size
-        return self.num.value.to_bytes(size, byteorder=byteorder, signed=self.is_signed)
+        size_bytes = self.size // 8
+        return self.num.value.to_bytes(size_bytes, byteorder=byteorder, signed=self.is_signed)

@@ -24,7 +24,7 @@ def single_step(self):
     """
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
-        self.breakpoints.step_from_breakpoint(rip)
+        self.breakpoints._step_from_breakpoint(rip)
     else:
         ptrace.single_step(self.child_pid)
     _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
@@ -36,7 +36,7 @@ def continue_execution(self):
     """
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
-        self.breakpoints.step_from_breakpoint(rip)
+        self.breakpoints._step_from_breakpoint(rip)
     ptrace.cont(self.child_pid)
     _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
     self._handle_signal(status)

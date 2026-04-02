@@ -1,6 +1,9 @@
 import number_types
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from interactive_console import InteractiveConsole
 
-def get_commands(console : "InteractiveConsole"):
+def get_commands(console : InteractiveConsole):
     return [
         (["single_step", "step", "s"], console.debugger.single_step, "Step into the next instruction."),
         (["continue_execution", "cont", "c"], console.debugger.continue_execution, "Continue execution until the next breakpoint or the program exits."),
