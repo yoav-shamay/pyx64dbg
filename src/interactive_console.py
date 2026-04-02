@@ -28,8 +28,9 @@ class InteractiveConsole:
     Allows the user to interact with the debugger in a REPL-like environment.
     Defines aliases for commonly used functions and attributes to make them easier to access in the interactive console.
     """
-    def __init__(self, debugger):
+    def __init__(self, debugger, verbose=False):
         self.debugger = debugger
+        self.verbose = verbose
         self._init_help_message()
     
     def print_disassembly(self, address : int, instruction_cnt : int) -> None:
@@ -97,7 +98,7 @@ class InteractiveConsole:
             methods_list += f"- {' / '.join(names)}: {description}\n"
         self.help_message = help_message.replace("<METHODS_LIST>", methods_list)
 
-    def _show_traceback(self, exc_tuple=None, filename=None, tb=None, tb_offset=None,
+    def _show_simple_error(self, exc_tuple=None, filename=None, tb=None, tb_offset=None,
                           exception_only=False, running_compiled_code=False):
         """
         Shows error message only, without overwhelming the user with internal errors of the console, which are not relevant to the user and can be confusing.
@@ -113,7 +114,8 @@ class InteractiveConsole:
         self.shell = InteractiveShellEmbed(colors='linux',user_ns=self._get_aliases() ,display_banner=False)
         self.shell.prompts = ConsolePrompt(self.shell)
         # disable tracebacks to avoid overwhelming the user with internal errors of the console, which are not relevant to the user and can be confusing
-        self.shell.showtraceback = self._show_traceback
+        if not self.verbose:
+            self.shell.showtraceback = self._show_simple_error
         self.shell.autocall = 2 # automatically call functions without parentheses, e. g. "s" instead of "s()"
         print(banner)
         self.shell()

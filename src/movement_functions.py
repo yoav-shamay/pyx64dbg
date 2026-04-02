@@ -66,5 +66,12 @@ def finish(self):
     """
     Steps out of the current function.
     """
-    # TODO implement finish, which steps out of the current function
-    pass
+    current_frame = self.stack.current_frame()
+    return_address = int(current_frame.saved_rip)
+    if return_address in self.breakpoints.get_breakpoints():
+        # if there is already a breakpoint on the return address, skip adding the temporary breakpoint
+        self.continue_execution()
+        return
+    self.breakpoints.add_breakpoint(return_address)
+    self.continue_execution()
+    self.breakpoints.remove_breakpoint(return_address)
