@@ -1,12 +1,9 @@
 import inspect
 import sys
-from interactive_console.console_commands import get_all_command_names, get_available_commands, get_all_commands_help
+from interactive_console.console_commands import get_available_commands, get_all_commands_help
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
 from interactive_console.invalid_process_state_trap import ExceptionTrap, ProcessAlreadyRunningError, ProcessNotRunningError
-import number_types
-from stack import StackFrame
-from IPython.utils.coloransi import TermColors as tc
 from prompt_toolkit import print_formatted_text, HTML
 from debugger import Debugger
 import atexit

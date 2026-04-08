@@ -1,15 +1,9 @@
 import number_types
 from typing import TYPE_CHECKING
-from process_exited_error import ProcessExitedError
+from stack import StackFrame
 
 if TYPE_CHECKING:
     from interactive_console.interactive_console import InteractiveConsole
-
-
-def _process_not_running(*args, **kwargs):
-    """Wrapper that raises ProcessExitedError when called after process exits."""
-    raise ProcessExitedError(exit_code=None, signal=None)
-
 
 # Define all active commands once with dotted path names - single source of truth
 # format - ([aliases], ("path.to.method.active", "path.to.method.inactive"), "help_description" (or None for not showing))
@@ -31,6 +25,16 @@ ALL_COMMANDS = [
     (["debugger", "dbg"], ("debugger", "_process_not_running_trap"), "Access the underlying Debugger object for more advanced operations."),
     (["stack"], ("debugger.stack", "_process_not_running_trap"), "Access the call stack and stack frames."),
     (["help"], ("help", "help"), "Show this help message or get help for a specific command or object."),
+    (["Int8", "Char"], (number_types.Int8, number_types.Int8), None),
+    (["Int16", "Short"], (number_types.Int16, number_types.Int16), None),
+    (["Int32", "Long"], (number_types.Int32, number_types.Int32), None),
+    (["Int64"], (number_types.Int64, number_types.Int64), None),
+    (["UInt8", "UChar"], (number_types.UInt8, number_types.UInt8), None),
+    (["UInt16", "UShort"], (number_types.UInt16, number_types.UInt16), None),
+    (["UInt32", "UInt"], (number_types.UInt32, number_types.UInt32), None),
+    (["UInt64", "ULong"], (number_types.UInt64, number_types.UInt64), None),
+    (["number_types"], (number_types, number_types), None), # for help entry
+    (["StackFrame"], (StackFrame, StackFrame), None) # for help entry
 ]
 
 
@@ -54,8 +58,10 @@ def get_available_commands(console: "InteractiveConsole", process_running: bool)
     """
     res = []
     for names, (active_path, inactive_path), _ in ALL_COMMANDS:
-        path = active_path if process_running else inactive_path
-        target = _resolve_target(console, path)
+        target = active_path if process_running else inactive_path
+        if isinstance(target, str): # if the target is a string, it's a path string that needs to be resolved
+            target = _resolve_target(console, target)
+        
         res.append((names, target))
     return res
 
