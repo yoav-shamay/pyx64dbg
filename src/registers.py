@@ -79,14 +79,17 @@ class Registers:
     Can also use registers.get(reg_name) and registers.set(reg_name, value) for more explicit access.
     Can provide signed=True/False to get/set for signed or unsigned values. By default, it's True.
     """
-    def __init__(self, child_pid):
+    def __init__(self, child_pid, ensure_running):
         self.child_pid = child_pid
+        self._ensure_running = ensure_running
         self._refresh_registers()
 
     def _refresh_registers(self):
+        self._ensure_running()
         self.standard_regs = ptrace.get_standard_regs(self.child_pid)
     
     def get(self, reg_name, signed=True):
+        self._ensure_running()
         if reg_name in STANDARD_REGS:
             reg_name, (offset, reg_size) = STANDARD_REGS[reg_name]
             res = get_bits_range(self.standard_regs[reg_name], offset, reg_size)
@@ -100,6 +103,7 @@ class Registers:
             raise KeyError(reg_name)
     
     def set(self, reg_name, value, signed=True):
+        self._ensure_running()
         if reg_name in STANDARD_REGS:
             reg_name, (offset, reg_size) = STANDARD_REGS[reg_name]
             if isinstance(value, CInt):

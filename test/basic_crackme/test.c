@@ -5,6 +5,7 @@
 
 int main()
 {
+    printf("Enter password: ");
     long long number;
     scanf("%d", &number);
     for (int i = 0; i < 100; i++)

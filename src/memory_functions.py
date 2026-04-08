@@ -2,6 +2,7 @@ from cint import CInt
 
 
 def read_instruction(self, address, instruction_cnt=None):
+    self._ensure_running()
     act_cnt = 1 if instruction_cnt is None else instruction_cnt
     MAX_INSTRUCTION_BYTES = 15
     code = self.memory[address : address + act_cnt * MAX_INSTRUCTION_BYTES]
@@ -19,6 +20,7 @@ def read_number(self, address, type, cnt=None):
     Type should be one of the number types defined in number_types, such as Int32, UInt64, etc.
     If cnt is provided, reads cnt numbers of the given type and returns them as a list
     """
+    self._ensure_running()
     act_cnt = 1 if cnt is None else cnt
     byte_width = type.size // 8
     byte_cnt = act_cnt * byte_width
@@ -40,6 +42,7 @@ def write_number(self, address, value: int | CInt, width: int = None):
     Value can be an int or a CInt. If it's a CInt, the width will be determined from the type.
     Otherwise, the width should be provided as a parameter (in bits, should be a multiple of 8).
     """
+    self._ensure_running()
     if isinstance(value, CInt):
         width = value.size # determine width from the CInt type
         bytes_to_write = value.to_bytes()

@@ -1,12 +1,15 @@
 import inspect
 import sys
-from console_commands import get_commands, get_number_types
+from interactive_console.console_commands import get_all_command_names, get_available_commands, get_all_commands_help
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
+from interactive_console.invalid_process_state_trap import ExceptionTrap, ProcessAlreadyRunningError, ProcessNotRunningError
 import number_types
 from stack import StackFrame
 from IPython.utils.coloransi import TermColors as tc
 from prompt_toolkit import print_formatted_text, HTML
+from debugger import Debugger
+import atexit
 
 class ConsolePrompt(Prompts):
     def in_prompt_tokens(self, cli=None):
@@ -28,10 +31,14 @@ class InteractiveConsole:
     Allows the user to interact with the debugger in a REPL-like environment.
     Defines aliases for commonly used functions and attributes to make them easier to access in the interactive console.
     """
-    def __init__(self, debugger, verbose=False):
-        self.debugger = debugger
+    def __init__(self, file_name, verbose=False):
+        self.file_name = file_name
+        self.debugger = None
+        self.process_running = False
         self.verbose = verbose
         self._init_help_message()
+        self._process_already_running_trap = ExceptionTrap(ProcessAlreadyRunningError())
+        self._process_not_running_trap = ExceptionTrap(ProcessNotRunningError())
     
     def print_disassembly(self, address : int, instruction_cnt : int) -> None:
         """
@@ -70,31 +77,27 @@ class InteractiveConsole:
             else:
                 docstring = docstring.strip() # strip leading and trailing newlines
                 print(docstring)
-
+    
     def _get_aliases(self):
-        """
-        Define aliases for commonly used functions and attributes to make them easier to access in the interactive console.
-        """
-        commands = get_commands(self)
-        aliases_dict = {}
-        for names, func, _ in commands:
+        cur_commands = get_available_commands(self, self.process_running)
+        aliases = {}
+        for names, obj in cur_commands:
             for name in names:
-                aliases_dict[name] = func
-        # add number types
-        for name, type in get_number_types():
-            aliases_dict[name] = type
-        # add classes for help: number_types and StackFrame
-        aliases_dict["number_types"] = number_types
-        aliases_dict["StackFrame"] = StackFrame
-        return aliases_dict
+                aliases[name] = obj
+        return aliases
+
+    def _refresh_aliases(self):
+        aliases = self._get_aliases()
+        self.shell.push(aliases)
+    
     
     def _init_help_message(self):
         """
         Initializes the help message by replacing the <METHODS_LIST> placeholder with a list of the available methods and their descriptions.
         """
-        commands = get_commands(self)
+        command_help = get_all_commands_help()
         methods_list = ""
-        for names, _, description in commands:
+        for names, description in command_help:
             methods_list += f"- {' / '.join(names)}: {description}\n"
         self.help_message = help_message.replace("<METHODS_LIST>", methods_list)
 
@@ -107,15 +110,56 @@ class InteractiveConsole:
             exc_type, exc_value, _ = exc_tuple
         else:
             exc_type, exc_value, _ = sys.exc_info()
+        # print the error type in red and bold, and the error message normally.
         output = f"<ansired><b>{exc_type.__name__}</b></ansired>: {exc_value}"
         print_formatted_text(HTML(output))
+    
+    def _handle_process_exit(self):
+        if self.debugger.exit_code is not None:
+            print(f"Process exited with code {self.debugger.exit_code}.")
+        else:
+            exit_signal = self.debugger.error_signal
+            print(f"Process terminated by signal {exit_signal}.")
+        self.debugger = None
+        self.process_running = False
+        self._refresh_aliases()
+        self._init_help_message()
 
-    def run(self):
-        self.shell = InteractiveShellEmbed(colors='linux',user_ns=self._get_aliases() ,display_banner=False)
+    def _handle_process_stop(self):
+        """
+        Handle process stopping by signal, not forwarding it yet, which means the process is still active.
+        """
+        stop_signal = self.debugger.stopped_signal
+        print(f"Process stopped by signal {stop_signal}.")
+
+    def run_process(self, *argv):
+        """
+        Run the process. Can give optional arguments to the process, e. g. run_process("arg1", "arg2").
+        """
+        argv_list = list(argv)
+        self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=False, argv=argv_list)
+        self.debugger.exit_callback = self._handle_process_exit
+        self.debugger.stop_callback = self._handle_process_stop
+        self.process_running = True
+        self._refresh_aliases()
+        self._init_help_message()
+    
+    def _handle_exit(self):
+        """
+        Kill the debugged process if it's still running when exiting the console.
+        """
+        if self.process_running:
+            self.debugger.exit_callback = None # disable the exit callback to avoid printing the exit message when we kill the process
+            self.debugger.kill_process()
+
+    def start_console(self):
+        atexit.register(self._handle_exit) # register the exit handler
+        self.shell = InteractiveShellEmbed(colors='linux' ,display_banner=False)
+        # define custom prompt (PyDbg>) for the console
         self.shell.prompts = ConsolePrompt(self.shell)
         # disable tracebacks to avoid overwhelming the user with internal errors of the console, which are not relevant to the user and can be confusing
         if not self.verbose:
             self.shell.showtraceback = self._show_simple_error
         self.shell.autocall = 2 # automatically call functions without parentheses, e. g. "s" instead of "s()"
         print(banner)
-        self.shell()
+        self.shell(local_ns=self._get_aliases())

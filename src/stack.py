@@ -7,17 +7,19 @@ class StackFrame:
     RBP is the base (top) of the stack frame, and RSP is the current stack pointer (bottom) of the frame.
     Allows reading and writing using offsets from RBP (As common in x86-64 assembly), and accessing saved RBP/RIP values.
     """
-    def __init__(self, rbp, rsp, memory):
+    def __init__(self, rbp, rsp, memory, ensure_running):
         self.rbp = rbp
         self.rsp = rsp
         self.memory = memory
-    
+        self._ensure_running = ensure_running
+
     def __getitem__(self, key):
         """
         Get a byte or range of bytes from the stack frame, using the RBP as the base address.
         The key can be an integer offset from RBP or a slice with start and stop offsets from RBP.
         For example, stack_frame[0] would return the byte at RBP, and stack_frame[-8:0] would return the 8 bytes below RBP.
         """
+        self._ensure_running()
         if isinstance(key, slice):
             if key.start is None or key.stop is None:
                 raise ValueError("StackFrame slice must have start and stop defined")
@@ -37,6 +39,7 @@ class StackFrame:
         The key can be an integer offset from RBP or a slice with start and stop offsets from RBP.
         For example, stack_frame[0] = 0x90 would set the byte at RBP to 0x90, and stack_frame[-8:0] = b"\x00"*8 would set the 8 bytes below RBP to 0.
         """
+        self._ensure_running()
         if isinstance(key, slice):
             if key.start is None or key.stop is None:
                 raise ValueError("StackFrame slice must have start and stop defined")
@@ -103,20 +106,23 @@ class Stack:
     The current frame is index 0, the caller's frame is index 1, etc.
     To get help on usage of StackFrames, use help(StackFrame) in the console.
     """
-    def __init__(self, memory, registers):
+    def __init__(self, memory, registers, ensure_running):
         self.memory = memory
         self.registers = registers
-    
+        self._ensure_running = ensure_running
+
     def current_frame(self):
+        self._ensure_running()
         if self.registers.rbp == 0:
             raise IndexError("No stack frames available")
-        return StackFrame(self.registers.rbp, self.registers.rsp, self.memory)
+        return StackFrame(self.registers.rbp, self.registers.rsp, self.memory, self._ensure_running)
 
     def __getitem__(self, index : int | CInt):
         """
         Get the index-th stack frame.
         0 is the current frame, 1 is the caller's frame, etc.
         """
+        self._ensure_running()
         if index < 0:
             raise IndexError("Stack frame index cannot be negative")
         current_frame = self.current_frame()
@@ -124,5 +130,5 @@ class Stack:
             if current_frame.saved_rbp == 0: # reached the end of the stack frames
                 raise IndexError("Stack frame index out of range")
             # move to the caller's frame by reading the saved RBP and using RSP + 16 (exclude the saved RBP and saved RIP) as the new RSP
-            current_frame = StackFrame(current_frame.saved_rbp, current_frame.rbp + 16, self.memory)
+            current_frame = StackFrame(current_frame.saved_rbp, current_frame.rbp + 16, self.memory, self._ensure_running)
         return current_frame

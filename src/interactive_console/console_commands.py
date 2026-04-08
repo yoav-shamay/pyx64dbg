@@ -1,0 +1,95 @@
+import number_types
+from typing import TYPE_CHECKING
+from process_exited_error import ProcessExitedError
+
+if TYPE_CHECKING:
+    from interactive_console.interactive_console import InteractiveConsole
+
+
+def _process_not_running(*args, **kwargs):
+    """Wrapper that raises ProcessExitedError when called after process exits."""
+    raise ProcessExitedError(exit_code=None, signal=None)
+
+
+# Define all active commands once with dotted path names - single source of truth
+# format - ([aliases], ("path.to.method.active", "path.to.method.inactive"), "help_description" (or None for not showing))
+ALL_COMMANDS = [
+    (["run_process", "run", "r"], ("_process_already_running_trap", "run_process"), "Run the process"),
+    (["single_step", "step", "s"], ("debugger.single_step", "_process_not_running_trap"), "Step into the next instruction."),
+    (["continue_execution", "cont", "c"], ("debugger.continue_execution", "_process_not_running_trap"), "Continue execution until the next breakpoint or the program exits."),
+    (["next", "n"], ("debugger.next", "_process_not_running_trap"), "Step over to the next instruction, stepping over function calls."),
+    (["finish", "fin", "f"], ("debugger.finish", "_process_not_running_trap"), "Step out of the current function."),
+    (["registers", "regs"], ("debugger.registers", "_process_not_running_trap"), "View the current register values."),
+    (["memory", "mem"], ("debugger.memory", "_process_not_running_trap"), "Access memory read/write"),
+    (["read_number", "read_num"], ("debugger.read_number", "_process_not_running_trap"), "Read a number from memory at a given address."),
+    (["write_number", "write_num"], ("debugger.write_number", "_process_not_running_trap"), "Write a number to memory at a given address."),
+    (["disassemble", "dis"], ("print_disassembly", "_process_not_running_trap"), "Disassemble instructions at a given address."),
+    (["add_breakpoint", "brk", "b"], ("debugger.breakpoints.add_breakpoint", "_process_not_running_trap"), "Add a breakpoint at a given address."),
+    (["remove_breakpoint"], ("debugger.breakpoints.remove_breakpoint", "_process_not_running_trap"), "Remove a breakpoint at a given address."),
+    (["breakpoints", "brks", "bps"], ("print_breakpoints", "_process_not_running_trap"), "View the current breakpoints."),
+    (["kill"], ("debugger.kill_process", "_process_not_running_trap"), "Kill the debugged process."),
+    (["debugger", "dbg"], ("debugger", "_process_not_running_trap"), "Access the underlying Debugger object for more advanced operations."),
+    (["stack"], ("debugger.stack", "_process_not_running_trap"), "Access the call stack and stack frames."),
+    (["help"], ("help", "help"), "Show this help message or get help for a specific command or object."),
+]
+
+
+def _resolve_target(console: "InteractiveConsole", target_path: str):
+    """
+    Safely resolve a dotted target path like 'debugger.single_step' or 'help' from the given console object.
+    """
+    parts = target_path.split(".")
+    # Start with either console or debugger based on first part
+    obj = console
+    
+    # Traverse the rest of the path using getattr
+    for part in parts:
+        obj = getattr(obj, part)
+    return obj
+
+
+def get_available_commands(console: "InteractiveConsole", process_running: bool):
+    """
+    Returns a list of (aliases, target) for the commands that are available based on the process state.
+    """
+    res = []
+    for names, (active_path, inactive_path), _ in ALL_COMMANDS:
+        path = active_path if process_running else inactive_path
+        target = _resolve_target(console, path)
+        res.append((names, target))
+    return res
+
+def get_all_commands_help():
+    res = []
+    for names, _, help_desc in ALL_COMMANDS:
+        if help_desc is not None:
+            res.append((names, help_desc))
+    return res
+
+def get_all_command_names():
+    """
+    Get a list of all command names (aliases)
+    """
+    names = []
+    for aliases, _, _ in ALL_COMMANDS:
+        names.extend(aliases)
+    return names
+
+
+def get_number_types():
+    return [("Int8", number_types.Int8),
+            ("Int16", number_types.Int16),
+            ("Int32", number_types.Int32),
+            ("Int64", number_types.Int64),
+            ("UInt8", number_types.UInt8),
+            ("UInt16", number_types.UInt16),
+            ("UInt32", number_types.UInt32),
+            ("UInt64", number_types.UInt64),
+            ("Char", number_types.Int8),
+            ("Short", number_types.Int16),
+            ("Int", number_types.Int32),
+            ("Long", number_types.Int64),
+            ("UChar", number_types.UInt8),
+            ("UShort", number_types.UInt16),
+            ("UInt", number_types.UInt32),
+            ("ULong", number_types.UInt64)]

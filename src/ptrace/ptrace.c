@@ -20,11 +20,13 @@ static PyObject *method_traceme(PyObject *self, PyObject *ignored)
 static PyObject *method_cont(PyObject *self, PyObject *args)
 {
     int child_pid;
-    if (!PyArg_ParseTuple(args, "i", &child_pid))
+    void *signal = NULL;
+
+    if (!PyArg_ParseTuple(args, "i|l", &child_pid, &signal))
     {
         return NULL;
     }
-    int res = ptrace(PTRACE_CONT, child_pid, NULL, NULL);
+    int res = ptrace(PTRACE_CONT, child_pid, NULL, (void *)signal);
     if (res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -75,11 +77,13 @@ static PyObject *method_pokedata(PyObject *self, PyObject *args)
 static PyObject *method_single_step(PyObject *self, PyObject *args)
 {
     int child_pid;
-    if (!PyArg_ParseTuple(args, "i", &child_pid))
+    void *signal = NULL;
+
+    if (!PyArg_ParseTuple(args, "i|l", &child_pid, &signal))
     {
         return NULL;
     }
-    int res = ptrace(PTRACE_SINGLESTEP, child_pid, NULL, NULL);
+    int res = ptrace(PTRACE_SINGLESTEP, child_pid, NULL, signal);
     if (res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -260,6 +264,22 @@ static PyObject *method_write_memory_range(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *method_kill(PyObject *self, PyObject *args)
+{
+    int child_pid;
+    if (!PyArg_ParseTuple(args, "i", &child_pid))
+    {
+        return NULL;
+    }
+    int res = ptrace(PTRACE_KILL, child_pid, NULL, NULL);
+    if (res == -1)
+    {
+        PyErr_SetFromErrno(PyExc_OSError);
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef Ptrace_methods[] = {
     {"traceme", method_traceme, METH_NOARGS, "ptrace call with PTRACE_TRACEME"},
     {"cont", method_cont, METH_VARARGS, "ptrace call with PTRACE_CONT"},
@@ -274,6 +294,7 @@ static PyMethodDef Ptrace_methods[] = {
     {"set_debug_regs", method_set_debug_regs, METH_VARARGS, "ptrace call with PTRACE_SETREGSET on NT_X86_IOTRAP"},
     {"get_memory_range", method_get_memory_range, METH_VARARGS, "read memory range of the child process using process_vm_readv"},
     {"write_memory_range", method_write_memory_range, METH_VARARGS, "write memory range of the child process using process_vm_writev"},
+    {"kill", method_kill, METH_VARARGS, "kill the child process"},
     {NULL, NULL, 0, NULL}
 };
 

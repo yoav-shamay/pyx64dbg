@@ -14,9 +14,10 @@ class Memory:
     Can also use memory[start:end:step] for reading/writing with a step.
     """
 
-    def __init__(self, child_pid, breakpoints):
+    def __init__(self, child_pid, breakpoints, ensure_running):
         self.child_pid = child_pid
         self.breakpoints = breakpoints
+        self._ensure_running = ensure_running
 
     def _get_raw_byte(self, address):
         word = ptrace.peekdata(self.child_pid, address)
@@ -43,6 +44,7 @@ class Memory:
             return data
 
     def __getitem__(self, key):
+        self._ensure_running()
         if isinstance(key, slice):
             if key.start is None or key.stop is None:
                 raise ValueError("Memory slice must have start and stop defined")
@@ -84,6 +86,7 @@ class Memory:
             return byte
 
     def __setitem__(self, key, value):
+        self._ensure_running()
         if isinstance(key, slice):
             if key.start is None or key.stop is None:
                 raise ValueError("Memory slice must have start and stop defined")
