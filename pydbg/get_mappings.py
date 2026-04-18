@@ -31,7 +31,7 @@ LINKMAP_NEXT_OFFSET = 0x18
 
 DT_NULL = 0
 
-VDSO_NAME = b"linux-vdso.so.1"
+VDSO_NAME = "linux-vdso.so.1"
 
 def _get_auxv(self):
     file_path = f"/proc/{self.child_pid}/auxv"
@@ -107,9 +107,9 @@ def _get_shared_objects(self):
     while linkmap_address != 0:
         shared_object_base = self.read_number(linkmap_address + LINKMAP_BASE_OFFSET, UInt64)
         shared_object_name_address = self.read_number(linkmap_address + LINKMAP_NAME_OFFSET, UInt64)
-        shared_object_name = self.read_c_string(shared_object_name_address)
+        shared_object_name = self.read_c_string(shared_object_name_address).decode()
         # ignore the main executable, which has an empty name, and the VDSO, which isn't a real shared object
-        if shared_object_name != b"" and shared_object_name != VDSO_NAME:
+        if shared_object_name != "" and shared_object_name != VDSO_NAME:
             shared_object = SharedObject(shared_object_base, shared_object_name)
             shared_objects.append(shared_object)
         # move to the next link_map struct in the linked list

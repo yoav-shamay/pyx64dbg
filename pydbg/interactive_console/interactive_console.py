@@ -37,15 +37,6 @@ class InteractiveConsole:
         self._process_already_running_trap = ExceptionTrap(ProcessAlreadyRunningError())
         self._process_not_running_trap = ExceptionTrap(ProcessNotRunningError())
     
-    def print_disassembly(self, address : int, instruction_cnt : int) -> None:
-        """
-        Prints the disassembly of the instructions at the given address.
-        Disassembles instruction_cnt instructions.
-        """
-        instructions = self.debugger.read_instruction(address, instruction_cnt)
-        for instruction in instructions:
-            print(f"0x{instruction.address:016x}: {instruction.mnemonic:<8} {instruction.op_str}")
-    
     def print_breakpoints(self):
         """
         Prints the current breakpoints.
@@ -160,3 +151,5 @@ class InteractiveConsole:
         self.shell.autocall = 2 # automatically call functions without parentheses, e. g. "s" instead of "s()"
         print(banner)
         self.shell(local_ns=self._get_aliases())
+    
+    from interactive_console.disassembly import print_disassembly

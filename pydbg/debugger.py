@@ -55,6 +55,8 @@ class Debugger:
         shared_object_list = self._get_shared_objects()
         for shared_object in shared_object_list:
             self.shared_objects[shared_object.name] = shared_object
+        
+        self._init_address_to_symbol_mapping()
 
     
     @staticmethod
@@ -94,6 +96,19 @@ class Debugger:
         _, status = os.wait() # wait for child to raise a signal, which should be from killing the process
         self._handle_signal(status)
     
-    from movement_functions import single_step, continue_execution, next, finish, _handle_signal
+    def _init_address_to_symbol_mapping(self):
+        self.address_to_symbol = {}
+        sym_classes = [self.symbols]
+        for so in self.shared_objects.values():
+            sym_classes.append(so.symbols)
+        for sym_class in sym_classes:
+            for name, address in sym_class.functions.items():
+                self.address_to_symbol[address] = name
+            for name, address in sym_class.objects.items():
+                self.address_to_symbol[address] = name
+        
+            
+    
+    from movement_functions import single_step, continue_execution, next, finish, _handle_signal, _step_from_breakpoint
     from memory_functions import read_instruction, read_number, write_number, read_c_string
     from get_mappings import _init_base_address_and_ld_Base, _get_shared_objects, _get_auxv, _get_program_header_address, _get_program_header_entry_count, _get_dynamic_section_address, _get_r_debug_address, _get_linkmap_address

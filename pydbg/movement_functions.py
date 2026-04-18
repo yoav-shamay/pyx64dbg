@@ -64,7 +64,7 @@ def single_step(self):
     self._ensure_running()
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
-        self.breakpoints._step_from_breakpoint(rip)
+        self._step_from_breakpoint(rip)
     else:
         if self.stopped_signal is not None:
             # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
@@ -82,7 +82,7 @@ def continue_execution(self):
     self._ensure_running()
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
-        self.breakpoints._step_from_breakpoint(rip)
+        self._step_from_breakpoint(rip)
         if self.stopped_signal is not None or self.process_exited:
             # if we are currently stopped by a signal or the process exited, we shouldn't continue execution, as the process is already stopped/exited, and continuing would cause an error
             return
