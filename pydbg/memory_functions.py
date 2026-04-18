@@ -52,3 +52,18 @@ def write_number(self, address, value: int | CInt, width: int = None):
         bytes_to_write = value.to_bytes(width // 8, byteorder="little")
     width_bytes = width // 8
     self.memory[address : address + width_bytes] = bytes_to_write
+
+
+def read_c_string(self, address : int | CInt) -> bytes:
+    """
+    Reads a null-terminated string from the given address.
+    """
+    self._ensure_running()
+    byte_list = []
+    while True:
+        byte = self.memory[address]
+        if byte == 0:
+            break
+        byte_list.append(byte)
+        address += 1
+    return bytes(byte_list)

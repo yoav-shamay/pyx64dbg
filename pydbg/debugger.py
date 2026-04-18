@@ -7,11 +7,13 @@ import ptrace
 from registers import Registers
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 from process_exited_error import ProcessExitedError
+from parse_elf import ELFFileParser
+from symbols import Symbols
 
 from stack import Stack
 
 class Debugger:
-    def __init__(self, child_pid, child_pty, exit_callback=None, stop_callback=None):
+    def __init__(self, child_pid, child_pty, exit_callback=None, stop_callback=None, file_path=None):
         self.child_pid = child_pid
         self.child_pty = child_pty
 
@@ -29,6 +31,30 @@ class Debugger:
 
         self.cs = Cs(CS_ARCH_X86, CS_MODE_64)
         self.cs.detail = True
+
+        if file_path is None:
+            # if file path isn't provided, default to determining it from procfs (/proc/<pid>/exe)
+            self.file_path = f"/proc/{child_pid}/exe"
+        else:
+            self.file_path = file_path
+
+        with ELFFileParser(self.file_path) as elf_parser:
+            symbol_list = elf_parser.get_elf_symbols()
+            entry_offset = elf_parser.get_entry_point()
+
+        self._init_base_address_and_ld_Base(entry_offset)
+        self.symbols = Symbols(symbol_list, self.base_address)
+
+        # run until the program entry, so the linker finishes execution
+        self.breakpoints.add_breakpoint(self.base_address + entry_offset)
+        self.continue_execution()
+        self.breakpoints.remove_breakpoint(self.base_address + entry_offset)
+
+        # init shared objects dictionary, after getting ld base
+        self.shared_objects = {}
+        shared_object_list = self._get_shared_objects()
+        for shared_object in shared_object_list:
+            self.shared_objects[shared_object.name] = shared_object
 
     
     @staticmethod
@@ -69,4 +95,5 @@ class Debugger:
         self._handle_signal(status)
     
     from movement_functions import single_step, continue_execution, next, finish, _handle_signal
-    from memory_functions import read_instruction, read_number, write_number
+    from memory_functions import read_instruction, read_number, write_number, read_c_string
+    from get_mappings import _init_base_address_and_ld_Base, _get_shared_objects, _get_auxv, _get_program_header_address, _get_program_header_entry_count, _get_dynamic_section_address, _get_r_debug_address, _get_linkmap_address

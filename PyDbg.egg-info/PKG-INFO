@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: PyDbg
+Version: 0.1.0
+Summary: A debugger implemented in Python
+Author-email: Yoav Shamay <yoavsh97@gmail.com>

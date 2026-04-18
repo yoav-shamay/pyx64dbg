@@ -5,6 +5,9 @@
 #include <sys/uio.h>
 #include <elf.h>
 
+// an upper bound to the auxiliary vector entries. In practice, the number of auxv entries is usually around 20-30, but we set a higher limit just in case.
+#define MAX_AUXV_ENTRIES 64
+
 
 static PyObject *method_traceme(PyObject *self, PyObject *ignored)
 {
@@ -61,7 +64,7 @@ static PyObject *method_pokedata(PyObject *self, PyObject *args)
     int child_pid;
     unsigned long data;
     size_t address;
-    if (!PyArg_ParseTuple(args, "ikL", &child_pid, &address, &data))
+    if (!PyArg_ParseTuple(args, "ikk", &child_pid, &address, &data))
     {
         return NULL;
     }
@@ -279,7 +282,6 @@ static PyObject *method_kill(PyObject *self, PyObject *args)
     }
     Py_RETURN_NONE;
 }
-
 static PyMethodDef Ptrace_methods[] = {
     {"traceme", method_traceme, METH_NOARGS, "ptrace call with PTRACE_TRACEME"},
     {"cont", method_cont, METH_VARARGS, "ptrace call with PTRACE_CONT"},

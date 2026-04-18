@@ -1,7 +1,7 @@
 from setuptools import setup, Extension
 
 ext_modules = [
-    Extension('ptrace', sources=['ptrace/ptrace.c']),
+    Extension('pydbg.ptrace', sources=['pydbg/ptrace/ptrace.c']),
 ]
 
 setup(

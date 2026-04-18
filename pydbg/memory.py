@@ -62,6 +62,7 @@ class Memory:
                 result_byte_range[i] = updated_byte
             return bytes(result_byte_range)
         else:
+            key = int(key)  # convert to int if it's a CInt
             byte = self._get_raw_byte(key)
             return self._replace_read_breakpoint_byte(byte, key)
 
@@ -103,5 +104,6 @@ class Memory:
             value = bytes(value)
             self._set_raw_byte_range(value, start, stop, step)
         else:
+            key = int(key)  # convert to int if it's a CInt
             value = self._replace_write_breakpoint_byte(value, key)
             self._set_raw_byte(key, value)

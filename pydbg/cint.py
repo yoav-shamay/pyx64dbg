@@ -305,6 +305,9 @@ class CInt(Generic[CT]):
 
     def __index__(self):
         return self.num.value
+    
+    def __hash__(self):
+        return hash(self.num.value)
 
     @classmethod
     def from_bytes(cls, bytes_data: bytes, byteorder="little"):
