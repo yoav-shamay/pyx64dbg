@@ -152,4 +152,4 @@ class InteractiveConsole:
         print(banner)
         self.shell(local_ns=self._get_aliases())
     
-    from interactive_console.disassembly import print_disassembly
+    from interactive_console.disassembly import print_disassembly, _mem_operand_to_str
