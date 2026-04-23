@@ -101,7 +101,7 @@ def next(self):
     """
     self._ensure_running()
     rip = int(self.registers["rip"])
-    cur_instruction = self.memory.read_instruction(rip)
+    cur_instruction = self.read_instruction(rip)
     if CS_GRP_CALL in cur_instruction.groups:
         # if the instruction is a call, set a temporary breakpoint on the next instruction and continue until hitting it (or other breakpoints)
         next_instruction_address = cur_instruction.address + cur_instruction.size

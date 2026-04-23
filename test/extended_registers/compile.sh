@@ -1,0 +1,1 @@
+gcc test_extended_registers.c -o test_extended_registers

@@ -22,12 +22,11 @@ def read_number(self, address, type, cnt=None):
     """
     self._ensure_running()
     act_cnt = 1 if cnt is None else cnt
-    byte_width = type.size // 8
-    byte_cnt = act_cnt * byte_width
+    byte_cnt = act_cnt * type.size
     data = self.memory[address : address + byte_cnt]
     res = []
     for i in range(act_cnt):
-        res.append(type.from_bytes(data[i * byte_width : (i + 1) * byte_width]))
+        res.append(type.from_bytes(data[i * type.size : (i + 1) * type.size]))
     if (
         cnt is None
     ):  # if the user didn't specify a count, return a single number instead of a list

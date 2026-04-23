@@ -1,5 +1,6 @@
 import number_types
 from typing import TYPE_CHECKING
+from pydbg.vector_register import VectorRegister
 from stack import StackFrame
 import ast
 
@@ -41,8 +42,12 @@ ALL_COMMANDS = [
     (["UInt16", "UShort"], (number_types.UInt16, number_types.UInt16), None),
     (["UInt32", "UInt"], (number_types.UInt32, number_types.UInt32), None),
     (["UInt64", "ULong"], (number_types.UInt64, number_types.UInt64), None),
+    (["Float32", "Float"], (number_types.Float32, number_types.Float32), None),
+    (["Float64", "Double"], (number_types.Float64, number_types.Float64), None),
+    (["Float80", "LongDouble"], (number_types.Float80, number_types.Float80), None),
     (["number_types"], (number_types, number_types), None), # for help entry
-    (["StackFrame"], (StackFrame, StackFrame), None) # for help entry
+    (["StackFrame"], (StackFrame, StackFrame), None), # for help entry
+    (["VectorRegister"], (VectorRegister, VectorRegister), None), # for help entry
 ]
 
 

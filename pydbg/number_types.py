@@ -9,6 +9,7 @@ Available types:
 
 import ctypes
 from cint import CInt
+from pydbg.cfloat import CFloat
 
 # integer types
 
@@ -16,49 +17,49 @@ class Int8(CInt[ctypes.c_int8]):
     type = ctypes.c_int8
     priority = 1
     is_signed = True
-    size = 8
+    size = 1
 
 class UInt8(CInt[ctypes.c_uint8]):
     type = ctypes.c_uint8
     priority = 2
     is_signed = False
-    size = 8
+    size = 1
 
 class Int16(CInt[ctypes.c_int16]):
     type = ctypes.c_int16
     priority = 3
     is_signed = True
-    size = 16
+    size = 2
 
 class UInt16(CInt[ctypes.c_uint16]):
     type = ctypes.c_uint16
     priority = 4
     is_signed = False
-    size = 16
+    size = 2
 
 class Int32(CInt[ctypes.c_int32]):
     type = ctypes.c_int32
     priority = 5
     is_signed = True
-    size = 32
+    size = 4
 
 class UInt32(CInt[ctypes.c_uint32]):
     type = ctypes.c_uint32
     priority = 6
     is_signed = False
-    size = 32
+    size = 4
 
 class Int64(CInt[ctypes.c_int64]):
     type = ctypes.c_int64
     priority = 7
     is_signed = True
-    size = 64
+    size = 8
 
 class UInt64(CInt[ctypes.c_uint64]):
     type = ctypes.c_uint64
     priority = 8
     is_signed = False
-    size = 64
+    size = 8
 
 # common aliases
 Char = Int8
@@ -70,16 +71,22 @@ UInt = UInt32
 Long = Int64
 ULong = UInt64
 
-signed_integers_by_width = {
-    8: Int8,
-    16: Int16,
-    32: Int32,
-    64: Int64,
-}
+class Float32(CFloat[ctypes.c_float]):
+    type = ctypes.c_float
+    priority = 10  # Higher than ints
+    size = 4
 
-unsigned_integers_by_width = {
-    8: UInt8,
-    16: UInt16,
-    32: UInt32,
-    64: UInt64,
-}
+class Float64(CFloat[ctypes.c_double]):
+    type = ctypes.c_double
+    priority = 11
+    size = 8
+
+class Float80(CFloat[ctypes.c_longdouble]):
+    type = ctypes.c_longdouble
+    priority = 12
+    size = 10
+
+# Common aliases
+Float = Float32
+Double = Float64
+LongDouble = Float80
