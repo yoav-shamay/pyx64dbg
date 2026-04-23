@@ -4,6 +4,7 @@ import termios
 from breakpoint import Breakpoints
 from memory import Memory
 import ptrace
+from pydbg.stdio_tube import StdioTube
 from registers import Registers
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 from process_exited_error import ProcessExitedError
@@ -28,6 +29,10 @@ class Debugger:
         self.memory = Memory(child_pid, self.breakpoints, self._ensure_running)
         self.registers = Registers(child_pid, self._ensure_running)
         self.stack = Stack(self.memory, self.registers, self._ensure_running)
+        if child_pty is not None:
+            self.stdio = StdioTube(child_pty)
+        else:
+            self.stdio = None
 
         self.cs = Cs(CS_ARCH_X86, CS_MODE_64)
         self.cs.detail = True
