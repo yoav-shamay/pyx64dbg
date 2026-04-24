@@ -1,8 +1,7 @@
-import number_types
+from pydbg import number_types
 from typing import TYPE_CHECKING
 from pydbg.vector_register import VectorRegister
-from stack import StackFrame
-import ast
+from pydbg.stack import StackFrame
 
 if TYPE_CHECKING:
     from interactive_console.interactive_console import InteractiveConsole
@@ -25,6 +24,7 @@ ALL_COMMANDS = [
     (["remove_breakpoint"], (["debugger", "breakpoints", "remove_breakpoint"], ["_process_not_running_trap"]), "Remove a breakpoint at a given address."),
     (["breakpoints", "brks", "bps"], (["print_breakpoints"], ["_process_not_running_trap"]), "View the current breakpoints."),
     (["kill"], (["debugger", "kill_process"], ["_process_not_running_trap"]), "Kill the debugged process."),
+    (["surpass_signal", "surpass"], (["debugger", "surpass_signal"], ["_process_not_running_trap"]), "Surpass the current signal, allowing the process to continue execution without handling it."),
     (["debugger", "dbg"], (["debugger"], ["_process_not_running_trap"]), "Access the underlying Debugger object for more advanced operations."),
     (["stack"], (["debugger", "stack"], ["_process_not_running_trap"]), "Access the call stack and stack frames."),
     (["help"], (["help"], ["help"]), "Show this help message or get help for a specific command or object."),

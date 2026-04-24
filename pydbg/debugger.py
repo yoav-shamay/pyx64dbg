@@ -1,20 +1,28 @@
 import os
 import pty
 import termios
-from breakpoint import Breakpoints
-from memory import Memory
-import ptrace
+from pydbg.breakpoint import Breakpoints
+from pydbg.memory import Memory
+import pydbg.ptrace as ptrace
 from pydbg.stdio_tube import StdioTube
-from registers import Registers
+from pydbg.registers import Registers
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
-from process_exited_error import ProcessExitedError
-from parse_elf import ELFFileParser
-from symbols import Symbols
+from pydbg.process_exited_error import ProcessExitedError
+from pydbg.parse_elf import ELFFileParser
+from pydbg.symbols import Symbols
 
-from stack import Stack
+from pydbg.stack import Stack
+
 
 class Debugger:
-    def __init__(self, child_pid, child_pty, exit_callback=None, stop_callback=None, file_path=None):
+    def __init__(
+        self,
+        child_pid,
+        child_pty,
+        exit_callback=None,
+        stop_callback=None,
+        file_path=None,
+    ):
         self.child_pid = child_pid
         self.child_pty = child_pty
 
@@ -24,7 +32,7 @@ class Debugger:
         self.exit_callback = exit_callback
         self.stop_callback = stop_callback
         self.stopped_signal = None
-        
+
         self.breakpoints = Breakpoints(child_pid, self._ensure_running)
         self.memory = Memory(child_pid, self.breakpoints, self._ensure_running)
         self.registers = Registers(child_pid, self._ensure_running)
@@ -60,12 +68,11 @@ class Debugger:
         shared_object_list = self._get_shared_objects()
         for shared_object in shared_object_list:
             self.shared_objects[shared_object.name] = shared_object
-        
+
         self._init_address_to_symbol_mapping()
 
-    
     @staticmethod
-    def _start_as_child(file_name : str, redirect_stdio_to_pty : bool, argv : list):
+    def _start_as_child(file_name: str, redirect_stdio_to_pty: bool, argv: list):
         if redirect_stdio_to_pty:
             # disable pty echo
             attrs = termios.tcgetattr(0)
@@ -77,30 +84,24 @@ class Debugger:
         os.execve(file_name, [file_name] + argv, {})
 
     @staticmethod
-    def start_and_debug(file_name : str, redirect_stdio_to_pty=True, argv=[]):
+    def start_and_debug(file_name: str, redirect_stdio_to_pty=True, argv=[]):
         if redirect_stdio_to_pty:
             # fork the process and create a new pty for the child, which will be used to redirect the child's stdio to the terminal, allowing the user to interact with the child process through the terminal.
             child_pid, pty_fd = pty.fork()
         else:
             child_pid = os.fork()
             pty_fd = None
-        if child_pid == 0: # running as child
+        if child_pid == 0:  # running as child
             Debugger._start_as_child(file_name, redirect_stdio_to_pty, argv)
         # running as parent
-        os.wait() # wait for child to start execve, raising a signal
+        os.wait()  # wait for child to start execve, raising a signal
         res = Debugger(child_pid, pty_fd)
         return res
-    
+
     def _ensure_running(self):
         if self.process_exited:
             raise ProcessExitedError(exit_code=self.exit_code, signal=self.error_signal)
-    
-    def kill_process(self):
-        self._ensure_running()
-        ptrace.kill(self.child_pid)
-        _, status = os.wait() # wait for child to raise a signal, which should be from killing the process
-        self._handle_signal(status)
-    
+
     def _init_address_to_symbol_mapping(self):
         self.address_to_symbol = {}
         sym_classes = [self.symbols]
@@ -111,9 +112,45 @@ class Debugger:
                 self.address_to_symbol[address] = name
             for name, address in sym_class.objects.items():
                 self.address_to_symbol[address] = name
-        
-            
+
+    def kill_process(self):
+        self._ensure_running()
+        ptrace.kill(self.child_pid)
+        _, status = (
+            os.wait()
+        )  # wait for child to raise a signal, which should be from killing the process
+        self._handle_signal(status)
     
-    from movement_functions import single_step, continue_execution, next, finish, _handle_signal, _step_from_breakpoint
-    from memory_functions import read_instruction, read_number, write_number, read_c_string
-    from get_mappings import _init_base_address_and_ld_Base, _get_shared_objects, _get_auxv, _get_program_header_address, _get_program_header_entry_count, _get_dynamic_section_address, _get_r_debug_address, _get_linkmap_address
+    def surpass_signal(self):
+        """
+        Surpasses the current signal, allowing the process to continue execution without handling the signal.
+        """
+        self._ensure_running()
+        if self.stopped_signal is None:
+            raise ValueError("Not currently stopped by a signal")
+        self.stopped_signal = None
+
+    from pydbg.movement_functions import (
+        single_step,
+        continue_execution,
+        next,
+        finish,
+        _handle_signal,
+        _step_from_breakpoint,
+    )
+    from pydbg.memory_functions import (
+        read_instruction,
+        read_number,
+        write_number,
+        read_c_string,
+    )
+    from pydbg.get_mappings import (
+        _init_base_address_and_ld_Base,
+        _get_shared_objects,
+        _get_auxv,
+        _get_program_header_address,
+        _get_program_header_entry_count,
+        _get_dynamic_section_address,
+        _get_r_debug_address,
+        _get_linkmap_address,
+    )

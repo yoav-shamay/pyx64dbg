@@ -1,6 +1,6 @@
-from utils import get_first_byte, change_first_byte
-import ptrace
-from cint import CInt
+from pydbg.utils import get_first_byte, change_first_byte
+import pydbg.ptrace as ptrace
+from pydbg.cint import CInt
 import os
 
 BREAKPOINT_INSTRUCTION = 0xCC

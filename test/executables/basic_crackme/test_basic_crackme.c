@@ -5,6 +5,7 @@
 
 int main()
 {
+    setvbuf(stdout, NULL, _IONBF, 0); // Disable buffering for stdout
     printf("Enter password: ");
     long long number;
     scanf("%d", &number);

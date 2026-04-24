@@ -1,9 +1,9 @@
-from cint import CInt
-import ptrace
+from pydbg.cint import CInt
+import pydbg.ptrace as ptrace
 from pydbg.cfloat import CFloat
-from utils import signed_to_unsigned, in_range
-from number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80
-from vector_register import Vector64, Vector128, Vector256, VectorRegister
+from pydbg.utils import signed_to_unsigned, in_range
+from pydbg.number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80
+from pydbg.vector_register import Vector64, Vector128, Vector256, VectorRegister
 
 # format: "reg_name": ["reg_name_in_struct", (first_byte, last_byte, type)]
 STANDARD_REGS = {
@@ -117,22 +117,22 @@ EXTENDED_REGS = {
     "xmm13": ("xmm13", Vector128),
     "xmm14": ("xmm14", Vector128),
     "xmm15": ("xmm15", Vector128),
-    "ymm0": (["xmm0", "ymm0h"], Vector256),
-    "ymm1": (["xmm1", "ymm1h"], Vector256),
-    "ymm2": (["xmm2", "ymm2h"], Vector256),
-    "ymm3": (["xmm3", "ymm3h"], Vector256),
-    "ymm4": (["xmm4", "ymm4h"], Vector256),
-    "ymm5": (["xmm5", "ymm5h"], Vector256), 
-    "ymm6": (["xmm6", "ymm6h"], Vector256),
-    "ymm7": (["xmm7", "ymm7h"], Vector256),
-    "ymm8": (["xmm8", "ymm8h"], Vector256),
-    "ymm9": (["xmm9", "ymm9h"], Vector256),
-    "ymm10": (["xmm10", "ymm10h"], Vector256),
-    "ymm11": (["xmm11", "ymm11h"], Vector256),
-    "ymm12": (["xmm12", "ymm12h"], Vector256),
-    "ymm13": (["xmm13", "ymm13h"], Vector256),
-    "ymm14": (["xmm14", "ymm14h"], Vector256),
-    "ymm15": (["xmm15", "ymm15h"], Vector256),
+    "ymm0": (["xmm0", "ymm0_h"], Vector256),
+    "ymm1": (["xmm1", "ymm1_h"], Vector256),
+    "ymm2": (["xmm2", "ymm2_h"], Vector256),
+    "ymm3": (["xmm3", "ymm3_h"], Vector256),
+    "ymm4": (["xmm4", "ymm4_h"], Vector256),
+    "ymm5": (["xmm5", "ymm5_h"], Vector256), 
+    "ymm6": (["xmm6", "ymm6_h"], Vector256),
+    "ymm7": (["xmm7", "ymm7_h"], Vector256),
+    "ymm8": (["xmm8", "ymm8_h"], Vector256),
+    "ymm9": (["xmm9", "ymm9_h"], Vector256),
+    "ymm10": (["xmm10", "ymm10_h"], Vector256),
+    "ymm11": (["xmm11", "ymm11_h"], Vector256),
+    "ymm12": (["xmm12", "ymm12_h"], Vector256),
+    "ymm13": (["xmm13", "ymm13_h"], Vector256),
+    "ymm14": (["xmm14", "ymm14_h"], Vector256),
+    "ymm15": (["xmm15", "ymm15_h"], Vector256),
 }
 
 

@@ -40,14 +40,14 @@ class CInt(Generic[CT]):
     size: int = None  # Size in bytes, should be set by subclasses
 
     def __init__(self, value: int | CInt[CT] | bytes):
-        if isinstance(value, CInt):
+        if isinstance(value, CInt): # cint - convert value to int
             value = int(value)
-        elif isinstance(value, bytes):
+        elif isinstance(value, bytes): # bytes - convert value to int
             value = int.from_bytes(
                 value, byteorder="little", signed=self.is_signed
             )
-        else: # integer input
-            self.num = self.type(value)
+        # now that value is int, can initialize self.num
+        self.num = self.type(value)
 
     def _fix_type(self, other) -> int:
         if isinstance(other, CInt):

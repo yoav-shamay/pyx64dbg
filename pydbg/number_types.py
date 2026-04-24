@@ -8,7 +8,7 @@ Available types:
 """
 
 import ctypes
-from cint import CInt
+from pydbg.cint import CInt
 from pydbg.cfloat import CFloat
 
 # integer types

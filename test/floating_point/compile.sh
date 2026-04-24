@@ -1,1 +1,0 @@
-gcc test_fp.c -o test_fp

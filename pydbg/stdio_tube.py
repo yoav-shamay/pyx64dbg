@@ -7,7 +7,7 @@ READ_CHUNK_SIZE = 8192
 class StdioTube:
     """
     A class for handling the stdio of the debugged process through its PTY.
-    Provides methods for sending and receiving data, as well as an interactive mode.
+    Provides methods for sending and receiving data.
     """
     def __init__(self, pty):
         self.pty = pty
@@ -95,7 +95,7 @@ class StdioTube:
         """
         while True:
             try:
-                success = self._fill_buf(READ_CHUNK_SIZE, timeout=None) # Block until data or death
+                success = self._fill_buf(READ_CHUNK_SIZE)
                 if not success:
                     # If _fill_buf returns False, it means we finished reading the data.
                     break

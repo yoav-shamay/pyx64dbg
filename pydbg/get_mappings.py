@@ -1,6 +1,6 @@
-from number_types import Int64, UInt16, UInt32, UInt64
-import ptrace
-from shared_object import SharedObject
+from pydbg.number_types import Int64, UInt16, UInt32, UInt64
+import pydbg.ptrace as ptrace
+from pydbg.shared_object import SharedObject
 
 AUXV_ENTRY_SIZE = 16
 AUXV_ENTRY_TYPE_OFFSET = 0

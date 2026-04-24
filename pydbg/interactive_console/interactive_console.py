@@ -1,11 +1,11 @@
 import inspect
 import sys
-from interactive_console.console_commands import get_available_commands, get_all_commands_help
+from pydbg.interactive_console.console_commands import get_available_commands, get_all_commands_help
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
-from interactive_console.invalid_process_state_trap import ExceptionTrap, ProcessAlreadyRunningError, ProcessNotRunningError
+from pydbg.interactive_console.invalid_process_state_trap import ExceptionTrap, ProcessAlreadyRunningError, ProcessNotRunningError
 from prompt_toolkit import print_formatted_text, HTML
-from debugger import Debugger
+from pydbg.debugger import Debugger
 import atexit
 
 class ConsolePrompt(Prompts):

@@ -1,5 +1,5 @@
-from cint import CInt
-
+from pydbg.cint import CInt
+import mmap
 
 def read_instruction(self, address, instruction_cnt=None):
     self._ensure_running()
@@ -39,7 +39,7 @@ def write_number(self, address, value: int | CInt, width: int = None):
     """
     Writes a number to the given address.
     Value can be an int or a CInt. If it's a CInt, the width will be determined from the type.
-    Otherwise, the width should be provided as a parameter (in bits, should be a multiple of 8).
+    Otherwise, the width should be provided as a parameter (in bytes)
     """
     self._ensure_running()
     if isinstance(value, CInt):
@@ -48,21 +48,27 @@ def write_number(self, address, value: int | CInt, width: int = None):
     else:
         if width is None:
             raise ValueError("Width must be provided when writing an int value")
-        bytes_to_write = value.to_bytes(width // 8, byteorder="little")
-    width_bytes = width // 8
-    self.memory[address : address + width_bytes] = bytes_to_write
+        bytes_to_write = value.to_bytes(width, byteorder="little")
+    self.memory[address : address + width] = bytes_to_write
 
+# get the system page size for reading c strings in chunks
+PAGE_SIZE = mmap.PAGESIZE
 
 def read_c_string(self, address : int | CInt) -> bytes:
     """
     Reads a null-terminated string from the given address.
     """
     self._ensure_running()
-    byte_list = []
-    while True:
-        byte = self.memory[address]
-        if byte == 0:
-            break
-        byte_list.append(byte)
-        address += 1
-    return bytes(byte_list)
+    address = int(address) # convert to int if it's a CInt
+    res = b""
+    while b"\x00" not in res:
+        # batch read a whole page of memory to use less syscalls.
+        # it's safe to read until the end of the current page as the mapped memory is guaranteed to be in multiples of the page size.
+        until_end_of_page = PAGE_SIZE - (address % PAGE_SIZE)
+        chunk = self.memory[address : address + until_end_of_page]
+        res += chunk
+        address += until_end_of_page
+    # trim the string at the null terminator
+    null_term = res.index(b"\x00")
+    res = res[:null_term]
+    return res

@@ -1,7 +1,7 @@
 import argparse
-from debugger import Debugger
+from pydbg.debugger import Debugger
 
-from interactive_console.interactive_console import InteractiveConsole
+from pydbg.interactive_console.interactive_console import InteractiveConsole
 
 
 def parse_arguments() -> argparse.Namespace:

@@ -54,17 +54,35 @@ class Symbols:
                 return symbol
         return None
     
-    def __getattr__(self, name):
-        """
-        Allow accessing symbols as attributes of the Symbols object, for convenience.
-        For example, if there's a function symbol named 'main', it can be accessed as symbols.main to get its address.
-        """
+    def get_symbol_by_name(self, name):
         if name in self.functions:
             return self.functions[name]
         elif name in self.objects:
             return self.objects[name]
         else:
+            return None
+
+    def __getattr__(self, name):
+        """
+        Allow accessing symbols as attributes of the Symbols object, for convenience.
+        For example, if there's a function symbol named 'main', it can be accessed as symbols.main to get its address.
+        """
+        res = self.get_symbol_by_name(name)
+        if res is not None:
+            return res
+        else:
             raise AttributeError(f"Symbol '{name}' not found")
+    
+    def __getitem__(self, name):
+        """
+        Allow accessing symbols using dictionary-like syntax as well, for convenience.
+        For example, symbols['main'] would return the address of the 'main' function symbol.
+        """
+        res = self.get_symbol_by_name(name)
+        if res is not None:
+            return res
+        else:
+            raise KeyError(name)
     
     def __repr__(self):
         res_str = "Symbols([\n"
