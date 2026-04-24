@@ -1,17 +1,17 @@
 import os
 import pty
 import termios
-from pydbg.breakpoint import Breakpoints
-from pydbg.memory import Memory
-import pydbg.ptrace as ptrace
-from pydbg.stdio_tube import StdioTube
-from pydbg.registers import Registers
+from pyx64dbg.breakpoint import Breakpoints
+from pyx64dbg.memory import Memory
+import pyx64dbg.ptrace as ptrace
+from pyx64dbg.stdio_tube import StdioTube
+from pyx64dbg.registers import Registers
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
-from pydbg.process_exited_error import ProcessExitedError
-from pydbg.parse_elf import ELFFileParser
-from pydbg.symbols import Symbols
+from pyx64dbg.process_exited_error import ProcessExitedError
+from pyx64dbg.parse_elf import ELFFileParser
+from pyx64dbg.symbols import Symbols
 
-from pydbg.stack import Stack
+from pyx64dbg.stack import Stack
 
 
 class Debugger:
@@ -130,7 +130,7 @@ class Debugger:
             raise ValueError("Not currently stopped by a signal")
         self.stopped_signal = None
 
-    from pydbg.movement_functions import (
+    from pyx64dbg.movement_functions import (
         single_step,
         continue_execution,
         next,
@@ -138,13 +138,13 @@ class Debugger:
         _handle_signal,
         _step_from_breakpoint,
     )
-    from pydbg.memory_functions import (
+    from pyx64dbg.memory_functions import (
         read_instruction,
         read_number,
         write_number,
         read_c_string,
     )
-    from pydbg.get_mappings import (
+    from pyx64dbg.get_mappings import (
         _init_base_address_and_ld_Base,
         _get_shared_objects,
         _get_auxv,

@@ -1,5 +1,5 @@
-from pydbg.number_types import UInt64
-from pydbg.cint import CInt
+from pyx64dbg.number_types import UInt64
+from pyx64dbg.cint import CInt
 
 class StackFrame:
     """

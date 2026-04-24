@@ -1,5 +1,5 @@
-from pydbg.debugger import Debugger
-from pydbg.number_types import Int64
+from pyx64dbg.debugger import Debugger
+from pyx64dbg.number_types import Int64
 
 EXECUTABLE_ADDRESS = "./test/executables/basic_crackme/test_basic_crackme"
 CRACKME_SOL = 687113069

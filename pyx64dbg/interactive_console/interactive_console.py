@@ -1,18 +1,18 @@
 import inspect
 import sys
-from pydbg.interactive_console.console_commands import get_available_commands, get_all_commands_help
+from pyx64dbg.interactive_console.console_commands import get_available_commands, get_all_commands_help
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
-from pydbg.interactive_console.invalid_process_state_trap import ExceptionTrap, ProcessAlreadyRunningError, ProcessNotRunningError
+from pyx64dbg.interactive_console.invalid_process_state_trap import ExceptionTrap, ProcessAlreadyRunningError, ProcessNotRunningError
 from prompt_toolkit import print_formatted_text, HTML
-from pydbg.debugger import Debugger
+from pyx64dbg.debugger import Debugger
 import atexit
 
 class ConsolePrompt(Prompts):
     def in_prompt_tokens(self, cli=None):
-        return [(Token.Prompt, "PyDbg> ")]
+        return [(Token.Prompt, "PyX64Dbg> ")]
 
-banner = """Welcome to the PyDbg interactive console!
+banner = """Welcome to the PyX64Dbg interactive console!
 Type help for more information."""
 
 help_message = """This is an interactive python console.
@@ -143,7 +143,7 @@ class InteractiveConsole:
     def start_console(self):
         atexit.register(self._handle_exit) # register the exit handler
         self.shell = InteractiveShellEmbed(colors='linux' ,display_banner=False)
-        # define custom prompt (PyDbg>) for the console
+        # define custom prompt (PyX64Dbg>) for the console
         self.shell.prompts = ConsolePrompt(self.shell)
         # disable tracebacks to avoid overwhelming the user with internal errors of the console, which are not relevant to the user and can be confusing
         if not self.verbose:

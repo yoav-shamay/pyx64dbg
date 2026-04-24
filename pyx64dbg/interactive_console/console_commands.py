@@ -1,10 +1,10 @@
-from pydbg import number_types
+from pyx64dbg import number_types
 from typing import TYPE_CHECKING
-from pydbg.vector_register import VectorRegister
-from pydbg.stack import StackFrame
+from pyx64dbg.vector_register import VectorRegister
+from pyx64dbg.stack import StackFrame
 
 if TYPE_CHECKING:
-    from interactive_console.interactive_console import InteractiveConsole
+    from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 
 # Define all active commands once with dotted path names - single source of truth
 # format - ([aliases], ("path.to.method.active", "path.to.method.inactive"), "help_description" (or None for not showing))

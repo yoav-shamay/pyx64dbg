@@ -1,11 +1,11 @@
 import argparse
-from pydbg.debugger import Debugger
+from pyx64dbg.debugger import Debugger
 
-from pydbg.interactive_console.interactive_console import InteractiveConsole
+from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 
 
 def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog='pydbg',
+    parser = argparse.ArgumentParser(prog='pyx64dbg',
                                      description='A debugger written in python')
     parser.add_argument("filename")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output in case of errors, including full traceback")

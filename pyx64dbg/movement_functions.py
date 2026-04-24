@@ -1,9 +1,9 @@
-import pydbg.ptrace as ptrace
+import pyx64dbg.ptrace as ptrace
 import os
 from capstone import CS_GRP_CALL
 import signal
-from pydbg.cint import CInt
-from pydbg.utils import change_first_byte
+from pyx64dbg.cint import CInt
+from pyx64dbg.utils import change_first_byte
 
 
 def _handle_signal(self, status, stepped=False):

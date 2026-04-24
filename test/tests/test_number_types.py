@@ -1,5 +1,5 @@
 import pytest
-from pydbg.number_types import (
+from pyx64dbg.number_types import (
     Int8, Int16, Int32, Int64, 
     UInt8, UInt16, UInt32, UInt64,
     Float32, Float64, Float80

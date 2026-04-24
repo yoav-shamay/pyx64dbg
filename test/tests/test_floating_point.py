@@ -1,6 +1,6 @@
-from pydbg.debugger import Debugger
+from pyx64dbg.debugger import Debugger
 import pytest
-from pydbg.number_types import Float32, Float64, Float80
+from pyx64dbg.number_types import Float32, Float64, Float80
 
 EXECUTABLE_ADDRESS = "./test/executables/floating_point/test_fp"
 

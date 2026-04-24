@@ -1,6 +1,6 @@
-import pydbg.ptrace as ptrace
-from pydbg.breakpoint import BREAKPOINT_INSTRUCTION
-from pydbg.utils import get_first_byte, change_first_byte
+import pyx64dbg.ptrace as ptrace
+from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION
+from pyx64dbg.utils import get_first_byte, change_first_byte
 
 
 class Memory:

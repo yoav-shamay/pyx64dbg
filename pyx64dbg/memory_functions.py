@@ -1,4 +1,4 @@
-from pydbg.cint import CInt
+from pyx64dbg.cint import CInt
 import mmap
 
 def read_instruction(self, address, instruction_cnt=None):

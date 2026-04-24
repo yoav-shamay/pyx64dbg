@@ -1,4 +1,4 @@
-from pydbg.debugger import Debugger
+from pyx64dbg.debugger import Debugger
 
 EXECUTABLE_ADDRESS = "./test/executables/extended_registers/test_extended_registers"
 

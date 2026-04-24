@@ -1,5 +1,5 @@
-#ifndef PYDBG_PTRACE_UTILS_H
-#define PYDBG_PTRACE_UTILS_H
+#ifndef PYX64DBG_PTRACE_UTILS_H
+#define PYX64DBG_PTRACE_UTILS_H
 
 #include <Python.h>
 #include <stddef.h>

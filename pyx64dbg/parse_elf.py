@@ -1,5 +1,5 @@
 from elftools.elf.elffile import ELFFile
-from pydbg.symbols import Symbol, SymbolType
+from pyx64dbg.symbols import Symbol, SymbolType
 
 elftools_symtypes = {
     'STT_FUNC': SymbolType.FUNCTION,

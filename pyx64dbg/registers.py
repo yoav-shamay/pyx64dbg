@@ -1,9 +1,9 @@
-from pydbg.cint import CInt
-import pydbg.ptrace as ptrace
-from pydbg.cfloat import CFloat
-from pydbg.utils import signed_to_unsigned, in_range
-from pydbg.number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80
-from pydbg.vector_register import Vector64, Vector128, Vector256, VectorRegister
+from pyx64dbg.cint import CInt
+import pyx64dbg.ptrace as ptrace
+from pyx64dbg.cfloat import CFloat
+from pyx64dbg.utils import signed_to_unsigned, in_range
+from pyx64dbg.number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80
+from pyx64dbg.vector_register import Vector64, Vector128, Vector256, VectorRegister
 
 # format: "reg_name": ["reg_name_in_struct", (first_byte, last_byte, type)]
 STANDARD_REGS = {

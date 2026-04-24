@@ -1,5 +1,5 @@
-#ifndef PYDBG_PTRACE_XSTATE_H
-#define PYDBG_PTRACE_XSTATE_H
+#ifndef PYX64DBG_PTRACE_XSTATE_H
+#define PYX64DBG_PTRACE_XSTATE_H
 
 #include <Python.h>
 

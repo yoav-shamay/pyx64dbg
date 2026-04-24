@@ -1,5 +1,5 @@
-from pydbg.parse_elf import ELFFileParser
-from pydbg.symbols import Symbols
+from pyx64dbg.parse_elf import ELFFileParser
+from pyx64dbg.symbols import Symbols
 import os
 
 class SharedObject:

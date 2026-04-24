@@ -8,8 +8,8 @@ Available types:
 """
 
 import ctypes
-from pydbg.cint import CInt
-from pydbg.cfloat import CFloat
+from pyx64dbg.cint import CInt
+from pyx64dbg.cfloat import CFloat
 
 # integer types
 

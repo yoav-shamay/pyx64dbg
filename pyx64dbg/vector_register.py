@@ -1,5 +1,5 @@
 from typing import Type, Any, Union, Iterable
-from pydbg.number_types import Float32, Float64, Int16, UInt16, Int8, UInt32, Int32, UInt64, Int64, UInt8
+from pyx64dbg.number_types import Float32, Float64, Int16, UInt16, Int8, UInt32, Int32, UInt64, Int64, UInt8
 
 
 class VectorView:

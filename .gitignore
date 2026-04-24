@@ -4,5 +4,5 @@
 *.pyd
 *.so
 **/__pycache__/
-pydbg/build/
+pyx64dbg/build/
 *.egg-info/
