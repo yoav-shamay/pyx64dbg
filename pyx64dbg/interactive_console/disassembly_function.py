@@ -135,4 +135,4 @@ def print_disassembly(self, address: int, instruction_cnt: int) -> None:
         if is_current:
             line_html = f"<current>{line_html}</current>"
 
-        print_formatted_text(HTML(line_html), style=disasm_style)
+        print_formatted_text(HTML(line_html), style=disasm_style, output=self._toolkit_output)

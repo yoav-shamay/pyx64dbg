@@ -5,10 +5,11 @@ from PyQt6.QtWidgets import QAbstractItemView, QTableWidget, QTextEdit, QWidget
 
 
 class PlaceholderTextEdit(QTextEdit):
-    def __init__(self, text: str, parent: QWidget | None = None) -> None:
+    text = None # placeholder for the text to show in the text edit, to be set by the inheriting class
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setReadOnly(True)
-        self.setPlainText(text)
+        self.setPlainText(self.text)
         self.setMinimumHeight(160)
         self.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
 

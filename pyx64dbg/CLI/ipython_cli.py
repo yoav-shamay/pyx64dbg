@@ -61,5 +61,7 @@ class IPythonCLI:
         self.shell.autocall = (
             2  # allow to call functions without parentheses, e. g. "s" instead of "s()"
         )
+        # Disable the kernel from printing the autocall expansion to keep the CLI cleaner
+        self.shell.show_rewritten_input = False
         print(banner)
         self.shell(local_ns=self.interactive_console.get_aliases())

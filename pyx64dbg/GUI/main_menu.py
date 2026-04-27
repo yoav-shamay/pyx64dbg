@@ -6,6 +6,8 @@ from typing import Callable
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
 
+from pyx64dbg.GUI.interactive_console_view import InteractiveConsoleView
+
 
 class MainMenu:
     def __init__(
@@ -64,9 +66,8 @@ class MainMenu:
         if not os.access(selected_path, os.X_OK):
             QMessageBox.warning(self._main_window, "Invalid Executable", "The selected file is not executable.")
             return
-
-        QMessageBox.information(
-            self._main_window,
-            "Open Executable",
-            f"Selected executable:\n{selected_path}\n\nPlaceholder: launching/debug attach is not implemented yet.",
-        )
+        # update file path in the main window
+        self._main_window.file_path = selected_path
+        # update the interactive console view to a real one
+        interactive_console_view = InteractiveConsoleView(selected_path, self._main_window)
+        self._main_window._docks["interactive_console"].setWidget(interactive_console_view)

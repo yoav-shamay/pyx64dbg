@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QDockWidget, QMainWindow, QTabWidget, QWidget
 from pyx64dbg.GUI.breakpoints_view import BreakpointsView
 from pyx64dbg.GUI.disassembly_view import DisassemblyView
 from pyx64dbg.GUI.extended_registers_view import ExtendedRegistersView
-from pyx64dbg.GUI.interactive_console_view import InteractiveConsoleView
+from pyx64dbg.GUI.placeholder_interactive_console import PlaceholderInteractiveConsole
 from pyx64dbg.GUI.main_menu import MainMenu
 from pyx64dbg.GUI.pty_stdio_view import PtyStdioView
 from pyx64dbg.GUI.registers_view import RegistersView
@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
         self._register_view("registers", "Registers", RegistersView(self), Qt.DockWidgetArea.RightDockWidgetArea)
         self._register_view("extended_registers", "Extended Registers", ExtendedRegistersView(self), Qt.DockWidgetArea.RightDockWidgetArea)
         
-        self._register_view("interactive_console", "Interactive Console", InteractiveConsoleView(self), Qt.DockWidgetArea.BottomDockWidgetArea)
+        self._register_view("interactive_console", "Interactive Console", PlaceholderInteractiveConsole(self), Qt.DockWidgetArea.BottomDockWidgetArea)
         self._register_view("stdio_terminal", "PTY Stdio", PtyStdioView(self), Qt.DockWidgetArea.BottomDockWidgetArea)
 
     def _create_default_layout(self) -> None:
@@ -117,15 +117,23 @@ class MainWindow(QMainWindow):
         self._tabify_group(["registers", "extended_registers"])
 
         # Final Sizing
+        # Symbols-Disassembly-Registers horizontal sizes
         self.resizeDocks(
             [self._docks["symbols"], self._docks["disassembly"], self._docks["registers"]],
             [300, 1000, 300],
             Qt.Orientation.Horizontal,
         )
+        # Symbol-Disassembly-Registers group vs Interactive Console-PTY vertical sizes
         self.resizeDocks(
             [self._docks["disassembly"], self._docks["interactive_console"]],
-            [750, 250],
+            [750, 550],
             Qt.Orientation.Vertical,
+        )
+        # Interactive Console vs PTY horizontal sizes
+        self.resizeDocks(
+            [self._docks["interactive_console"], self._docks["stdio_terminal"]],
+            [700, 300],
+            Qt.Orientation.Horizontal,
         )
     
     def _save_layout(self) -> None:

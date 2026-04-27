@@ -11,6 +11,7 @@ from pyx64dbg.interactive_console.invalid_process_state_trap import (
     ProcessAlreadyRunningError,
     ProcessNotRunningError,
 )
+from prompt_toolkit.output.vt100 import Vt100_Output
 from prompt_toolkit import print_formatted_text, HTML
 import atexit
 
@@ -21,6 +22,8 @@ You can also use the number types such as Int32, UInt64, etc., for constant-size
 You can also call functions without parenthesis, e. g. "s" or "dis regs.rip,10".
 Use help(object) to view the docstring for any of the above methods or properties for more details on their usage."""
 
+banner = """Welcome to the PyX64Dbg interactive console!
+Type help for more information."""
 
 class InteractiveConsole:
     """
@@ -33,7 +36,8 @@ class InteractiveConsole:
         self,
         file_name,
         update_aliases_callback: Callable[[dict], None] = None,
-        new_debugger_object_callback: Callable[[Debugger], None] = None
+        new_debugger_object_callback: Callable[[Debugger], None] = None,
+        stdout_stream = None
     ):
         self.file_name = file_name
         self.debugger = None
@@ -43,6 +47,8 @@ class InteractiveConsole:
         self.new_debugger_object_callback = new_debugger_object_callback
         self._process_already_running_trap = ExceptionTrap(ProcessAlreadyRunningError())
         self._process_not_running_trap = ExceptionTrap(ProcessNotRunningError())
+        toolkit_output_stream = stdout_stream if stdout_stream is not None else sys.stdout
+        self._toolkit_output = Vt100_Output(toolkit_output_stream, lambda: (24, 80))
 
     def get_aliases(self):
         cur_commands = get_available_commands(self, self.process_running)
@@ -90,7 +96,7 @@ class InteractiveConsole:
         Should be manually called by the CLI / GUI using this object.
         """
         output = f"<ansired><b>{exc_name}</b></ansired>: {exc_desc}"
-        print_formatted_text(HTML(output))
+        print_formatted_text(HTML(output), output=self._toolkit_output)
     
     def handle_exit(self):
         """
