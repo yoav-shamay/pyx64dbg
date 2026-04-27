@@ -74,6 +74,7 @@ def single_step(self):
             ptrace.single_step(self.child_pid)
         _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
         self._handle_signal(status, stepped=True)
+    self._on_update()
 
 def continue_execution(self):
     """
@@ -85,6 +86,7 @@ def continue_execution(self):
         self._step_from_breakpoint(rip)
         if self.stopped_signal is not None or self.process_exited:
             # if we are currently stopped by a signal or the process exited, we shouldn't continue execution, as the process is already stopped/exited, and continuing would cause an error
+            self._on_update()
             return
     if self.stopped_signal is not None:
         # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
@@ -94,6 +96,7 @@ def continue_execution(self):
         ptrace.cont(self.child_pid)
     _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
     self._handle_signal(status)
+    self._on_update()
 
 def next(self):
     """

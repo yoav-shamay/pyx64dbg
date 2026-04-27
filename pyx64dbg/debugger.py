@@ -21,6 +21,7 @@ class Debugger:
         child_pty,
         exit_callback=None,
         stop_callback=None,
+        update_callback=None,
         file_path=None,
     ):
         self.child_pid = child_pid
@@ -31,11 +32,12 @@ class Debugger:
         self.exit_code = None
         self.exit_callback = exit_callback
         self.stop_callback = stop_callback
+        self.update_callback = update_callback
         self.stopped_signal = None
 
-        self.breakpoints = Breakpoints(child_pid, self._ensure_running)
-        self.memory = Memory(child_pid, self.breakpoints, self._ensure_running)
-        self.registers = Registers(child_pid, self._ensure_running)
+        self.breakpoints = Breakpoints(child_pid, self._ensure_running, self._on_update)
+        self.memory = Memory(child_pid, self.breakpoints, self._ensure_running, self._on_update)
+        self.registers = Registers(child_pid, self._ensure_running, self._on_update)
         self.stack = Stack(self.memory, self.registers, self._ensure_running)
         if child_pty is not None:
             self.stdio = StdioTube(child_pty)
@@ -120,6 +122,7 @@ class Debugger:
             os.wait()
         )  # wait for child to raise a signal, which should be from killing the process
         self._handle_signal(status)
+        self._on_update()
     
     def surpass_signal(self):
         """
@@ -129,6 +132,15 @@ class Debugger:
         if self.stopped_signal is None:
             raise ValueError("Not currently stopped by a signal")
         self.stopped_signal = None
+        self._on_update()
+    
+    def _on_update(self):
+        """
+        Function to be called on any debugger state update.
+        Triggers the provided update callback if it exists.
+        """
+        if self.update_callback is not None:
+            self.update_callback()
 
     from pyx64dbg.movement_functions import (
         single_step,

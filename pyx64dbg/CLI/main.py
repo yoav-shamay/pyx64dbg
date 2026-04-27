@@ -1,7 +1,5 @@
 import argparse
-from pyx64dbg.debugger import Debugger
-
-from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
+from pyx64dbg.CLI.ipython_cli import IPythonCLI
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -15,7 +13,7 @@ def parse_arguments() -> argparse.Namespace:
 def main():
     args = parse_arguments()
     file_name = args.filename
-    console = InteractiveConsole(file_name, verbose=args.verbose)
+    console = IPythonCLI(file_name, verbose=args.verbose)
     console.start_console()
 
 if __name__ == "__main__":

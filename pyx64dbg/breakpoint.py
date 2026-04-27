@@ -6,11 +6,12 @@ import os
 BREAKPOINT_INSTRUCTION = 0xCC
 
 class Breakpoints:
-    def __init__(self, child_pid, ensure_running):
+    def __init__(self, child_pid, ensure_running, on_update):
         self.addresses = set()
         self.original_bytes = {}
         self.child_pid = child_pid
         self._ensure_running = ensure_running
+        self._on_update = on_update
     
     def get_breakpoints(self):
         """
@@ -32,6 +33,7 @@ class Breakpoints:
         ptrace.pokedata(self.child_pid, address, breakpoint_word)
         self.addresses.add(address)
         self.original_bytes[address] = get_first_byte(original_word)
+        self._on_update()
     
     def remove_breakpoint(self, address : CInt | int):
         """
@@ -47,4 +49,4 @@ class Breakpoints:
         ptrace.pokedata(self.child_pid, address, non_breakpoint_word)
         self.addresses.remove(address)
         del self.original_bytes[address]
-        
+        self._on_update()

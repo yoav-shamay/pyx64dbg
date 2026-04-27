@@ -75,15 +75,15 @@ class VectorView:
 
     def __eq__(self, other):
         """Allows comparison with other VectorViews, lists, or tuples."""
-        # 1. Check if the other object is a list-like container
+        # Check if the other object is a list-like container
         if not isinstance(other, (VectorView, list, tuple)):
             return NotImplemented
         
-        # 2. Length check is a fast fail
+        # Length check is a fast fail
         if len(self) != len(other):
             return False
         
-        # 3. Element-wise comparison
+        # Element-wise comparison
         # This will use the __eq__ of your Int32/Float64 classes
         return all(s == o for s, o in zip(self, other))
 
