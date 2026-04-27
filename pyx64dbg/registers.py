@@ -1,7 +1,6 @@
 from pyx64dbg.cint import CInt
 import pyx64dbg.ptrace as ptrace
 from pyx64dbg.cfloat import CFloat
-from pyx64dbg.utils import signed_to_unsigned, in_range
 from pyx64dbg.number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80
 from pyx64dbg.vector_register import Vector64, Vector128, Vector256, VectorRegister
 
