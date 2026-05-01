@@ -178,9 +178,6 @@ class DebuggerWorker(QObject):
         """
         Slot to handle the exit of the debugger process.
         """
-        # if the process is active, kill it
-        if self.debugger:
-            self.debugger.kill_process()
         # if a kernel is active, stop it
         if self.kernel_app:
             self.kernel_app.kernel.do_shutdown(restart=False)

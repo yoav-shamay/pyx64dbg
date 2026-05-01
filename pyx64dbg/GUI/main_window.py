@@ -26,6 +26,7 @@ from pyx64dbg.GUI.watch_view import WatchView
 from pyx64dbg.GUI.interactive_console_view import InteractiveConsoleView
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 
+import os, signal
 
 class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -361,11 +362,15 @@ class MainWindow(QMainWindow):
         """
         # If the debugger thread is running, we need to stop it before closing the application to ensure a clean exit.
         if self.debugger_thread.isRunning():
-            # tell the debugger worker to kill the process
+            # kill the traced child manually, as the thread might be blocked waiting and won't be able to process a stop signal.
+            if self.debugger_worker.debugger is not None:
+                child_pid = self.debugger_worker.debugger.child_pid
+                os.kill(child_pid, signal.SIGKILL)
+            # tell the debugger worker to finish, shutting down the kernel. As the traced process is dead, it shouldn't be blocked.
             self.debugger_worker.call_from_another_thread("handle_exit", blocking=True)
             # stop the debugger thread
             self.debugger_thread.quit()
-            # Wait for the thread to actually exit (this blocks the UI for a split second)
+            # Wait for the thread to actually exit
             self.debugger_thread.wait()
 
         # accept the close event to proceed with closing the window
