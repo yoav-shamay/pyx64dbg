@@ -1,12 +1,8 @@
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
-from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
+from pyx64dbg.interactive_console.interactive_console import InteractiveConsole, banner
 import atexit
 import sys
-
-banner = """Welcome to the PyX64Dbg interactive console!
-Type help for more information."""
-
 
 class ConsolePrompt(Prompts):
     def in_prompt_tokens(self, cli=None):
@@ -14,11 +10,12 @@ class ConsolePrompt(Prompts):
 
 
 class IPythonCLI:
-    def __init__(self, file_name, verbose=False):
+    def __init__(self, file_name = None, verbose=False):
         self.file_name = file_name
         self.verbose = verbose
         self.interactive_console = InteractiveConsole(
             file_name,
+            redirect_stdio_to_pty=False,
             update_aliases_callback=self._refresh_aliases,
             new_debugger_object_callback=self._update_debugger_object
         )

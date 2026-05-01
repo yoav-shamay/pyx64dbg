@@ -6,7 +6,7 @@ def read_instruction(self, address, instruction_cnt=None):
     act_cnt = 1 if instruction_cnt is None else instruction_cnt
     MAX_INSTRUCTION_BYTES = 15
     code = self.memory[address : address + act_cnt * MAX_INSTRUCTION_BYTES]
-    instructions = list(self.cs.disasm(code, address, count=act_cnt))
+    instructions = list(self._cs.disasm(code, address, count=act_cnt))
     if instruction_cnt is None:
         # if the user didn't specify an instruction count, return a single instruction instead of a list
         return instructions[0]

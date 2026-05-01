@@ -14,11 +14,11 @@ class Memory:
     Can also use memory[start:end:step] for reading/writing with a step.
     """
 
-    def __init__(self, child_pid, breakpoints, ensure_running, on_update):
+    def __init__(self, child_pid, breakpoints, ensure_running, trigger_update_callbacks):
         self.child_pid = child_pid
         self.breakpoints = breakpoints
         self._ensure_running = ensure_running
-        self._on_update = on_update
+        self._trigger_update_callbacks = trigger_update_callbacks
 
     def _get_raw_byte(self, address):
         word = ptrace.peekdata(self.child_pid, address)
@@ -108,4 +108,4 @@ class Memory:
             key = int(key)  # convert to int if it's a CInt
             value = self._replace_write_breakpoint_byte(value, key)
             self._set_raw_byte(key, value)
-        self._on_update()
+        self._trigger_update_callbacks()

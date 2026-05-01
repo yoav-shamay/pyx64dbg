@@ -12,15 +12,13 @@ def _handle_signal(self, status, stepped=False):
         self.exit_code = os.WEXITSTATUS(status)
         self.error_signal = None
         self.stopped_signal = None
-        if self.exit_callback is not None:
-            self.exit_callback()
+        self.exit_callbacks.trigger()
     elif os.WIFSIGNALED(status):
         self.process_exited = True
         self.exit_code = None
         self.error_signal = os.WTERMSIG(status)
         self.stopped_signal = None
-        if self.exit_callback is not None:
-            self.exit_callback()
+        self.exit_callbacks.trigger()
     elif os.WIFSTOPPED(status):
         # if the process was stopped by a signal, only SIGTRAP is treated as a stepping/breakpoint stop
         self.registers._refresh_registers() # refresh registers after movement
@@ -31,8 +29,7 @@ def _handle_signal(self, status, stepped=False):
                 self.registers.rip -= 1 #  so move the instruction pointer back to point to the breakpoint instruction
         else:
             self.stopped_signal = triggered_signal
-            if self.stop_callback is not None:
-                self.stop_callback()
+            self.stop_callbacks.trigger()
     else:
         raise Exception("Unexpected status after ptrace movement: " + str(status))
     
@@ -62,6 +59,7 @@ def single_step(self):
     Steps a single instruction.
     """
     self._ensure_running()
+    self.busy_callbacks.trigger() # Trigger the busy callback as we wait for the process
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
         self._step_from_breakpoint(rip)
@@ -74,19 +72,20 @@ def single_step(self):
             ptrace.single_step(self.child_pid)
         _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
         self._handle_signal(status, stepped=True)
-    self._on_update()
+    self.update_callbacks.trigger()
 
 def continue_execution(self):
     """
     Continues execution until the next breakpoint or exit.
     """
     self._ensure_running()
+    self.busy_callbacks.trigger() # Trigger the busy callback as we wait for the process
     rip = int(self.registers["rip"])
     if rip in self.breakpoints.get_breakpoints():
         self._step_from_breakpoint(rip)
         if self.stopped_signal is not None or self.process_exited:
             # if we are currently stopped by a signal or the process exited, we shouldn't continue execution, as the process is already stopped/exited, and continuing would cause an error
-            self._on_update()
+            self.update_callbacks.trigger()
             return
     if self.stopped_signal is not None:
         # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
@@ -96,7 +95,7 @@ def continue_execution(self):
         ptrace.cont(self.child_pid)
     _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
     self._handle_signal(status)
-    self._on_update()
+    self.update_callbacks.trigger()
 
 def next(self):
     """

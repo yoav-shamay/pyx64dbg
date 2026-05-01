@@ -9,16 +9,12 @@ from PyQt6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
 from pyx64dbg.GUI.interactive_console_view import InteractiveConsoleView
 
 
-class MainMenu:
+class TopMenu:
     def __init__(
         self,
         main_window: QMainWindow,
-        save_layout_callback: Callable[[], None],
-        reset_layout_callback: Callable[[], None],
     ) -> None:
         self._main_window = main_window
-        self._save_layout_callback = save_layout_callback
-        self._reset_layout_callback = reset_layout_callback
 
         self._file_menu = self._main_window.menuBar().addMenu("&File")
         self._view_menu = self._main_window.menuBar().addMenu("&View")
@@ -40,34 +36,47 @@ class MainMenu:
         self._file_menu.addAction(self._open_action)
 
         self._save_layout_action = QAction("Save Layout", self._main_window)
-        self._save_layout_action.triggered.connect(self._save_layout_callback)
+        self._save_layout_action.triggered.connect(self._main_window.save_layout)
         self._window_menu.addAction(self._save_layout_action)
 
         self._reset_layout_action = QAction("Reset Layout", self._main_window)
-        self._reset_layout_action.triggered.connect(self._reset_layout_callback)
+        self._reset_layout_action.triggered.connect(self._main_window.reset_layout)
         self._window_menu.addAction(self._reset_layout_action)
 
     def open_executable(self) -> None:
-        """Placeholder File -> Open flow that currently only selects and validates an executable path."""
+        """
+        Function to open a file dialog and select an executable to debug.
+        Updates the state once a file is selected.
+        """
         selected_path, _ = QFileDialog.getOpenFileName(
             self._main_window,
             "Open Executable",
             "",
             "All Files (*)",
         )
-
+        
         if not selected_path:
             return
 
+        # Check if a file is selcted (not a directory)
         if not os.path.isfile(selected_path):
             QMessageBox.warning(self._main_window, "Invalid File", "The selected path is not a file.")
             return
 
+        # check if selected file has executable permissions. Otherwise we won't be able to run it.
         if not os.access(selected_path, os.X_OK):
             QMessageBox.warning(self._main_window, "Invalid Executable", "The selected file is not executable.")
             return
-        # update file path in the main window
+        if self._main_window.process_running:
+            # if a process is already running, kill it before opening a new one.
+            self._main_window.debugger_worker.stop_debugging()
+            self._main_window.debugger = None
+            # update all widgets to reflect that no process is running
+            self._main_window.update_gui_on_process_stop()
+        # update the file path in the debugger worker
+        self._main_window.debugger_worker.call_from_another_thread("set_file_name", selected_path, blocking=True)
+        # update file path in the main window and mark that a file has been selected and no process is currently running
         self._main_window.file_path = selected_path
-        # update the interactive console view to a real one
-        interactive_console_view = InteractiveConsoleView(selected_path, self._main_window)
-        self._main_window._docks["interactive_console"].setWidget(interactive_console_view)
+        self._main_window.selected_file = True
+        self._main_window.process_running = False
+        self._main_window.update_gui_on_file_select()

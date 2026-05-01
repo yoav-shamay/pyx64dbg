@@ -2,6 +2,7 @@ import os
 import pty
 import termios
 from pyx64dbg.breakpoint import Breakpoints
+from pyx64dbg.callback_list import CallbackList
 from pyx64dbg.memory import Memory
 import pyx64dbg.ptrace as ptrace
 from pyx64dbg.stdio_tube import StdioTube
@@ -19,9 +20,6 @@ class Debugger:
         self,
         child_pid,
         child_pty,
-        exit_callback=None,
-        stop_callback=None,
-        update_callback=None,
         file_path=None,
     ):
         self.child_pid = child_pid
@@ -30,22 +28,23 @@ class Debugger:
         self.process_exited = False
         self.error_signal = None
         self.exit_code = None
-        self.exit_callback = exit_callback
-        self.stop_callback = stop_callback
-        self.update_callback = update_callback
+        self.exit_callbacks = CallbackList()
+        self.stop_callbacks = CallbackList()
+        self.update_callbacks = CallbackList()
+        self.busy_callbacks = CallbackList()
         self.stopped_signal = None
 
-        self.breakpoints = Breakpoints(child_pid, self._ensure_running, self._on_update)
-        self.memory = Memory(child_pid, self.breakpoints, self._ensure_running, self._on_update)
-        self.registers = Registers(child_pid, self._ensure_running, self._on_update)
+        self.breakpoints = Breakpoints(child_pid, self._ensure_running, self.update_callbacks.trigger)
+        self.memory = Memory(child_pid, self.breakpoints, self._ensure_running, self.update_callbacks.trigger)
+        self.registers = Registers(child_pid, self._ensure_running, self.update_callbacks.trigger)
         self.stack = Stack(self.memory, self.registers, self._ensure_running)
         if child_pty is not None:
             self.stdio = StdioTube(child_pty)
         else:
             self.stdio = None
 
-        self.cs = Cs(CS_ARCH_X86, CS_MODE_64)
-        self.cs.detail = True
+        self._cs = Cs(CS_ARCH_X86, CS_MODE_64)
+        self._cs.detail = True
 
         if file_path is None:
             # if file path isn't provided, default to determining it from procfs (/proc/<pid>/exe)
@@ -117,13 +116,14 @@ class Debugger:
 
     def kill_process(self):
         self._ensure_running()
+        self.busy_callbacks.trigger() # Trigger the busy callback as we wait for the process
         ptrace.kill(self.child_pid)
         _, status = (
             os.wait()
         )  # wait for child to raise a signal, which should be from killing the process
         self._handle_signal(status)
-        self._on_update()
-    
+        self.update_callbacks.trigger()
+
     def surpass_signal(self):
         """
         Surpasses the current signal, allowing the process to continue execution without handling the signal.
@@ -132,15 +132,9 @@ class Debugger:
         if self.stopped_signal is None:
             raise ValueError("Not currently stopped by a signal")
         self.stopped_signal = None
-        self._on_update()
+        self.update_callbacks.trigger()
     
-    def _on_update(self):
-        """
-        Function to be called on any debugger state update.
-        Triggers the provided update callback if it exists.
-        """
-        if self.update_callback is not None:
-            self.update_callback()
+   
 
     from pyx64dbg.movement_functions import (
         single_step,

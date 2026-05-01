@@ -45,6 +45,7 @@ ALL_COMMANDS = [
     (["Float32", "Float"], (number_types.Float32, number_types.Float32), None),
     (["Float64", "Double"], (number_types.Float64, number_types.Float64), None),
     (["Float80", "LongDouble"], (number_types.Float80, number_types.Float80), None),
+    (["select_file", "load_file", "file"], (["select_file"], ["select_file"]), "Select a file to debug."),
     (["number_types"], (number_types, number_types), None), # for help entry
     (["StackFrame"], (StackFrame, StackFrame), None), # for help entry
     (["VectorRegister"], (VectorRegister, VectorRegister), None), # for help entry

@@ -13,13 +13,35 @@ class PlaceholderTextEdit(QTextEdit):
         self.setMinimumHeight(160)
         self.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
 
+class PlaceholderInteractiveConsole(PlaceholderTextEdit):
+    text = "Select a file to access the console."
 
+class PlaceholderBreakpointsView(PlaceholderTextEdit):
+    text = "Run a process to view breakpoints."
+
+class PlaceholderRegistersView(PlaceholderTextEdit):
+    text = "Run a process to view registers."
+
+class PlaceholderSymbolsView(PlaceholderTextEdit):
+    text = "Run a process to view symbols."
+
+class PlaceholderExtendedRegistersView(PlaceholderTextEdit):
+    text = "Run a process to view extended registers."
+
+class PlaceholderDisassemblyView(PlaceholderTextEdit):
+    text = "Run a process to view disassembly."
+
+class PlaceholderPtyStdioView(PlaceholderTextEdit):
+    text = "Run a process to access stdio."
+
+class PlaceholderWatchView(PlaceholderTextEdit):
+    text = "Run a process to access watch."
+
+# temporary placeholder table class until we implement the real views, to avoid having to duplicate the same code in each view.
 class PlaceholderTable(QTableWidget):
     def __init__(self, headers: list[str], parent: QWidget | None = None) -> None:
         super().__init__(0, len(headers), parent)
         self.setHorizontalHeaderLabels(headers)
-        self.verticalHeader().setVisible(False)
-        self.setAlternatingRowColors(True)
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.setMinimumHeight(160)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

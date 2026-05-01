@@ -185,10 +185,10 @@ class Registers:
     Can also use registers.get(reg_name) and registers.set(reg_name, value) for more explicit access.
     Vector registers (ymm / xmm) are returned in the VectorRegister format, see help(VectorRegister) for more details and supported operations on vector registers.
     """
-    def __init__(self, child_pid, ensure_running, on_update):
+    def __init__(self, child_pid, ensure_running, trigger_update_callbacks):
         self.child_pid = child_pid
         self._ensure_running = ensure_running
-        self._on_update = on_update
+        self._trigger_update_callbacks = trigger_update_callbacks
         self._refresh_registers()
 
     def _refresh_registers(self):
@@ -250,7 +250,7 @@ class Registers:
             ptrace.set_extended_regs(self.child_pid, modified_regs_dict)
         else:
             raise KeyError(reg_name)
-        self._on_update()
+        self._trigger_update_callbacks()
     
     def __getitem__(self, key):
         return self.get(key)

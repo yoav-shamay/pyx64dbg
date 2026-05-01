@@ -5,7 +5,7 @@ from pyx64dbg.CLI.ipython_cli import IPythonCLI
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog='pyx64dbg',
                                      description='A debugger written in python')
-    parser.add_argument("filename")
+    parser.add_argument("filename", nargs="?", default=None, help="The file to debug")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output in case of errors, including full traceback")
     args = parser.parse_args()
     return args
