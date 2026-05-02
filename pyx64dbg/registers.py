@@ -220,7 +220,7 @@ class Registers:
         else:
             raise KeyError(reg_name)
     
-    def set(self, reg_name, value):
+    def set(self, reg_name, value, trigger_updates = True):
         self._ensure_running()
         if reg_name in STANDARD_REGS:
             reg_name, (first_byte, last_byte, reg_type) = STANDARD_REGS[reg_name]
@@ -250,7 +250,8 @@ class Registers:
             ptrace.set_extended_regs(self.child_pid, modified_regs_dict)
         else:
             raise KeyError(reg_name)
-        self._trigger_update_callbacks()
+        if trigger_updates:
+            self._trigger_update_callbacks()
     
     def __getitem__(self, key):
         return self.get(key)

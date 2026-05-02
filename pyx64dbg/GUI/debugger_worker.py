@@ -1,5 +1,5 @@
 from __future__ import annotations
-from PyQt6.QtCore import Q_ARG, QMetaObject, QObject, Qt, pyqtSignal, pyqtSlot, QEventLoop
+from PySide6.QtCore import Q_ARG, QMetaObject, QObject, Qt, Signal, Slot, QEventLoop, QTimer
 import capstone
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
@@ -8,7 +8,8 @@ from ipykernel.kernelapp import IPKernelApp
 import sys
 from ipykernel.eventloops import enable_gui
 from pyx64dbg.GUI.debugger_state import DebuggerState
-from typing import Generic, TypeVar, Optional
+from typing import Optional
+import asyncio
 
 class KernelApplication(QObject):
     """
@@ -28,17 +29,6 @@ class KernelApplication(QObject):
         """An exit method that the kernel uses to shut down."""
         self.qt_event_loop.quit()
 
-
-T = TypeVar('T')
-class ReturnHolder(Generic[T]):
-    """
-    A simple class to hold a return value from a method called through the call_from_another_thread utility function.
-    This is needed because when calling a method through Qt's signal-slot mechanism, we can't directly return a value from the method.
-    So we use this class as an argument instead.
-    """
-    def __init__(self):
-        self.value : Optional[T] = None
-
 class DebuggerWorker(QObject):
     """
     A worker that manages the debugger and interactive console.
@@ -49,22 +39,22 @@ class DebuggerWorker(QObject):
     """
     
     # Signal emitted when the process starts
-    process_started = pyqtSignal() 
-    
+    process_started = Signal()
+
     # Signal emitted when the debugger isn't busy (process is stopped)
-    debugger_ready = pyqtSignal()
-    
+    debugger_ready = Signal()
+
     # Signal emitted when the process exits
-    process_exited = pyqtSignal()
+    process_exited = Signal()
 
     # Signal emitted when the debugger is busy, when waiting for the process (used to disable GUI controls)
-    debugger_busy = pyqtSignal()
+    debugger_busy = Signal()
 
     # Signal emitted when the debugger state updates and the GUI should refresh views
-    state_update = pyqtSignal(DebuggerState) 
+    state_update = Signal(DebuggerState)
 
     # After kernel finishes initialization
-    kernel_initialized = pyqtSignal(object)
+    kernel_initialized = Signal(object)
     
     def __init__(self):
         super().__init__()
@@ -73,7 +63,7 @@ class DebuggerWorker(QObject):
         self.kernel_app = None
         self.file_name = None
     
-    @pyqtSlot(object)
+    @Slot(object)
     def set_file_name(self, file_name: str):
         """
         Slot to set the file name to debug. Called from the GUI thread when a file is selected.
@@ -83,7 +73,7 @@ class DebuggerWorker(QObject):
         if self.interactive_console:
             self.interactive_console.select_file(file_name)
     
-    @pyqtSlot()
+    @Slot()
     def setup_kernel(self):
         """
         Function to setup the IPython kernel for the interactive console.
@@ -167,7 +157,6 @@ class DebuggerWorker(QObject):
     def _on_debugger_busy(self):
         self.debugger_busy.emit()
 
-    @pyqtSlot()    
     def start_debugging(self):
         # start debugging the process
         self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=True)
@@ -178,7 +167,6 @@ class DebuggerWorker(QObject):
         self.process_started.emit()
         self._on_debugger_update() # trigger a state update, as a new process also means a new state
     
-    @pyqtSlot()
     def stop_debugging(self):
         if self.debugger:
             # kill the process if running
@@ -190,7 +178,6 @@ class DebuggerWorker(QObject):
             # emit the process exited signal to update the GUI
             self.process_exited.emit()
     
-    @pyqtSlot()
     def handle_exit(self):
         """
         Slot to handle the exit of the debugger process.
@@ -199,43 +186,62 @@ class DebuggerWorker(QObject):
         if self.kernel_app:
             self.kernel_app.kernel.do_shutdown(restart=False)
     
-    @pyqtSlot(object, object, object)
-    def read_instructions(self, address : int, amt : int, result : ReturnHolder[list[capstone.cs_insn]]):
+    def read_instructions(self, address : int, amt : int) -> list[capstone.CsInsn]:
         """
-        Reads instructions from the debugger
+        Reads instructions from the debugger, if it exists.
+        Returns None if not
         """
         if self.debugger:
-            result.value = self.debugger.read_instruction(address, instruction_cnt=amt)
+            return self.debugger.read_instruction(address, instruction_cnt=amt)
+        return None
 
-    @pyqtSlot(object, object, object)
-    def read_memory(self, start : int, end : int, result : ReturnHolder[bytes]):
+    def read_memory(self, start : int, end : int):
         """
-        Reads memory from the debugger
+        Reads memory from the debugger if it exists.
+        Returns None if not.
         """
         if self.debugger:
-            result.value = self.debugger.memory[start:end]
-    
-    @pyqtSlot(object)
-    def get_address_to_symbol_mapping(self, result : ReturnHolder[dict[int, str]]):
+            return self.debugger.memory[start:end]
+        return None
+
+    def get_address_to_symbol_mapping(self):
         """
         Gets the address to symbol mapping from the debugger, used for symbol resolution in the GUI.
         """
         if self.debugger:
-            result.value = self.debugger.address_to_symbol
+            return self.debugger.address_to_symbol
+        return None
 
-    def call_from_another_thread(self, method, *args, blocking=False, returning=False):
+    def call_from_another_thread(self, func, *args, **kwargs):
         """
         Utility function to call a method in the debugger thread from another thread (e.g. the GUI thread).
-        Uses Qt's signal-slot mechanism to safely execute the method in the debugger thread.
+        Doesn't wait for the result.
         """
-        # convert args to Q_ARG format
-        qt_args = [Q_ARG(object, arg) for arg in args]
-        if returning:
-            ret_holder = ReturnHolder() # create a return holder to hold the return value from the method
-            qt_args.append(Q_ARG(object, ret_holder)) # add it to the arguments
-        # we choose the connection type based on whether we want to block until the method is executed or not (if we need to return the value, we also need to wait until the method finishes executing)
-        conn_type = Qt.BlockingQueuedConnection if (blocking or returning) else Qt.QueuedConnection
-        # Use invokeMethod to call the method in the debugger thread with the given arguments
-        QMetaObject.invokeMethod(self, method, conn_type, *qt_args)
-        if returning: # return the value from the return holder if we need to return a value
-            return ret_holder.value
+        call_func = lambda: func(*args, **kwargs)
+        # use qtimer single shot to safely call the function without blocking
+        QTimer.singleShot(0, self, call_func)
+    
+    def call_async(self, method : callable, *args):
+        """
+        Executes a method in the debugger thread asynchronously.
+        Returns an asyncio.Future that can be awaited in the GUI thread.
+        """
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        # use execute_and_resolve to call the 
+        call_func = lambda: self._execute_method(future, loop, method, *args)
+        # use qtimer single shot to safely call the function without blocking
+        QTimer.singleShot(0, self, call_func)
+        # return the created future
+        return future
+
+    def _execute_method(self, future: asyncio.Future, loop: asyncio.AbstractEventLoop, func: callable, *args):
+        """
+        Internal helper that runs in the worker thread. 
+        Executes the target method and pushes the result back to the GUI loop.
+        """
+        try:
+            result = func(*args)
+            loop.call_soon_threadsafe(future.set_result, result)
+        except Exception as e:
+            loop.call_soon_threadsafe(future.set_exception, e)      

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import os
-from typing import Callable
 
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
 
-from pyx64dbg.GUI.interactive_console_view import InteractiveConsoleView
+from async_slot import async_slot
 
 
 class TopMenu:
@@ -15,7 +14,7 @@ class TopMenu:
         main_window: QMainWindow,
     ) -> None:
         self._main_window = main_window
-
+        self._debugger_worker = main_window.debugger_worker
         self._file_menu = self._main_window.menuBar().addMenu("&File")
         self._view_menu = self._main_window.menuBar().addMenu("&View")
         self._window_menu = self._main_window.menuBar().addMenu("&Window")
@@ -32,7 +31,7 @@ class TopMenu:
     def _create_core_actions(self) -> None:
         """Create and wire File and Window menu actions."""
         self._open_action = QAction("Open", self._main_window)
-        self._open_action.triggered.connect(self.open_executable)
+        self._open_action.triggered.connect(self._open_executable)
         self._file_menu.addAction(self._open_action)
 
         self._save_layout_action = QAction("Save Layout", self._main_window)
@@ -43,7 +42,8 @@ class TopMenu:
         self._reset_layout_action.triggered.connect(self._main_window.reset_layout)
         self._window_menu.addAction(self._reset_layout_action)
 
-    def open_executable(self) -> None:
+    @async_slot
+    async def _open_executable(self) -> None:
         """
         Function to open a file dialog and select an executable to debug.
         Updates the state once a file is selected.
@@ -69,12 +69,11 @@ class TopMenu:
             return
         if self._main_window.process_running:
             # if a process is already running, kill it before opening a new one.
-            self._main_window.debugger_worker.stop_debugging()
-            self._main_window.debugger = None
+            await self._debugger_worker.call_async(self._debugger_worker.stop_debugging)
             # update all widgets to reflect that no process is running
             self._main_window.update_gui_on_process_stop()
         # update the file path in the debugger worker
-        self._main_window.debugger_worker.call_from_another_thread("set_file_name", selected_path, blocking=True)
+        await self._main_window.debugger_worker.call_async(self._debugger_worker.set_file_name, selected_path)
         # update file path in the main window and mark that a file has been selected and no process is currently running
         self._main_window.file_path = selected_path
         self._main_window.selected_file = True

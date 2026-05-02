@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from pyx64dbg.debugger import Debugger
 
@@ -50,22 +50,22 @@ class DebugControlsView(QWidget):
         layout.addStretch(1)
 
     def _on_run(self) -> None:
-        self._debugger_worker.call_from_another_thread("start_debugging")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.start_debugging)
 
     def _on_stop(self) -> None:
-        self._debugger_worker.call_from_another_thread("stop_debugging")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.stop_debugging)
 
     def _on_step_into(self) -> None:
-        self._debugger_worker.call_from_another_thread("single_step")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.single_step)
 
     def _on_step_over(self) -> None:
-        self._debugger_worker.call_from_another_thread("next_instruction")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.next_instruction)
 
     def _on_continue(self) -> None:
-        self._debugger_worker.call_from_another_thread("continue_execution")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.continue_execution)
 
     def _on_step_out(self) -> None:
-        self._debugger_worker.call_from_another_thread("finish")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.finish)
 
     def set_process_stopped_state(self):
         """

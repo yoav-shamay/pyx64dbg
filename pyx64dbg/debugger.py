@@ -28,10 +28,10 @@ class Debugger:
         self.process_exited = False
         self.error_signal = None
         self.exit_code = None
-        self.exit_callbacks = CallbackList()
-        self.stop_callbacks = CallbackList()
-        self.update_callbacks = CallbackList()
-        self.busy_callbacks = CallbackList()
+        self.exit_callbacks = CallbackList() # callbacks for when the process exits
+        self.stop_callbacks = CallbackList() # callbacks for when the process stops (finishes running instructions)
+        self.update_callbacks = CallbackList() # callbacks for when any of the debugger state updates
+        self.busy_callbacks = CallbackList() # callbacks for when the debugger starts movement, and can't process operations as it waits for the process to finish
         self.stopped_signal = None
 
         self.breakpoints = Breakpoints(child_pid, self._ensure_running, self.update_callbacks.trigger)
@@ -88,7 +88,17 @@ class Debugger:
     def start_and_debug(file_name: str, redirect_stdio_to_pty=True, argv=[]):
         if redirect_stdio_to_pty:
             # fork the process and create a new pty for the child, which will be used to redirect the child's stdio to the terminal, allowing the user to interact with the child process through the terminal.
-            child_pid, pty_fd = pty.fork()
+            master_fd, slave_fd = pty.openpty()
+            child_pid = os.fork()
+            if child_pid == 0:  # running as child
+                os.close(master_fd)  # close the master fd in the child, as it's only used by the parent
+                os.dup2(slave_fd, 0)  # redirect stdin to the slave fd of the pty
+                os.dup2(slave_fd, 1)  # redirect stdout to the slave fd of the pty
+                os.dup2(slave_fd, 2)  # redirect stderr to the slave fd of the pty
+                os.close(slave_fd)  # close the slave fd in the child, as it's now duplicated to stdio
+            else:
+                os.close(slave_fd)  # close the slave fd in the parent, as it's only used by the child
+                pty_fd = master_fd
         else:
             child_pid = os.fork()
             pty_fd = None
@@ -143,6 +153,7 @@ class Debugger:
         finish,
         _handle_signal,
         _step_from_breakpoint,
+        _notify_update_and_stop
     )
     from pyx64dbg.memory_functions import (
         read_instruction,

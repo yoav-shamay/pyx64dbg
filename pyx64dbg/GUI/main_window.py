@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QThread, Qt, QSettings
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QDockWidget, QMainWindow, QStackedWidget, QTabWidget, QWidget
+from PySide6.QtCore import QThread, Qt, QSettings
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QDockWidget, QMainWindow, QStackedWidget, QTabWidget, QWidget
 
 from pyx64dbg.GUI.breakpoints_view import BreakpointsView
 from pyx64dbg.GUI.debug_controls_view import DebugControlsView
@@ -25,12 +25,14 @@ from pyx64dbg.GUI.symbols_view import SymbolsView
 from pyx64dbg.GUI.watch_view import WatchView
 from pyx64dbg.GUI.interactive_console_view import InteractiveConsoleView
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
+from pyx64dbg.GUI.async_slot import async_slot
 
 import os, signal
 
 class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._done_cleanup = False
         self.setWindowTitle("PyX64Dbg")
         self.resize(1600, 1000)
 
@@ -361,8 +363,18 @@ class MainWindow(QMainWindow):
         """
         self.debugger_state = new_debugger_state
         self._widgets["disassembly"].update_view(new_debugger_state)
+    
+    def closeEvent(self, event):
+        # if we already done the cleanup, finish the event
+        if self._done_cleanup:
+            return
+        # otherwise prevent the event from progressing before the async cleanup
+        event.ignore()
+        # run the closing cleanup async function, which will close it again in the end
+        self._closing_cleanup(event)
 
-    def closeEvent(self, event) -> None:
+    @async_slot
+    async def _closing_cleanup(self, event) -> None:
         """
         Handles the window close event.
         Ensures the debugger thread is properly shut down.
@@ -374,11 +386,10 @@ class MainWindow(QMainWindow):
                 child_pid = self.debugger_worker.debugger.child_pid
                 os.kill(child_pid, signal.SIGKILL)
             # tell the debugger worker to finish, shutting down the kernel. As the traced process is dead, it shouldn't be blocked.
-            self.debugger_worker.call_from_another_thread("handle_exit", blocking=True)
+            await self.debugger_worker.call_async(self.debugger_worker.handle_exit)
             # stop the debugger thread
             self.debugger_thread.quit()
-            # Wait for the thread to actually exit
-            self.debugger_thread.wait()
 
-        # accept the close event to proceed with closing the window
-        event.accept()
+        # close again, now with cleanup marked as done
+        self._done_cleanup = True
+        self.close()

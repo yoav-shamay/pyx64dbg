@@ -87,25 +87,35 @@ class Memory:
         else:
             return byte
 
+    def set_byte(self, address, value, trigger_updates = True):
+        key = int(address)  # convert to int if it's a CInt
+        value = self._replace_write_breakpoint_byte(value, key)
+        self._set_raw_byte(key, value)
+        if trigger_updates:
+            self._trigger_update_callbacks()
+    
+    def set_byte_range(self, value, start, end, step=None, trigger_updates = True):
+        step = (
+            int(step) if step is not None else 1
+        )  # convert to int if CInt and handle None
+        start = int(start)  # convert to int if CInt
+        stop = int(end)  # convert to int if CInt
+        value = list(value)
+        for i in range(len(value)):
+            address = start + i * step
+            updated_byte = self._replace_write_breakpoint_byte(value[i], address)
+            value[i] = updated_byte
+        value = bytes(value)
+        self._set_raw_byte_range(value, start, stop, step)
+        if trigger_updates:
+            self._trigger_update_callbacks()
+
     def __setitem__(self, key, value):
         self._ensure_running()
         if isinstance(key, slice):
             if key.start is None or key.stop is None:
                 raise ValueError("Memory slice must have start and stop defined")
-            step = (
-                int(key.step) if key.step is not None else 1
-            )  # convert to int if CInt and handle None
-            start = int(key.start)  # convert to int if CInt
-            stop = int(key.stop)  # convert to int if CInt
-            value = list(value)
-            for i in range(len(value)):
-                address = start + i * step
-                updated_byte = self._replace_write_breakpoint_byte(value[i], address)
-                value[i] = updated_byte
-            value = bytes(value)
-            self._set_raw_byte_range(value, start, stop, step)
+            self.set_byte_range(value, key.start, key.stop, key.step, trigger_updates=False) # we choose to trigger updates in the end by ourselves, as the pattern is to not call it by intermediate functions
         else:
-            key = int(key)  # convert to int if it's a CInt
-            value = self._replace_write_breakpoint_byte(value, key)
-            self._set_raw_byte(key, value)
-        self._trigger_update_callbacks()
+            self.set_byte(key, value, trigger_updates=False)
+        self._trigger_update_callbacks() # as it's an operator, we can't have an optional parameter, so we trigger in the end anyway

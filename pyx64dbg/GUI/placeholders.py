@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from PyQt6.QtGui import QFontDatabase
-from PyQt6.QtWidgets import QAbstractItemView, QTableWidget, QTextEdit, QWidget
+from PySide6.QtGui import QFontDatabase
+from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTextEdit, QWidget
 
 
 class PlaceholderTextEdit(QTextEdit):

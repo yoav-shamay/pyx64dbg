@@ -37,7 +37,7 @@ def read_number(self, address, type, cnt=None):
         return res
 
 
-def write_number(self, address, value: int | CInt, width: int = None):
+def write_number(self, address, value: int | CInt, width: int = None, trigger_updates = True):
     """
     Writes a number to the given address.
     Value can be an int or a CInt. If it's a CInt, the width will be determined from the type.
@@ -51,7 +51,10 @@ def write_number(self, address, value: int | CInt, width: int = None):
         if width is None:
             raise ValueError("Width must be provided when writing an int value")
         bytes_to_write = value.to_bytes(width, byteorder="little")
-    self.memory[address : address + width] = bytes_to_write
+    # we don't trigger updates by internal calls even though it's the only one to keep a consistent pattern
+    self.memory.set_byte_range(bytes_to_write, address, address + width, trigger_updates=False)
+    if trigger_updates:
+        self.memory._trigger_update_callbacks()
 
 # get the system page size for reading c strings in chunks
 PAGE_SIZE = mmap.PAGESIZE

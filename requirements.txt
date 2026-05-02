@@ -2,5 +2,5 @@ ipython
 capstone
 pyelftools
 prompt_toolkit
-pyqt6
+pyside6
 qtconsole

@@ -20,7 +20,7 @@ class Breakpoints:
         self._ensure_running()
         return self.addresses
     
-    def add_breakpoint(self, address : CInt | int):
+    def add_breakpoint(self, address : CInt | int, notify_updates = True):
         """
         Adds a breakpoint at the given address.
         """
@@ -33,9 +33,10 @@ class Breakpoints:
         ptrace.pokedata(self.child_pid, address, breakpoint_word)
         self.addresses.add(address)
         self.original_bytes[address] = get_first_byte(original_word)
-        self._trigger_update_callbacks()
+        if notify_updates:
+            self._trigger_update_callbacks()
     
-    def remove_breakpoint(self, address : CInt | int):
+    def remove_breakpoint(self, address : CInt | int, notify_updates = True):
         """
         Removes a breakpoint at the given address.
         """
@@ -49,4 +50,5 @@ class Breakpoints:
         ptrace.pokedata(self.child_pid, address, non_breakpoint_word)
         self.addresses.remove(address)
         del self.original_bytes[address]
-        self._trigger_update_callbacks()
+        if notify_updates:
+             self._trigger_update_callbacks()

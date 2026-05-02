@@ -89,7 +89,9 @@ class InteractiveConsole:
         Handle process stopping by signal, not forwarding it yet, which means the process is still active.
         """
         stop_signal = self.debugger.stopped_signal
-        print(f"Process stopped by signal {stop_signal}.", file=self._output_stream)
+        if stop_signal is not None:
+            # if we stopped by a real signal and not a breakpoint
+            print(f"Process stopped by signal {stop_signal}.", file=self._output_stream)
 
     def print_error(self, exc_name, exc_desc):
         """

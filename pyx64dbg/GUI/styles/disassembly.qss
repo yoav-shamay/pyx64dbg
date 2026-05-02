@@ -1,0 +1,64 @@
+/* Global Monospace Font */
+QTableWidget, QLabel {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    margin: 0px;
+    padding: 0px;
+    border: none;
+}
+
+/* Remove all table internal spacing */
+QTableWidget {
+    background-color: #FFFFFF;
+    border: none;
+    gridline-color: transparent;
+    outline: none;
+    /* This is critical for removing gaps between rows */
+    padding: 0px; 
+}
+
+/* Ensure table items take up no extra space */
+QTableWidget::item {
+    padding: 0px;
+    margin: 0px;
+}
+
+/* Header Styling */
+QHeaderView::section {
+    background-color: #F0F0F0;
+    color: #333333;
+    padding: 2px 4px;
+    border: 1px solid #D0D0D0;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+/* Selection */
+QTableWidget::item:selected {
+    background-color: #0078D7;
+}
+
+/* --- Dynamic Highlighting via Status Property --- */
+
+QLabel[status="normal"] {
+    background-color: #FFFFFF;
+}
+
+QLabel[status="rip"] {
+    background-color: #FFF2CC; /* Yellow */
+}
+
+QLabel[status="bp"] {
+    background-color: #FFE6E6; /* Red */
+}
+
+QLabel[status="rip-bp"] {
+    background-color: #FFCC99; /* Orange */
+}
+
+/* Horizontal Padding for cell content */
+QLabel {
+    padding-left: 5px;
+    padding-right: 5px;
+}

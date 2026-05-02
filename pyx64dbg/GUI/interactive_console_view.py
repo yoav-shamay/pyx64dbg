@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from typing import TYPE_CHECKING
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.manager import QtKernelManager
 from traitlets.config import Config
@@ -29,7 +29,7 @@ class InteractiveConsoleView(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         # setup the kernel for the interactive console in the debugger worker thread
         self._debugger_worker.kernel_initialized.connect(self._post_kernel_init)
-        self._debugger_worker.call_from_another_thread("setup_kernel")
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.setup_kernel)
         # initialize the console widget with the appropriate configuration for our use case
         # attach the kernel later, after it's initialized, in the _post_kernel_init function
         c = Config()
@@ -63,7 +63,7 @@ class InteractiveConsoleView(QWidget):
         self.kernel_manager = QtKernelManager()
         # load the connection info
         self.kernel_manager.load_connection_info(
-            self._debugger_worker.kernel_connection_dict
+            connection_dict
         )
         self.console_widget.kernel_manager = self.kernel_manager
         # initialize the kernel client
