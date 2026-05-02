@@ -37,7 +37,7 @@ def run_process(self, *argv) -> None:
     if self.file_name is None:
         raise ValueError("No file specified to run.")
     argv_list = list(argv)
-    self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=self._redirect_stdio_to_pty, argv=argv_list)
+    self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=self._redirect_stdio_to_pty, disable_pty_echo=self._disable_pty_echo, argv=argv_list)
     # call the debugger update callback if it exists
     if self.new_debugger_object_callback is not None:
         self.new_debugger_object_callback(self.debugger)

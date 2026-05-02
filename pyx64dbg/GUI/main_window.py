@@ -324,8 +324,9 @@ class MainWindow(QMainWindow):
         """
         Update the UI to reflect that a file has been selected and is ready to be debugged, but no process is currently running.
         """
-        # change to the real interactive console view in the stack
+        # change to the real interactive console view and stdio terminal in the stack
         self._widgets["interactive_console_stack"].setCurrentIndex(1)
+        self._widgets["stdio_terminal_stack"].setCurrentIndex(1)
         # On file select the process is stopped by default, so use the logic for this case
         self._on_process_exit()
 
@@ -339,7 +340,6 @@ class MainWindow(QMainWindow):
         self._widgets["extended_registers_stack"].setCurrentIndex(0)
         self._widgets["symbols_stack"].setCurrentIndex(0)
         self._widgets["disassembly_stack"].setCurrentIndex(0)
-        self._widgets["stdio_terminal_stack"].setCurrentIndex(0)
         self._widgets["watch_stack"].setCurrentIndex(0)
         self._docks["debug_controls"].widget().set_process_stopped_state()
 
@@ -353,7 +353,6 @@ class MainWindow(QMainWindow):
         self._widgets["extended_registers_stack"].setCurrentIndex(1)
         self._widgets["symbols_stack"].setCurrentIndex(1)
         self._widgets["disassembly_stack"].setCurrentIndex(1)
-        self._widgets["stdio_terminal_stack"].setCurrentIndex(1)
         self._widgets["watch_stack"].setCurrentIndex(1)
         self._docks["debug_controls"].widget().set_process_running_state()
     

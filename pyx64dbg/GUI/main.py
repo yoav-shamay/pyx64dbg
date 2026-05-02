@@ -16,11 +16,8 @@ def main() -> None:
     # avoids setting a global policy, as it conflicts with how ipython kernel behaves
     qt_loop = QtAsyncio.QAsyncioEventLoop(app)
     asyncio.set_event_loop(qt_loop)
-    # start the event loop, until keyboardinterrupt
-    try:
-        qt_loop.run_forever()
-    except KeyboardInterrupt:
-        pass
+    # start the event loop
+    qt_loop.run_forever()
 
 if __name__ == "__main__":
     main()

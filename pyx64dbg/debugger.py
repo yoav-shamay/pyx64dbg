@@ -73,19 +73,19 @@ class Debugger:
         self._init_address_to_symbol_mapping()
 
     @staticmethod
-    def _start_as_child(file_name: str, redirect_stdio_to_pty: bool, argv: list):
+    def _start_as_child(file_name: str, redirect_stdio_to_pty: bool, disable_pty_echo: bool, argv: list):
         if redirect_stdio_to_pty:
-            # disable pty echo
-            attrs = termios.tcgetattr(0)
-            attrs[3] &= ~termios.ECHO
-            termios.tcsetattr(0, termios.TCSANOW, attrs)
+            if disable_pty_echo:
+                attrs = termios.tcgetattr(0)
+                attrs[3] &= ~termios.ECHO
+                termios.tcsetattr(0, termios.TCSANOW, attrs)
         # start ptrace on this process
         ptrace.traceme()
         # execve file_name with the given argv - run the process
         os.execve(file_name, [file_name] + argv, {})
 
     @staticmethod
-    def start_and_debug(file_name: str, redirect_stdio_to_pty=True, argv=[]):
+    def start_and_debug(file_name: str, redirect_stdio_to_pty=True, disable_pty_echo = True, argv=[]):
         if redirect_stdio_to_pty:
             # fork the process and create a new pty for the child, which will be used to redirect the child's stdio to the terminal, allowing the user to interact with the child process through the terminal.
             master_fd, slave_fd = pty.openpty()
@@ -103,7 +103,7 @@ class Debugger:
             child_pid = os.fork()
             pty_fd = None
         if child_pid == 0:  # running as child
-            Debugger._start_as_child(file_name, redirect_stdio_to_pty, argv)
+            Debugger._start_as_child(file_name, redirect_stdio_to_pty, disable_pty_echo, argv)
         # running as parent
         os.wait()  # wait for child to start execve, raising a signal
         res = Debugger(child_pid, pty_fd)

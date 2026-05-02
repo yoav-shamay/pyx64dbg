@@ -1,0 +1,21 @@
+/* Styling for the PTY Terminal View */
+PtyStdioView {
+    background-color: #1e1e1e;
+    color: #dcdcdc;
+    font-family: "Monospace", "DejaVu Sans Mono", "Courier New";
+    font-size: 10pt;
+    border: none;
+    selection-background-color: #505050;
+    selection-color: #ffffff;
+}
+
+/* Optional: Style the scrollbar to match the dark theme */
+PtyStdioView QScrollBar:vertical {
+    background: #252525;
+    width: 12px;
+}
+
+PtyStdioView QScrollBar::handle:vertical {
+    background: #444444;
+    min-height: 20px;
+}

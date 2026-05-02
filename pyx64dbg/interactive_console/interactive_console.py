@@ -35,6 +35,7 @@ class InteractiveConsole:
         self,
         file_name: str = None,
         redirect_stdio_to_pty : bool = True,
+        disable_pty_echo: bool = True,
         update_aliases_callback: Callable[[dict], None] = None,
         new_debugger_object_callback: Callable[[Debugger], None] = None,
         stdout_stream=None,
@@ -50,7 +51,8 @@ class InteractiveConsole:
         self._output_stream = stdout_stream if stdout_stream is not None else sys.stdout
         self._toolkit_output = Vt100_Output(self._output_stream, lambda: (24, 80))
         self._redirect_stdio_to_pty = redirect_stdio_to_pty
-
+        self._disable_pty_echo = disable_pty_echo
+        
     def get_aliases(self):
         cur_commands = get_available_commands(self, self.process_running)
         aliases = {}

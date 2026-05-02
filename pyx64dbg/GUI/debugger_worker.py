@@ -92,11 +92,13 @@ class DebuggerWorker(QObject):
         
         self.shell.autocall = 2 # autocall - call functions without parenthesis
         self.shell.show_rewritten_input = False # don't show the input twice when autocall is triggered
-        self.shell.showtraceback = self._show_simple_error # override default IPython traceback to show simpler error messages in the console widget
+        #TODO enable back, currently disabled for debugging
+        #self.shell.showtraceback = self._show_simple_error # override default IPython traceback to show simpler error messages in the console widget
 
         # initialize the interactive console object and set up callbacks for synchronization with the worker state
         self.interactive_console = InteractiveConsole(
             redirect_stdio_to_pty=True,
+            disable_pty_echo=False,
             update_aliases_callback=self._update_shell_aliases,
             new_debugger_object_callback=self._new_console_debugger_object
         )
@@ -151,6 +153,8 @@ class DebuggerWorker(QObject):
         self.debugger_ready.emit()
     
     def _on_debugger_update(self):
+        if self.debugger is None:
+            return # if process already exited, we should do nothing
         debugger_state = DebuggerState(self.debugger)
         self.state_update.emit(debugger_state)
     
@@ -159,7 +163,7 @@ class DebuggerWorker(QObject):
 
     def start_debugging(self):
         # start debugging the process
-        self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=True)
+        self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=True, disable_pty_echo=False)
         # setup callbacks for the new debugger object
         self._setup_debugger_callbacks()
         # sync the state of the interactive console with the new debugger
@@ -207,9 +211,19 @@ class DebuggerWorker(QObject):
     def get_address_to_symbol_mapping(self):
         """
         Gets the address to symbol mapping from the debugger, used for symbol resolution in the GUI.
+        Returns None if no debugger is active.
         """
         if self.debugger:
             return self.debugger.address_to_symbol
+        return None
+
+    def get_pty_fd(self):
+        """
+        Gets the pty file descriptor from the debugger, used for redirecting the process stdio to the terminal widget.
+        Returns None if no debugger or pty is active.
+        """
+        if self.debugger and self.debugger.child_pty:
+            return self.debugger.child_pty
         return None
 
     def call_from_another_thread(self, func, *args, **kwargs):
@@ -234,6 +248,7 @@ class DebuggerWorker(QObject):
         QTimer.singleShot(0, self, call_func)
         # return the created future
         return future
+
 
     def _execute_method(self, future: asyncio.Future, loop: asyncio.AbstractEventLoop, func: callable, *args):
         """

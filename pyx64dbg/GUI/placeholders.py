@@ -32,7 +32,7 @@ class PlaceholderDisassemblyView(PlaceholderTextEdit):
     text = "Run a process to view disassembly."
 
 class PlaceholderPtyStdioView(PlaceholderTextEdit):
-    text = "Run a process to access stdio."
+    text = "Select a file to access stdio."
 
 class PlaceholderWatchView(PlaceholderTextEdit):
     text = "Run a process to access watch."
