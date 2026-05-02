@@ -1,7 +1,9 @@
+import capstone
 from pyx64dbg.cint import CInt
 import mmap
+from typing import Optional
 
-def read_instruction(self, address, instruction_cnt=None):
+def read_instruction(self, address : int, instruction_cnt : Optional[int]=None) -> list[capstone.CsInsn] | capstone.CsInsn:
     self._ensure_running()
     act_cnt = 1 if instruction_cnt is None else instruction_cnt
     MAX_INSTRUCTION_BYTES = 15

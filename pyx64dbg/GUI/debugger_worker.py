@@ -1,11 +1,14 @@
 from __future__ import annotations
 from PyQt6.QtCore import Q_ARG, QMetaObject, QObject, Qt, pyqtSignal, pyqtSlot, QEventLoop
+import capstone
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 from typing import Optional
 from ipykernel.kernelapp import IPKernelApp
 import sys
 from ipykernel.eventloops import enable_gui
+from pyx64dbg.GUI.debugger_state import DebuggerState
+from typing import Generic, TypeVar, Optional
 
 class KernelApplication(QObject):
     """
@@ -24,6 +27,17 @@ class KernelApplication(QObject):
     def exit(self):
         """An exit method that the kernel uses to shut down."""
         self.qt_event_loop.quit()
+
+
+T = TypeVar('T')
+class ReturnHolder(Generic[T]):
+    """
+    A simple class to hold a return value from a method called through the call_from_another_thread utility function.
+    This is needed because when calling a method through Qt's signal-slot mechanism, we can't directly return a value from the method.
+    So we use this class as an argument instead.
+    """
+    def __init__(self):
+        self.value : Optional[T] = None
 
 class DebuggerWorker(QObject):
     """
@@ -47,7 +61,7 @@ class DebuggerWorker(QObject):
     debugger_busy = pyqtSignal()
 
     # Signal emitted when the debugger state updates and the GUI should refresh views
-    state_update = pyqtSignal() 
+    state_update = pyqtSignal(DebuggerState) 
 
     # After kernel finishes initialization
     kernel_initialized = pyqtSignal(object)
@@ -126,6 +140,7 @@ class DebuggerWorker(QObject):
         if debugger is not None: # process started
             self._setup_debugger_callbacks()
             self.process_started.emit()
+            self._on_debugger_update() # trigger a state update, as a new process also means a new state
         else: # process stopped/exited
             self.process_exited.emit()
     
@@ -146,7 +161,8 @@ class DebuggerWorker(QObject):
         self.debugger_ready.emit()
     
     def _on_debugger_update(self):
-        self.state_update.emit()
+        debugger_state = DebuggerState(self.debugger)
+        self.state_update.emit(debugger_state)
     
     def _on_debugger_busy(self):
         self.debugger_busy.emit()
@@ -160,6 +176,7 @@ class DebuggerWorker(QObject):
         # sync the state of the interactive console with the new debugger
         self.interactive_console.update_debugger(self.debugger)
         self.process_started.emit()
+        self._on_debugger_update() # trigger a state update, as a new process also means a new state
     
     @pyqtSlot()
     def stop_debugging(self):
@@ -181,15 +198,44 @@ class DebuggerWorker(QObject):
         # if a kernel is active, stop it
         if self.kernel_app:
             self.kernel_app.kernel.do_shutdown(restart=False)
+    
+    @pyqtSlot(object, object, object)
+    def read_instructions(self, address : int, amt : int, result : ReturnHolder[list[capstone.cs_insn]]):
+        """
+        Reads instructions from the debugger
+        """
+        if self.debugger:
+            result.value = self.debugger.read_instruction(address, instruction_cnt=amt)
 
-    def call_from_another_thread(self, method, *args, blocking=False):
+    @pyqtSlot(object, object, object)
+    def read_memory(self, start : int, end : int, result : ReturnHolder[bytes]):
+        """
+        Reads memory from the debugger
+        """
+        if self.debugger:
+            result.value = self.debugger.memory[start:end]
+    
+    @pyqtSlot(object)
+    def get_address_to_symbol_mapping(self, result : ReturnHolder[dict[int, str]]):
+        """
+        Gets the address to symbol mapping from the debugger, used for symbol resolution in the GUI.
+        """
+        if self.debugger:
+            result.value = self.debugger.address_to_symbol
+
+    def call_from_another_thread(self, method, *args, blocking=False, returning=False):
         """
         Utility function to call a method in the debugger thread from another thread (e.g. the GUI thread).
         Uses Qt's signal-slot mechanism to safely execute the method in the debugger thread.
         """
         # convert args to Q_ARG format
         qt_args = [Q_ARG(object, arg) for arg in args]
-        # select the connection type based on whether we want to block until the method is executed or not
-        conn_type = Qt.BlockingQueuedConnection if blocking else Qt.QueuedConnection
+        if returning:
+            ret_holder = ReturnHolder() # create a return holder to hold the return value from the method
+            qt_args.append(Q_ARG(object, ret_holder)) # add it to the arguments
+        # we choose the connection type based on whether we want to block until the method is executed or not (if we need to return the value, we also need to wait until the method finishes executing)
+        conn_type = Qt.BlockingQueuedConnection if (blocking or returning) else Qt.QueuedConnection
         # Use invokeMethod to call the method in the debugger thread with the given arguments
         QMetaObject.invokeMethod(self, method, conn_type, *qt_args)
+        if returning: # return the value from the return holder if we need to return a value
+            return ret_holder.value

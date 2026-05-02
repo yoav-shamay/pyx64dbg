@@ -354,6 +354,13 @@ class MainWindow(QMainWindow):
         self._widgets["stdio_terminal_stack"].setCurrentIndex(1)
         self._widgets["watch_stack"].setCurrentIndex(1)
         self._docks["debug_controls"].widget().set_process_running_state()
+    
+    def _on_process_update(self, new_debugger_state):
+        """
+        Update the UI to reflect an update in the debugged process state (e.g. new breakpoint, new register values, etc).
+        """
+        self.debugger_state = new_debugger_state
+        self._widgets["disassembly"].update_view(new_debugger_state)
 
     def closeEvent(self, event) -> None:
         """

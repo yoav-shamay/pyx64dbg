@@ -8,18 +8,18 @@ class SymbolType(Enum):
 
 class Symbol:
     def __init__(self, name : str, address : int, size: int, type : SymbolType):
-        self.name = name
-        self.address = address
-        self.size = size
-        self.type = type
-    
+        self.name : str = name
+        self.address : int = address
+        self.size : int = size
+        self.type : SymbolType = type
+
     def __repr__(self):
         return f"Symbol(name={self.name}, address={hex(self.address)}, size={self.size}, type={self.type})"
 
 class Symbols:
     def __init__(self, symbols, base_address=0):
-        self.symbols = symbols
-        self.base_address = base_address
+        self.symbols : list[Symbol] = symbols
+        self.base_address : int = base_address
         self._setup_base_address()
         self._init_symbol_dicts()
         self._init_sorted_symbols()
