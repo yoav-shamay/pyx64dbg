@@ -44,10 +44,11 @@ class DebugControlsView(QWidget):
         )
         for button in buttons:
             button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            button.setEnabled(False)
+            button.setEnabled(False) # buttons are disabled until a file is selected
             layout.addWidget(button)
 
         layout.addStretch(1)
+        
 
     def _on_run(self) -> None:
         self._debugger_worker.call_from_another_thread(self._debugger_worker.start_debugging)

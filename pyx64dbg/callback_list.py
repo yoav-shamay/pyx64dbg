@@ -8,6 +8,6 @@ class CallbackList:
     def remove(self, callback):
         self._callbacks.remove(callback)
     
-    def trigger(self):
+    def trigger(self, *args, **kwargs):
         for callback in self._callbacks:
-            callback()
+            callback(*args, **kwargs)

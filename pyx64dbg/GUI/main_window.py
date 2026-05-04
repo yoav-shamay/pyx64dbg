@@ -9,7 +9,6 @@ from pyx64dbg.GUI.debug_controls_view import DebugControlsView
 from pyx64dbg.GUI.disassembly_view import DisassemblyView
 from pyx64dbg.GUI.extended_registers_view import ExtendedRegistersView
 from pyx64dbg.GUI.placeholders import (
-    PlaceholderInteractiveConsole,
     PlaceholderBreakpointsView,
     PlaceholderRegistersView,
     PlaceholderSymbolsView,
@@ -36,8 +35,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PyX64Dbg")
         self.resize(1600, 1000)
 
-        self._create_debugger_worker_thread()
-        self._init_ui()
+        self._create_debugger_worker_thread_and_connect_init_ui()
 
     def _init_widgets(self):
         """
@@ -56,9 +54,6 @@ class MainWindow(QMainWindow):
         self._widgets["disassembly_placeholder"] = PlaceholderDisassemblyView(self)
         self._widgets["stdio_terminal_placeholder"] = PlaceholderPtyStdioView(self)
         self._widgets["watch_placeholder"] = PlaceholderWatchView(self)
-        self._widgets["interactive_console_placeholder"] = (
-            PlaceholderInteractiveConsole(self)
-        )
         # initialize all real widgets
         self._widgets["breakpoints"] = BreakpointsView(self)
         self._widgets["registers"] = RegistersView(self)
@@ -70,23 +65,16 @@ class MainWindow(QMainWindow):
         self._widgets["interactive_console"] = InteractiveConsoleView(
             self, self.debugger_worker
         )
+    
+    def _load_qss(self):
+        with open("pyx64dbg/GUI/styles/main_window.qss", "r") as f:
+            self.setStyleSheet(f.read())
 
     def _init_ui(self) -> None:
         self._init_widgets()  # init all widgets first so we can reference them when placing them in the layout
         self._docks: dict[str, QDockWidget] = {}
-        # Make the dock separators (margins) visible
-        # TODO this is a temporary solution. We will have proper style sheet files but the widgets won't look like that in the end anyway.
-        self.setStyleSheet("""
-            QMainWindow::separator {
-                background: #c0c0c0; 
-                width: 2px; 
-                height: 2px;
-            }
-            QMainWindow::separator:hover {
-                background: #308cc6; /* Highlights blue when hovering to resize */
-            }
-        """)
-
+        # load main_window.qss
+        self._load_qss()
         # set the dock options - allow nested (allows to split a region into several docks), tabbed (allow multiple docks in the same region to be tabbed), animated (animate dock movements)
         self.setDockOptions(
             QMainWindow.DockOption.AllowNestedDocks
@@ -94,7 +82,6 @@ class MainWindow(QMainWindow):
             | QMainWindow.DockOption.AnimatedDocks
         )
 
-        self.setDocumentMode(True)
         # set the tab position to all dock areas to be on top (north)
         self.setTabPosition(
             Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North
@@ -114,7 +101,7 @@ class MainWindow(QMainWindow):
         if not state_exists:
             self._create_default_layout()
 
-    def _create_debugger_worker_thread(self):
+    def _create_debugger_worker_thread_and_connect_init_ui(self):
         # initialize the thread of the debugger
         self.debugger_thread = QThread(self)
         # initialize the worker
@@ -122,8 +109,10 @@ class MainWindow(QMainWindow):
         # connect signals from the worker to the main window
         self.debugger_worker.process_started.connect(self._on_process_started)
         self.debugger_worker.process_exited.connect(self._on_process_exit)
+        self.debugger_worker.file_selected.connect(self._on_file_select)
         # move the worker to its thread and start the thread's event loop
         self.debugger_worker.moveToThread(self.debugger_thread)
+        self.debugger_thread.started.connect(self._init_ui) # init the UI only after the debugger thread is running so we can call it safely
         self.debugger_thread.start()
 
     def _create_top_menu(self) -> None:
@@ -159,7 +148,6 @@ class MainWindow(QMainWindow):
         self._widgets["disassembly_stack"] = self._create_stack_widget(self._widgets["disassembly_placeholder"], self._widgets["disassembly"])
         self._widgets["stdio_terminal_stack"] = self._create_stack_widget(self._widgets["stdio_terminal_placeholder"], self._widgets["stdio_terminal"])
         self._widgets["watch_stack"] = self._create_stack_widget(self._widgets["watch_placeholder"], self._widgets["watch"])
-        self._widgets["interactive_console_stack"] = self._create_stack_widget(self._widgets["interactive_console_placeholder"], self._widgets["interactive_console"])
 
     def _tabify_group(self, keys: list[str]) -> None:
         if len(keys) < 2:
@@ -221,7 +209,7 @@ class MainWindow(QMainWindow):
         self._place_widget_in_dock(
             "interactive_console",
             "Interactive Console",
-            self._widgets["interactive_console_stack"],
+            self._widgets["interactive_console"],
             Qt.DockWidgetArea.BottomDockWidgetArea,
         )
         self._place_widget_in_dock(
@@ -320,15 +308,14 @@ class MainWindow(QMainWindow):
         """Restore the default dock/tab arrangement created at startup."""
         self._create_default_layout()
 
-    def update_gui_on_file_select(self) -> None:
+    def _on_file_select(self) -> None:
         """
         Update the UI to reflect that a file has been selected and is ready to be debugged, but no process is currently running.
         """
-        # change to the real interactive console view and stdio terminal in the stack
-        self._widgets["interactive_console_stack"].setCurrentIndex(1)
+        # change to the real stdio terminal in the stack
         self._widgets["stdio_terminal_stack"].setCurrentIndex(1)
-        # On file select the process is stopped by default, so use the logic for this case
-        self._on_process_exit()
+        # set the debug controls to its stop state, as we have a file selected but no process running yet
+        self._docks["debug_controls"].widget().set_process_stopped_state()
 
     def _on_process_exit(self) -> None:
         """
@@ -388,6 +375,8 @@ class MainWindow(QMainWindow):
             await self.debugger_worker.call_async(self.debugger_worker.handle_exit)
             # stop the debugger thread
             self.debugger_thread.quit()
+            # wait for the thread to exit before finishing to close
+            self.debugger_thread.wait()
 
         # close again, now with cleanup marked as done
         self._done_cleanup = True

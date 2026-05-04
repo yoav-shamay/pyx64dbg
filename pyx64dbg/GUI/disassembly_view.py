@@ -43,8 +43,7 @@ class DisassemblyView(QWidget):
         self.cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
         self.cs.detail = True
         # disassembly mode - from RIP, address range (usually a symbol), or specific address (default count)
-        # by defauly - from RIP
-        self._disassemble_from_rip = True
+        self._disassemble_from_rip = None
         self._disassemble_range = None
         self._disassemble_address = None
 
@@ -210,6 +209,8 @@ class DisassemblyView(QWidget):
     @async_slot
     async def _on_process_run(self):
         self._address_to_symbol = await self._debugger_worker.call_async(self._debugger_worker.get_address_to_symbol_mapping)
+        # by default - disassemble from RIP
+        await self.disassemble_from_rip()
 
     @async_slot
     async def _on_state_update(self, debugger_state: DebuggerState):
@@ -218,6 +219,7 @@ class DisassemblyView(QWidget):
         await self._refresh_view()
 
     async def _refresh_view(self):
+        instructions = None
         if self._disassemble_from_rip:
             instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._rip, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
         elif self._disassemble_range:
@@ -225,8 +227,8 @@ class DisassemblyView(QWidget):
             instructions = list(self.cs.disasm(code, self._disassemble_range[0]))
         elif self._disassemble_address:
             instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._disassemble_address, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
-
-        self._load_disassembly(instructions)
+        if instructions: # instructions might be None if there was some error (like debugger not fully initialized). in this case, just don't update the view.
+            self._load_disassembly(instructions)
 
     # Disassembly Option Setters
     async def disassemble_from_rip(self):

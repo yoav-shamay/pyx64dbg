@@ -18,6 +18,7 @@ class PtyStdioView(QPlainTextEdit):
         # connect process start and exit signals to open and close the pty
         self._debugger_worker.process_started.connect(self._on_process_start)
         self._debugger_worker.process_exited.connect(self._on_process_exit)
+        self._debugger_worker.file_selected.connect(self._on_file_select)
         
         # Load the stylesheet from the specified relative path
         style_path = os.path.join(os.path.dirname(__file__), "styles", "pty_stdio.qss")
@@ -27,18 +28,20 @@ class PtyStdioView(QPlainTextEdit):
 
         # Logic settings that QSS cannot handle
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.setReadOnly(False) 
+        self.setReadOnly(True) # initially there's no process running, so read-only 
         self.setPlaceholderText("Process output will appear here...")
     
     @async_slot
     async def _on_process_start(self):
         pty_fd = await self._debugger_worker.call_async(self._debugger_worker.get_pty_fd)
-        if pty_fd is not None:
-            self.open_pty(pty_fd)
+        self.open_pty(pty_fd)
+        self.setReadOnly(False) # allow typing when process is running
+        self.clear() # clear the view when a new process starts
     
     @async_slot
     async def _on_process_exit(self):
         self.close_pty()
+        self.setReadOnly(True)  # disable typing while process isn't running
 
     def open_pty(self, fd: int) -> None:
         self.close_pty()
@@ -68,7 +71,7 @@ class PtyStdioView(QPlainTextEdit):
             # Read until the buffer is empty (Non-blocking)
             while True:
                 data = os.read(self._pty_fd, BATCH_READ_SIZE)
-                if not data:
+                if not data: # stop the loop when we finished reading
                     break
                     
                 cursor = self.textCursor()
@@ -84,6 +87,14 @@ class PtyStdioView(QPlainTextEdit):
                 self.ensureCursorVisible()
         except (OSError, EOFError):
             pass # in case there was some reading error, like when the pty was closed, just ignore it 
+    
+    def _on_file_select(self) -> None:
+        """
+        A callback to be triggered when a new file is selected
+        Should clear the view (that a normal process exit) won't trigger.
+        """
+        # we don't need to do anything else as process exit already covers it
+        self.clear()
 
     def keyPressEvent(self, event) -> None:
         if self._pty_fd is None:

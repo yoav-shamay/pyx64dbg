@@ -15,10 +15,10 @@ class IPythonCLI:
         self.verbose = verbose
         self.interactive_console = InteractiveConsole(
             file_name,
-            redirect_stdio_to_pty=False,
-            update_aliases_callback=self._refresh_aliases,
-            new_debugger_object_callback=self._update_debugger_object
+            redirect_stdio_to_pty=False
         )
+        self.interactive_console.update_aliases_callbacks.add(self._refresh_aliases)
+        self.interactive_console.new_debugger_object_callbacks.add(self._update_debugger_object)
         self.debugger = None
 
     def _refresh_aliases(self, aliases):

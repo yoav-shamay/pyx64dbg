@@ -13,9 +13,6 @@ class PlaceholderTextEdit(QTextEdit):
         self.setMinimumHeight(160)
         self.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
 
-class PlaceholderInteractiveConsole(PlaceholderTextEdit):
-    text = "Select a file to access the console."
-
 class PlaceholderBreakpointsView(PlaceholderTextEdit):
     text = "Run a process to view breakpoints."
 

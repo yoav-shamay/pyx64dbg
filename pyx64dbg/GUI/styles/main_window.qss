@@ -1,0 +1,9 @@
+/* Make seperators between docks more visible */
+QMainWindow::separator {
+    background: #c0c0c0; 
+    width: 2px; 
+    height: 2px;
+}
+QMainWindow::separator:hover {
+    background: #308cc6; /* Highlights blue when hovering to resize */
+}

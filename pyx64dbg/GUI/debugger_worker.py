@@ -55,6 +55,9 @@ class DebuggerWorker(QObject):
 
     # After kernel finishes initialization
     kernel_initialized = Signal(object)
+
+    # When a new file is selected
+    file_selected = Signal()
     
     def __init__(self):
         super().__init__()
@@ -63,17 +66,19 @@ class DebuggerWorker(QObject):
         self.kernel_app = None
         self.file_name = None
     
-    @Slot(object)
     def set_file_name(self, file_name: str):
         """
         Slot to set the file name to debug. Called from the GUI thread when a file is selected.
         """
+        if self.debugger is not None: # if there's a process running, we should stop it before switching to a new file
+            self.stop_debugging()
+
         self.file_name = file_name
         # update the file in the interactive console as well if it exists
         if self.interactive_console:
-            self.interactive_console.select_file(file_name)
-    
-    @Slot()
+            self.interactive_console.select_file(file_name, trigger_callbacks = False) # don't trigger the signal, as we emit it manaully (for consistency)
+        self.file_selected.emit()  # emit the signal to update the GUI
+
     def setup_kernel(self):
         """
         Function to setup the IPython kernel for the interactive console.
@@ -88,6 +93,7 @@ class DebuggerWorker(QObject):
         self.kernel_app.kernel.app = KernelApplication()
         # use enable_gui to make the IPython kernel event loop compatible with Qt, allowing the worker to receive signals while the kernel is running.
         enable_gui('qt6', self.kernel_app.kernel)
+
         self.shell = self.kernel_app.kernel.shell
         
         self.shell.autocall = 2 # autocall - call functions without parenthesis
@@ -96,18 +102,20 @@ class DebuggerWorker(QObject):
         #self.shell.showtraceback = self._show_simple_error # override default IPython traceback to show simpler error messages in the console widget
 
         # initialize the interactive console object and set up callbacks for synchronization with the worker state
+        
         self.interactive_console = InteractiveConsole(
             redirect_stdio_to_pty=True,
-            disable_pty_echo=False,
-            update_aliases_callback=self._update_shell_aliases,
-            new_debugger_object_callback=self._new_console_debugger_object
+            disable_pty_echo=False, # we want pty echo so the user actually sees what he types in the console
         )
+        self.interactive_console.update_aliases_callbacks.add(self._update_shell_aliases)
+        self.interactive_console.new_debugger_object_callbacks.add(self._new_console_debugger_object)
+        self.interactive_console.file_select_callbacks.add(self._on_console_file_select)
         # push initial aliases
         self.shell.push(self.interactive_console.get_aliases())
-        # emit signal that kernel is initialized and pass the connection information to the GUI
+        # emit signal that kernel is initialized and pass the connection information to the GUI (before actually starting as it's a blocking call)
         self.kernel_initialized.emit(self.kernel_connection_dict)
-        # start the kernel app
-        self.kernel_app.start() 
+        # start the kernel app (blocking call, should be last)
+        self.kernel_app.start()
 
     def _update_shell_aliases(self, aliases: dict):
         """
@@ -133,8 +141,6 @@ class DebuggerWorker(QObject):
             self._setup_debugger_callbacks()
             self.process_started.emit()
             self._on_debugger_update() # trigger a state update, as a new process also means a new state
-        else: # process stopped/exited
-            self.process_exited.emit()
     
     def _setup_debugger_callbacks(self):
         """
@@ -145,6 +151,14 @@ class DebuggerWorker(QObject):
         self.debugger.stop_callbacks.add(self._on_process_stop)
         self.debugger.update_callbacks.add(self._on_debugger_update)
         self.debugger.busy_callbacks.add(self._on_debugger_busy)
+    
+    def _on_console_file_select(self, file_name: str):
+        """
+        Callback - called when a file is selected in the interactive console.
+        Updates the internal state to synchronize with the console
+        """
+        self.file_name = file_name
+        self.file_selected.emit()  # emit the signal to update the GUI
     
     def _on_process_exit(self):
         self.process_exited.emit()
@@ -163,7 +177,8 @@ class DebuggerWorker(QObject):
 
     def start_debugging(self):
         # start debugging the process
-        self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=True, disable_pty_echo=False)
+        # we want pty echo so the user actually sees what he types in the console
+        self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=True, disable_pty_echo=False) 
         # setup callbacks for the new debugger object
         self._setup_debugger_callbacks()
         # sync the state of the interactive console with the new debugger

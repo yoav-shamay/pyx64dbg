@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
@@ -39,6 +38,9 @@ class InteractiveConsoleView(QWidget):
 
         self.console_widget = RichJupyterWidget(config=c)
 
+        # add the newly added console widget to the layout immediately, so it shows up while the kernel is still initializing
+        # instead of being a white empty space
+        self.layout.addWidget(self.console_widget)
         # Safely Suppress the IPython Default Banner
         # Intercept the kernel info packet before the widget processes it.
         # This dynamically clears the default Python/IPython text payload
@@ -71,7 +73,5 @@ class InteractiveConsoleView(QWidget):
         self.kernel_client.start_channels()
         self.console_widget.kernel_client = self.kernel_client
 
-        # now that the kernel is initialized and connected to the console widget, we can add the console widget to the layout
-        self.layout.addWidget(self.console_widget)
         # disconnect the signal after the kernel is initialized to avoid unnecessary calls in the future
         self._debugger_worker.kernel_initialized.disconnect(self._post_kernel_init)

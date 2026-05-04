@@ -1,20 +1,26 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
 
 from async_slot import async_slot
+from pyx64dbg.GUI.debugger_worker import DebuggerWorker
+
+# we need it as main window imports top menu
+if TYPE_CHECKING:
+    from pyx64dbg.GUI.main_window import MainWindow 
 
 
 class TopMenu:
     def __init__(
         self,
-        main_window: QMainWindow,
+        main_window: MainWindow,
     ) -> None:
         self._main_window = main_window
-        self._debugger_worker = main_window.debugger_worker
+        self._debugger_worker : DebuggerWorker = main_window.debugger_worker
         self._file_menu = self._main_window.menuBar().addMenu("&File")
         self._view_menu = self._main_window.menuBar().addMenu("&View")
         self._window_menu = self._main_window.menuBar().addMenu("&Window")
@@ -67,15 +73,5 @@ class TopMenu:
         if not os.access(selected_path, os.X_OK):
             QMessageBox.warning(self._main_window, "Invalid Executable", "The selected file is not executable.")
             return
-        if self._main_window.process_running:
-            # if a process is already running, kill it before opening a new one.
-            await self._debugger_worker.call_async(self._debugger_worker.stop_debugging)
-            # update all widgets to reflect that no process is running
-            self._main_window.update_gui_on_process_stop()
-        # update the file path in the debugger worker
+        # update the file path in the debugger worker, which will emit a signal to inform the main window anyway
         await self._main_window.debugger_worker.call_async(self._debugger_worker.set_file_name, selected_path)
-        # update file path in the main window and mark that a file has been selected and no process is currently running
-        self._main_window.file_path = selected_path
-        self._main_window.selected_file = True
-        self._main_window.process_running = False
-        self._main_window.update_gui_on_file_select()

@@ -21,19 +21,3 @@ class ExceptionTrap:
         # Prevent dir() from showing any attributes to avoid confusion, since all attributes raise the exception when accessed
         return []
 
-
-class ProcessNotRunningError(Exception):
-    """
-    Exception raised when trying to access an object that requires the process to be running, but the process is not running.
-    """
-    def __init__(self):
-        message = "The process is not running."
-        super().__init__(message)
-
-class ProcessAlreadyRunningError(Exception):
-    """
-    Exception raised when trying to access an object that requires the process to be not running, but the process is running.
-    """
-    def __init__(self):
-        message = "The process is already running."
-        super().__init__(message)

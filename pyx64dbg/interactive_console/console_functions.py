@@ -1,5 +1,6 @@
 import inspect
 from pyx64dbg.debugger import Debugger
+from pyx64dbg.interactive_console.exceptions import FileNotSelectedError
 
 def print_breakpoints(self) -> None:
     """
@@ -35,16 +36,15 @@ def run_process(self, *argv) -> None:
     Run the process. Can give optional arguments to the process, e. g. run_process("arg1", "arg2").
     """
     if self.file_name is None:
-        raise ValueError("No file specified to run.")
+        raise FileNotSelectedError()
     argv_list = list(argv)
     self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=self._redirect_stdio_to_pty, disable_pty_echo=self._disable_pty_echo, argv=argv_list)
-    # call the debugger update callback if it exists
-    if self.new_debugger_object_callback is not None:
-        self.new_debugger_object_callback(self.debugger)
+    # call the debugger update callbacks
+    self.new_debugger_object_callbacks.trigger(self.debugger)
     self._on_process_run() # call the process run handler to set up aliases and help message
 
 
-def select_file(self, file_name : str) -> None:
+def select_file(self, file_name : str, trigger_callbacks: bool = True) -> None:
     """
     Selects a new file to debug.
     Stops the currently running process if there is one, as we switch to a new file.
@@ -58,6 +58,8 @@ def select_file(self, file_name : str) -> None:
         # set that there's no active debugger / process
         self.debugger = None
         self._on_process_exit() # call the process exit handler to update aliases, process_running and help message
-        # call the new debugger object callback as we updated debugger to None
-        if self.new_debugger_object_callback is not None:
-            self.new_debugger_object_callback(None)
+        # call the new debugger object callbacks as we updated debugger to None
+        self.new_debugger_object_callbacks.trigger(None)
+    # call the file select callbacks to notify about the file change
+    if trigger_callbacks:
+        self.file_select_callbacks.trigger(file_name)
