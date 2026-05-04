@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.manager import QtKernelManager
 from traitlets.config import Config
-
+from jupyter_client import KernelClient
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 from pyx64dbg.interactive_console.interactive_console import banner
 
 if TYPE_CHECKING:
     from pyx64dbg.GUI.main_window import MainWindow
-
 
 class InteractiveConsoleView(QWidget):
     def __init__(
@@ -21,6 +21,7 @@ class InteractiveConsoleView(QWidget):
         self.debugger = None
         self._main_window = main_window
         self._debugger_worker = debugger_worker
+        self.kernel_client : Optional[KernelClient] = None
         self._init_ui()
 
     def _init_ui(self) -> None:

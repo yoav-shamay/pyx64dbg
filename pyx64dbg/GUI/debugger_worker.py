@@ -1,5 +1,5 @@
 from __future__ import annotations
-from PySide6.QtCore import Q_ARG, QMetaObject, QObject, Qt, Signal, Slot, QEventLoop, QTimer
+from PySide6.QtCore import QObject, Signal, QEventLoop, QTimer
 import capstone
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
@@ -87,6 +87,9 @@ class DebuggerWorker(QObject):
         self.kernel_app = IPKernelApp.instance()
         # initialize with the --quiet flag to prevent initialization messages printing to the console.
         self.kernel_app.initialize(["--quiet"])
+        # make the kernel not register signal handlers as it isn't the main thread and it can't by overriding the functions it calls to do it.
+        self.kernel_app.kernel.pre_handler_hook = lambda: None
+        self.kernel_app.kernel.post_handler_hook = lambda: None
         # save the connection dict, that will later be emitted to the GUI to connect the console widget to the kernel
         self.kernel_connection_dict = self.kernel_app.get_connection_info()
         # set the kernel's application to a custom application that has an event loop, allowing the kernel to operate on a qt event loop
@@ -240,6 +243,13 @@ class DebuggerWorker(QObject):
         if self.debugger and self.debugger.child_pty:
             return self.debugger.child_pty
         return None
+    
+    def single_step(self):
+        """
+        Steps one instruction in the debugger if it exists.
+        """
+        if self.debugger:
+            self.debugger.single_step()
 
     def call_from_another_thread(self, func, *args, **kwargs):
         """
@@ -274,4 +284,4 @@ class DebuggerWorker(QObject):
             result = func(*args)
             loop.call_soon_threadsafe(future.set_result, result)
         except Exception as e:
-            loop.call_soon_threadsafe(future.set_exception, e)      
+            loop.call_soon_threadsafe(future.set_exception, e)
