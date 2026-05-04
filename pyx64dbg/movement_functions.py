@@ -54,7 +54,7 @@ def _step_from_breakpoint(self, address : CInt | int):
         self.stopped_signal = None
     else:
         ptrace.single_step(self.child_pid)
-    _, status = os.wait() # wait for child to raise a signal, which should be from single stepping
+    _, status = os.waitpid(self.child_pid, 0) # wait for child to raise a signal, which should be from single stepping
     self._handle_signal(status, stepped=True)
     if self.process_exited:
         # if the process exited while we were stepping from the breakpoint, we shouldn't try to restore the breakpoint, as it will cause an error
@@ -85,7 +85,7 @@ def single_step(self, notify_updates = True):
             self.stopped_signal = None
         else:
             ptrace.single_step(self.child_pid)
-        _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
+        _, status = os.waitpid(self.child_pid, 0) # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
         self._handle_signal(status, stepped=True)
     if notify_updates:
         self._notify_update_and_stop()
@@ -113,7 +113,7 @@ def continue_execution(self, notify_updates = True):
         self.stopped_signal = None
     else:
         ptrace.cont(self.child_pid)
-    _, status = os.wait() # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
+    _, status = os.waitpid(self.child_pid, 0) # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
     self._handle_signal(status)
     if notify_updates:
         self._notify_update_and_stop()

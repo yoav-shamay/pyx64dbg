@@ -37,6 +37,8 @@ class DebuggerWorker(QObject):
     The interactive_console object lives in the same thread as the debugger, so all
     interactive console operations are thread-safe with debugger operations.
     """
+    # signals might be emitted twice in a row, in case of updates from multiple conditions.
+    # All connected slots should take this in consideration.
     
     # Signal emitted when the process starts
     process_started = Signal()
@@ -193,11 +195,19 @@ class DebuggerWorker(QObject):
         if self.debugger:
             # kill the process if running
             self.debugger.kill_process()
-            # set that there's no active debugger
+            # call the function to update the state and emit the exit signal
+            self.on_process_kill()
+    
+    def on_process_kill(self):
+        """
+        Slot to handle external kill signals.
+        If we think the process is running, updates the debugger to be None and emits the exit signals.
+        The exit signal needs to be emitted as it might not happen while the debugger is waiting and triggering callbacks.
+        """
+        if self.debugger:
+            # if we have a debugger, we think the process is running
             self.debugger = None
-            # update the interactive console state to reflect that there is no active debugger / process
             self.interactive_console.update_debugger(None)
-            # emit the process exited signal to update the GUI
             self.process_exited.emit()
     
     def handle_exit(self):

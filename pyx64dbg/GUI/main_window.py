@@ -314,8 +314,6 @@ class MainWindow(QMainWindow):
         """
         # change to the real stdio terminal in the stack
         self._widgets["stdio_terminal_stack"].setCurrentIndex(1)
-        # set the debug controls to its stop state, as we have a file selected but no process running yet
-        self._docks["debug_controls"].widget().set_process_stopped_state()
 
     def _on_process_exit(self) -> None:
         """
@@ -328,7 +326,6 @@ class MainWindow(QMainWindow):
         self._widgets["symbols_stack"].setCurrentIndex(0)
         self._widgets["disassembly_stack"].setCurrentIndex(0)
         self._widgets["watch_stack"].setCurrentIndex(0)
-        self._docks["debug_controls"].widget().set_process_stopped_state()
 
     def _on_process_started(self) -> None:
         """
@@ -341,7 +338,6 @@ class MainWindow(QMainWindow):
         self._widgets["symbols_stack"].setCurrentIndex(1)
         self._widgets["disassembly_stack"].setCurrentIndex(1)
         self._widgets["watch_stack"].setCurrentIndex(1)
-        self._docks["debug_controls"].widget().set_process_running_state()
     
     def _on_process_update(self, new_debugger_state):
         """
@@ -358,6 +354,16 @@ class MainWindow(QMainWindow):
         event.ignore()
         # run the closing cleanup async function, which will close it again in the end
         self._closing_cleanup(event)
+    
+    async def force_kill_debugged_process(self):
+        """
+        Force kill the debugged process, for when the debugger thread is blocked and can't process the stop signal.
+        """
+        if self.debugger_worker.debugger is not None:
+            child_pid = self.debugger_worker.debugger.child_pid
+            os.kill(child_pid, signal.SIGKILL)
+        # tell the debugger worker (which shouldn't be blocked now) to process the kill, which will also emit the process exit signal
+        await self.debugger_worker.call_async(self.debugger_worker.on_process_kill)
 
     @async_slot
     async def _closing_cleanup(self, event) -> None:
@@ -368,9 +374,7 @@ class MainWindow(QMainWindow):
         # If the debugger thread is running, we need to stop it before closing the application to ensure a clean exit.
         if self.debugger_thread.isRunning():
             # kill the traced child manually, as the thread might be blocked waiting and won't be able to process a stop signal.
-            if self.debugger_worker.debugger is not None:
-                child_pid = self.debugger_worker.debugger.child_pid
-                os.kill(child_pid, signal.SIGKILL)
+            await self.force_kill_debugged_process()
             # tell the debugger worker to finish, shutting down the kernel. As the traced process is dead, it shouldn't be blocked.
             await self.debugger_worker.call_async(self.debugger_worker.handle_exit)
             # stop the debugger thread

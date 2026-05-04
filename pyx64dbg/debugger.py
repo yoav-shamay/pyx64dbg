@@ -105,7 +105,7 @@ class Debugger:
         if child_pid == 0:  # running as child
             Debugger._start_as_child(file_name, redirect_stdio_to_pty, disable_pty_echo, argv)
         # running as parent
-        os.wait()  # wait for child to start execve, raising a signal
+        os.waitpid(child_pid, 0)  # wait for child to start execve, raising a signal
         res = Debugger(child_pid, pty_fd)
         return res
 
@@ -129,7 +129,7 @@ class Debugger:
         self.busy_callbacks.trigger() # Trigger the busy callback as we wait for the process
         ptrace.kill(self.child_pid)
         _, status = (
-            os.wait()
+            os.waitpid(self.child_pid, 0)
         )  # wait for child to raise a signal, which should be from killing the process
         self._handle_signal(status)
         self.update_callbacks.trigger()
