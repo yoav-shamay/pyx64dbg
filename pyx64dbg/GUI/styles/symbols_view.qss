@@ -1,0 +1,36 @@
+/* Target the Table Widget */
+QTableWidget {
+    background-color: #ffffff;      /* Pure white background */
+    color: #333333;                 /* Dark grey text for readability */
+    gridline-color: #e0e0e0;        /* Very light grid lines */
+    border: 1px solid #dcdcdc;      /* Soft outer border */
+    font-family: "Segoe UI", "Arial";
+    font-size: 10pt;
+    outline: 0;                     /* Remove the dotted focus box */
+}
+
+/* Style the Headers */
+QHeaderView::section {
+    background-color: #f3f3f3;      /* Light grey header */
+    color: #616161;                 /* Subdued header text */
+    padding: 5px;
+    border: 1px solid #dcdcdc;
+    font-weight: 500;               /* Slightly bold for structure */
+}
+
+/* Row Hover Effect */
+QTableWidget::item:hover {
+    background-color: #f0f7ff;      /* Very pale blue highlight */
+}
+
+/* Selected Row Style */
+QTableWidget::item:selected {
+    background-color: #0078d4;      /* Modern Windows-style blue */
+    color: #ffffff;                 /* White text on blue background */
+}
+
+/* Cell Padding for breathing room */
+QTableWidget::item {
+    padding-left: 8px;
+    padding-right: 8px;
+}

@@ -231,6 +231,7 @@ class DebuggerWorker(QObject):
     def read_memory(self, start : int, end : int):
         """
         Reads memory from the debugger if it exists.
+        Reads [start, end)
         Returns None if not.
         """
         if self.debugger:
@@ -298,6 +299,15 @@ class DebuggerWorker(QObject):
         """
         if self.debugger:
             self.debugger.registers[register] = value
+    
+    def get_all_symbols(self):
+        """
+        Gets all symbols from the debugger, used for populating the symbols view in the GUI.
+        Returns None if no debugger is active.
+        """
+        if self.debugger:
+            return self.debugger.symbols.symbols
+        return None
 
     def call_from_another_thread(self, func, *args, **kwargs):
         """

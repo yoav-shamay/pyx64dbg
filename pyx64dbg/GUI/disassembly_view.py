@@ -44,7 +44,7 @@ class DisassemblyView(QWidget):
         self.cs.detail = True
         # disassembly mode - from RIP, address range (usually a symbol), or specific address (default count)
         self._disassemble_from_rip = None
-        self._disassemble_range = None
+        self._disassemble_range = None # tuple of (start, end) addresses to disassemble. end isn't inclusive.
         self._disassemble_address = None
 
         self._init_ui()
@@ -68,7 +68,7 @@ class DisassemblyView(QWidget):
         self.table.setShowGrid(False) # don't show grid
         self.table.verticalHeader().hide() # don't show row numbers
         self.table.horizontalHeader().hide() # don't show column names
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows) # select entire rows
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows) # selecting a cell highlights the entire row
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection) # only allow selecting one row at a time
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers) # don't allow editing cells
 
@@ -235,7 +235,7 @@ class DisassemblyView(QWidget):
         if self._disassemble_from_rip:
             instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._rip, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
         elif self._disassemble_range:
-            code = await self._debugger_worker.call_async(self._debugger_worker.read_memory, self._disassemble_range[0], self._disassemble_range[1] - self._disassemble_range[0])
+            code = await self._debugger_worker.call_async(self._debugger_worker.read_memory, self._disassemble_range[0], self._disassemble_range[1])
             instructions = list(self.cs.disasm(code, self._disassemble_range[0]))
         elif self._disassemble_address:
             instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._disassemble_address, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
@@ -244,15 +244,21 @@ class DisassemblyView(QWidget):
 
     # Disassembly Option Setters
     async def _make_disassemble_from_rip(self):
-        self._disassemble_from_rip, self._disassemble_range, self._disassemble_address = True, None, None
+        self._disassemble_from_rip = True
+        self._disassemble_range = None
+        self._disassemble_address = None
         if self._debugger_state: await self._refresh_view()
 
     async def make_disassemble_memory_range(self, start: int, end: int):
-        self._disassemble_from_rip, self._disassemble_range, self._disassemble_address = False, (start, end), None
+        self._disassemble_from_rip = False
+        self._disassemble_range = (start, end)
+        self._disassemble_address = None
         if self._debugger_state: await self._refresh_view()
 
     async def _make_disassemble_from_address(self, address: int):
-        self._disassemble_from_rip, self._disassemble_range, self._disassemble_address = False, None, address
+        self._disassemble_from_rip = False
+        self._disassemble_range = None
+        self._disassemble_address = address
         if self._debugger_state: await self._refresh_view()
 
     def _show_context_menu(self, position):
