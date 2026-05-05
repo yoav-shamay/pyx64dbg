@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
                 self._docks["disassembly"],
                 self._docks["registers"],
             ],
-            [300, 1000, 300],
+            [400, 1000, 300],
             Qt.Orientation.Horizontal,
         )
         # Debug Controls vs Symbol-Disassembly-Registers group vs Interactive Console-PTY vertical sizes
@@ -314,8 +314,10 @@ class MainWindow(QMainWindow):
         """
         Update the UI to reflect that a file has been selected and is ready to be debugged, but no process is currently running.
         """
-        # change to the real stdio terminal in the stack
+        # change to the real stdio terminal and watch in the stack
         self.widgets["stdio_terminal_stack"].setCurrentIndex(1)
+        self.widgets["watch_stack"].setCurrentIndex(1)
+
 
     def _on_process_exit(self) -> None:
         """
@@ -327,7 +329,7 @@ class MainWindow(QMainWindow):
         self.widgets["extended_registers_stack"].setCurrentIndex(0)
         self.widgets["symbols_stack"].setCurrentIndex(0)
         self.widgets["disassembly_stack"].setCurrentIndex(0)
-        self.widgets["watch_stack"].setCurrentIndex(0)
+        self.process_running = False
 
     def _on_process_started(self) -> None:
         """
@@ -339,8 +341,8 @@ class MainWindow(QMainWindow):
         self.widgets["extended_registers_stack"].setCurrentIndex(1)
         self.widgets["symbols_stack"].setCurrentIndex(1)
         self.widgets["disassembly_stack"].setCurrentIndex(1)
-        self.widgets["watch_stack"].setCurrentIndex(1)
         self.debugger_busy = False
+        self.process_running = True
     
     def _on_process_update(self, new_debugger_state):
         """
