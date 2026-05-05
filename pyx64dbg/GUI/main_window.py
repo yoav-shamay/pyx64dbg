@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self._done_cleanup = False
         self.setWindowTitle("PyX64Dbg")
         self.resize(1600, 1000)
-
+        self.debugger_busy = False # whether the debugger worker is currently busy in a blocking wait call
         self._create_debugger_worker_thread_and_connect_init_ui()
 
     def _init_widgets(self):
@@ -110,6 +110,8 @@ class MainWindow(QMainWindow):
         self.debugger_worker.process_started.connect(self._on_process_started)
         self.debugger_worker.process_exited.connect(self._on_process_exit)
         self.debugger_worker.file_selected.connect(self._on_file_select)
+        self.debugger_worker.debugger_busy.connect(self._on_debugger_busy)
+        self.debugger_worker.debugger_ready.connect(self._on_debugger_ready)
         # move the worker to its thread and start the thread's event loop
         self.debugger_worker.moveToThread(self.debugger_thread)
         self.debugger_thread.started.connect(self._init_ui) # init the UI only after the debugger thread is running so we can call it safely
@@ -338,6 +340,7 @@ class MainWindow(QMainWindow):
         self._widgets["symbols_stack"].setCurrentIndex(1)
         self._widgets["disassembly_stack"].setCurrentIndex(1)
         self._widgets["watch_stack"].setCurrentIndex(1)
+        self.debugger_busy = False
     
     def _on_process_update(self, new_debugger_state):
         """
@@ -385,3 +388,9 @@ class MainWindow(QMainWindow):
         # close again, now with cleanup marked as done
         self._done_cleanup = True
         self.close()
+    
+    def _on_debugger_busy(self):
+        self.debugger_busy = True
+    
+    def _on_debugger_ready(self):
+        self.debugger_busy = False

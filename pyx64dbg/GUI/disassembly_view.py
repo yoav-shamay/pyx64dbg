@@ -280,21 +280,27 @@ class DisassemblyView(QWidget):
                 bp_label = "Remove Breakpoint" if is_bp else "Add Breakpoint"
                 act_bp = menu.addAction(bp_label)
                 act_bp.triggered.connect(lambda: self._toggle_breakpoint(addr))
+                if self._main_window.debugger_busy:
+                    act_bp.setEnabled(False) # don't allow actions while the debugger is busy
 
                 # Set RIP to Selected Line
                 act_rip = menu.addAction("Set RIP to here")
                 act_rip.triggered.connect(lambda: self._set_rip(addr))
+                if self._main_window.debugger_busy:
+                    act_rip.setEnabled(False) # don't allow actions while the debugger is busy
                 # add a separator to distinguish the instruction-specific options from the more general options
                 menu.addSeparator()
 
         # Change disassembly to RIP
         act_reset_rip = menu.addAction("Go to current RIP")
         act_reset_rip.triggered.connect(async_slot(self._make_disassemble_from_rip)) # wrap in async_slot as this function is async but doesn't have the decorator as it's called internally
-
+        if self._main_window.debugger_busy:
+            act_reset_rip.setEnabled(False) # don't allow actions while the debugger is busy
         # Choose a location (Prompt)
         act_goto = menu.addAction("Go to address...")
         act_goto.triggered.connect(self._prompt_for_address)
-
+        if self._main_window.debugger_busy:
+            act_goto.setEnabled(False) # don't allow actions while the debugger is busy
         # show the menu at the cursor position
         menu.exec(self.table.viewport().mapToGlobal(position))
 
