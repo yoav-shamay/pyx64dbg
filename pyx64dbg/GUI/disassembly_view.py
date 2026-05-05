@@ -2,8 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QTableWidget, 
-    QLabel, QAbstractItemView, QHeaderView
+    QMenu, QMessageBox, QTableWidgetItem, QWidget, QVBoxLayout, QTableWidget, 
+    QLabel, QAbstractItemView, QHeaderView, QInputDialog
 )
 from PySide6.QtCore import Qt
 
@@ -89,14 +89,30 @@ class DisassemblyView(QWidget):
         # Remove any internal margins
         self.table.setContentsMargins(0, 0, 0, 0)
 
+        # register right click menu
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
+
         layout.addWidget(self.table)
 
     def _init_callbacks(self):
         self._debugger_worker.process_started.connect(self._on_process_run)
         self._debugger_worker.state_update.connect(self._on_state_update)
 
+
+    def _create_cell_label(self, text, status_val, alignment=Qt.AlignmentFlag.AlignLeft):
+        """
+        Helper to create a styled label for any column
+        """
+        lbl = QLabel(text)
+        lbl.setProperty("status", status_val)
+        # Ensure the label fills the entire cell height/width
+        lbl.setAlignment(alignment | Qt.AlignmentFlag.AlignVCenter)
+        # Add a tiny bit of padding so text isn't touching the line
+        lbl.setContentsMargins(5, 0, 5, 0)
+        return lbl
+
     def _load_disassembly(self, instructions: list[capstone.CsInsn]):
-        self.table.setRowCount(0)
         self.table.setRowCount(len(instructions))
 
         for row, insn in enumerate(instructions):
@@ -113,33 +129,29 @@ class DisassemblyView(QWidget):
             elif is_bp:
                 status, indicator = "bp", "🔴"
 
-            # Helper to create a styled label for any column
-            def create_cell_label(text, status_val, alignment=Qt.AlignmentFlag.AlignLeft):
-                lbl = QLabel(text)
-                lbl.setProperty("status", status_val)
-                # Ensure the label fills the entire cell height/width
-                lbl.setAlignment(alignment | Qt.AlignmentFlag.AlignVCenter)
-                # Optional: add a tiny bit of padding so text isn't touching the line
-                lbl.setContentsMargins(5, 0, 5, 0)
-                return lbl
 
             # 1. Indicator Column
-            self.table.setCellWidget(row, 0, create_cell_label(indicator, status, Qt.AlignmentFlag.AlignCenter))
+            self.table.setCellWidget(row, 0, self._create_cell_label(indicator, status, Qt.AlignmentFlag.AlignCenter))
 
-            # 2. Address Column
+            # 2. Address Column.
+            # have an item with the address number, to access programmatically (for context menu)
+            addr_item = QTableWidgetItem()
+            addr_item.setData(Qt.ItemDataRole.UserRole, insn.address)
+            self.table.setItem(row, 1, addr_item)
+            # the address text itself
             addr_str = f"0x{insn.address:012x}"
             # Wrap in a span to use the COLORS['addr'] color defined in your file
             addr_html = f"<span style='color:{COLORS['addr']};'>{addr_str}</span>"
-            self.table.setCellWidget(row, 1, create_cell_label(addr_html, status))
+            self.table.setCellWidget(row, 1, self._create_cell_label(addr_html, status))
 
             # 3. Mnemonic Column
             # Wrap in span for bold/color
             mnem_html = f"<span style='color:{COLORS['mnem']}; font-weight:bold;'>{insn.mnemonic}</span>"
-            self.table.setCellWidget(row, 2, create_cell_label(mnem_html, status))
+            self.table.setCellWidget(row, 2, self._create_cell_label(mnem_html, status))
 
             # 4. Operands Column
             ops_html = self._format_operands_html(insn)
-            self.table.setCellWidget(row, 3, create_cell_label(ops_html, status))
+            self.table.setCellWidget(row, 3, self._create_cell_label(ops_html, status))
 
     def _format_operands_html(self, insn: capstone.CsInsn) -> str:
         # (Same logic as before, just generating spans for registers/immediates)
@@ -210,7 +222,7 @@ class DisassemblyView(QWidget):
     async def _on_process_run(self):
         self._address_to_symbol = await self._debugger_worker.call_async(self._debugger_worker.get_address_to_symbol_mapping)
         # by default - disassemble from RIP
-        await self.disassemble_from_rip()
+        await self._make_disassemble_from_rip()
 
     @async_slot
     async def _on_state_update(self, debugger_state: DebuggerState):
@@ -231,14 +243,94 @@ class DisassemblyView(QWidget):
             self._load_disassembly(instructions)
 
     # Disassembly Option Setters
-    async def disassemble_from_rip(self):
+    async def _make_disassemble_from_rip(self):
         self._disassemble_from_rip, self._disassemble_range, self._disassemble_address = True, None, None
         if self._debugger_state: await self._refresh_view()
 
-    async def disassemble_memory_range(self, start: int, end: int):
+    async def make_disassemble_memory_range(self, start: int, end: int):
         self._disassemble_from_rip, self._disassemble_range, self._disassemble_address = False, (start, end), None
         if self._debugger_state: await self._refresh_view()
 
-    async def disassemble_from_address(self, address: int):
+    async def _make_disassemble_from_address(self, address: int):
         self._disassemble_from_rip, self._disassemble_range, self._disassemble_address = False, None, address
-        if self._debugger_state: await self._refresh_view() 
+        if self._debugger_state: await self._refresh_view()
+
+    def _show_context_menu(self, position):
+        """
+        Builds and displays the right-click menu.
+        Available options:
+        1. Add/Remove Breakpoint (if clicked on an instruction)
+        2. Set RIP to Selected Line (if clicked on an instruction)
+        3. Change disassembly mode to follow RIP
+        4. Go to address... (prompts for an address to disassemble from)
+        """
+        # Get the row we clicked on (which indicates the instruction)
+        row = self.table.rowAt(position.y())
+
+        menu = QMenu(self)
+        
+        # If we selected an instruction
+        if row != -1:
+            # get the address associated with this instruction from the hidden data role
+            addr_item = self.table.item(row, 1) # we stored the address in column 1, which is the address column
+            if addr_item is not None:
+                addr = addr_item.data(Qt.ItemDataRole.UserRole)
+                # Add/Remove Breakpoint
+                is_bp = addr in self._debugger_state.breakpoints
+                bp_label = "Remove Breakpoint" if is_bp else "Add Breakpoint"
+                act_bp = menu.addAction(bp_label)
+                act_bp.triggered.connect(lambda: self._toggle_breakpoint(addr))
+
+                # Set RIP to Selected Line
+                act_rip = menu.addAction("Set RIP to here")
+                act_rip.triggered.connect(lambda: self._set_rip(addr))
+                # add a separator to distinguish the instruction-specific options from the more general options
+                menu.addSeparator()
+
+        # Change disassembly to RIP
+        act_reset_rip = menu.addAction("Go to current RIP")
+        act_reset_rip.triggered.connect(async_slot(self._make_disassemble_from_rip)) # wrap in async_slot as this function is async but doesn't have the decorator as it's called internally
+
+        # Choose a location (Prompt)
+        act_goto = menu.addAction("Go to address...")
+        act_goto.triggered.connect(self._prompt_for_address)
+
+        # show the menu at the cursor position
+        menu.exec(self.table.viewport().mapToGlobal(position))
+
+    @async_slot
+    async def _prompt_for_address(self):
+        """
+        Opens a dialog to jump to a specific address.
+        """
+        text, ok = QInputDialog.getText(self, "Disassemble At", "Address:")
+        if ok and text:
+            try:
+                # evaluate the expression
+                address = await self._debugger_worker.call_async(self._debugger_worker.evaluate_expression, text)
+                await self._make_disassemble_from_address(address)
+            except Exception as e:
+                # show an error dialog if the expression couldn't be evaluated
+                error_dialog = QMessageBox(self)
+                error_dialog.setIcon(QMessageBox.Icon.Critical)
+                error_dialog.setWindowTitle("Error")
+                # show the exception type and message in the error dialog
+                error_dialog.setText(f"<b>{e.__class__.__name__}</b>: {str(e)}")
+                error_dialog.exec()
+
+    @async_slot
+    async def _toggle_breakpoint(self, address: int):
+        """
+        Toggle a breakpoint on the given address.
+        """
+        if address in self._debugger_state.breakpoints:
+            await self._debugger_worker.call_async(self._debugger_worker.remove_breakpoint, address)
+        else:
+            await self._debugger_worker.call_async(self._debugger_worker.add_breakpoint, address)
+
+    @async_slot
+    async def _set_rip(self, address: int):
+        """
+        Sets the instruction pointer (RIP) to the given address.
+        """
+        await self._debugger_worker.call_async(self._debugger_worker.set_register, "rip", address)

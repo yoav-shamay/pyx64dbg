@@ -260,6 +260,43 @@ class DebuggerWorker(QObject):
         """
         if self.debugger:
             self.debugger.single_step()
+    
+    def evaluate_expression(self, expression: str):
+        """
+        Evaluates an expression in the context of the debugged process using the interactive console shell.
+        Returns the result of the evaluation, or None if no interactive shell is active.
+        """
+        if self.shell:
+            return self.shell.ev(expression)
+        return None
+    
+    def add_breakpoint(self, address: int):
+        """
+        Adds a breakpoint at the specified address.
+        """
+        if self.debugger:
+            self.debugger.breakpoints.add_breakpoint(address)
+
+    def remove_breakpoint(self, address: int):
+        """
+        Removes a breakpoint at the specified address.
+        """
+        if self.debugger:
+            self.debugger.breakpoints.remove_breakpoint(address)
+    
+    def continue_execution(self):
+        """
+        Continues the execution of the debugged process.
+        """
+        if self.debugger:
+            self.debugger.continue_execution()
+    
+    def set_register(self, register: str, value: int):
+        """
+        Sets the value of a register in the debugged process.
+        """
+        if self.debugger:
+            self.debugger.registers[register] = value
 
     def call_from_another_thread(self, func, *args, **kwargs):
         """
@@ -283,7 +320,6 @@ class DebuggerWorker(QObject):
         QTimer.singleShot(0, self, call_func)
         # return the created future
         return future
-
 
     def _execute_method(self, future: asyncio.Future, loop: asyncio.AbstractEventLoop, func: callable, *args):
         """
