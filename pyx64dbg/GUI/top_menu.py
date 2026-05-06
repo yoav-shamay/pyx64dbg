@@ -73,5 +73,8 @@ class TopMenu:
         if not os.access(selected_path, os.X_OK):
             QMessageBox.warning(self._main_window, "Invalid Executable", "The selected file is not executable.")
             return
+        if self._main_window.process_running:
+            # if there's a process running, force kill the current process, as the debugger might be blocked and the call won't register
+            await self._main_window.force_kill_debugged_process()
         # update the file path in the debugger worker, which will emit a signal to inform the main window anyway
         await self._main_window.debugger_worker.call_async(self._debugger_worker.set_file_name, selected_path)

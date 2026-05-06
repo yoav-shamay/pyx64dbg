@@ -60,5 +60,5 @@ class IPythonCLI:
         )
         # Disable the kernel from printing the autocall expansion to keep the CLI cleaner
         self.shell.show_rewritten_input = False
-        print(banner)
+        print(banner, end='') # banner already has a newline at the end
         self.shell(local_ns=self.interactive_console.get_aliases())

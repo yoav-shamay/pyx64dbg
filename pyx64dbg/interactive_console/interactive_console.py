@@ -20,7 +20,8 @@ You can also call functions without parenthesis, e. g. "s" or "dis regs.rip,10".
 Use help(object) to view the docstring for any of the above methods or properties for more details on their usage."""
 
 banner = """Welcome to the PyX64Dbg interactive console!
-Type help for more information."""
+Type help for more information.
+"""
 
 class InteractiveConsole:
     """
