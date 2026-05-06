@@ -72,14 +72,15 @@ class PtyTerminalIO(TerminalPOSIXIO):
 
     def terminate(self):
         """
-        Safely shuts down the notifier.
+        Handles closing the PTY.
+        Sets the running flag to False, disables and deletes the notifier, and sets fd to -1.
         """
         self.running = False
         if self._notifier:
             self._notifier.setEnabled(False)
             self._notifier.deleteLater() # Schedule the notifier for deletion
             self._notifier = None
-        self.fd = None
+        self.fd = -1
     
     def resize(self, rows : int, cols : int):
         """
@@ -89,9 +90,13 @@ class PtyTerminalIO(TerminalPOSIXIO):
         """
         if self.fd != -1:
             s = struct.pack("HHHH", rows, cols, 0, 0)
-            fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s)
+            fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s) # resize this pty using ioctl
 
     def run_slave(self):
+        """
+        We need to implement it as it's an abstract method in the parent class.
+        Unused, so does nothing.
+        """
         pass # Not used in this implementation
 
 class PtyStdioView(QWidget):
@@ -101,8 +106,9 @@ class PtyStdioView(QWidget):
         self._debugger_worker: DebuggerWorker = main_window.debugger_worker
         self._connect_signals()
         
-        # 1. Initialize the Terminal widget as a child member
-        # Initial size is 100x100 as it's large enough so it won't crash and small enough so it won't try to expand the dock
+        # Initialize the Terminal widget as a child member
+        # Initial size is 100x100 as it will crash with too small size
+        # it needs to be small enough so it won't try to expand the dock to its size
         # It will automatically resize it to fit the dock.
         self._terminal: Terminal = Terminal(100, 100)
 
