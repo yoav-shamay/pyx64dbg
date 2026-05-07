@@ -88,19 +88,33 @@ def test_integer_behavior(cls, num1, num2, overflow_num_1, overflow_num_2):
 
 def test_priority():
     # 1. Same size, Signed + Unsigned -> Unsigned wins
-    assert isinstance(UInt32(1) + Int32(1), UInt32)
-    assert isinstance(Int8(1) + UInt8(1), UInt8)
+    res1 = UInt32(1) + Int32(1)
+    assert isinstance(res1, UInt32)
+    assert res1 == UInt32(2)
+    res2 = Int8(1) + UInt8(1)
+    assert isinstance(res2, UInt8)
+    assert res2 == UInt8(2)
 
     # 2. Different size -> Larger size wins
-    assert isinstance(Int8(1) + Int32(1), Int32)
+    res3 = Int8(1) + Int32(1)
+    assert isinstance(res3, Int32)
+    assert res3 == Int32(2)
     
     # 3. Signed Higher Rank vs Unsigned Lower Rank -> Signed Higher Rank wins
-    assert isinstance(UInt16(65535) + Int32(1), Int32)
-    assert isinstance(UInt32(1) + Int64(1), Int64)
+    res3 = UInt16(65535) + Int32(1)
+    assert isinstance(res3, Int32)
+    assert res3 == Int32(65536)
+    res4 = UInt32(1) + Int64(1)
+    assert isinstance(res4, Int64)
+    assert res4 == Int64(2)
 
     # 4. Float Promotion
-    assert isinstance(UInt64(1) + Float32(1.0), Float32)
-    assert isinstance(Float32(1.0) + Float64(1.0), Float64)
+    res5 = UInt64(1) + Float32(1.0)
+    assert isinstance(res5, Float32)
+    assert float(res5) == pytest.approx(2.0)
+    res6 = Float32(1.0) + Float64(1.0)
+    assert isinstance(res6, Float64)
+    assert float(res6) == pytest.approx(2.0)
 
 def test_different_type_comparison():
     assert Int32(-1) == Int64(-1)
