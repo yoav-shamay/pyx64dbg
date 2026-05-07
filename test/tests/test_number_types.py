@@ -6,7 +6,7 @@ from pyx64dbg.number_types import (
 )
 import math
 
-# --- Helpers to mimic C behavior for test expectations ---
+# Helpers to mimic C behavior for test expectations
 
 def c_wrap(val, size_bits, is_signed):
     """
@@ -219,8 +219,22 @@ def test_float_specials():
     # 2.0 in Float80: 0x40008000000000000000
     (Float80, b"\x00\x00\x00\x00\x00\x00\x00\x80\x00\x40", 2.0),
 ])
+
 def test_from_bytes(cls, bytes_val, expected):
     result = cls.from_bytes(bytes_val)
     assert result == expected
     # Ensure it's not just a Python int/float but our custom wrapper
     assert isinstance(result, cls)
+
+def test_float80_precision():
+    """
+    Test that float80 is more precise than standard python float by comparing difference of close values.
+    The numbers should be close enough that they are indistinguishable in Float32 and Float64, but different in Float80.
+    """
+    base = Float80(1.0)
+    small_increment = Float80(1e-18)
+    a = base + small_increment
+    b = base + small_increment * 2
+    diff = b - a
+    tolerance = 1e-19 # we need to define custom tolerance as pytest.approx will consider 0 and 1e-18 to be approximately equal. This is small enough to not have false-positives.
+    assert float(diff) == pytest.approx(float(small_increment), abs=tolerance)
