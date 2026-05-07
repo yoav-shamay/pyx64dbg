@@ -11,6 +11,7 @@ import capstone
 from capstone.x86 import X86_OP_IMM, X86_OP_REG, X86_OP_MEM, X86_REG_RIP
 
 from pyx64dbg.GUI.debugger_state import DebuggerState
+from pyx64dbg.GUI.utils import prompt_for_expression
 from pyx64dbg.number_types import Int64
 
 from async_slot import async_slot
@@ -304,31 +305,20 @@ class DisassemblyView(QWidget):
             act_reset_rip.setEnabled(False) # don't allow actions while the debugger is busy
         # Choose a location (Prompt)
         act_goto = menu.addAction("Go to address...")
-        act_goto.triggered.connect(self._prompt_for_address)
+        act_goto.triggered.connect(self._go_to_address_prompt)
         if self._main_window.debugger_busy:
             act_goto.setEnabled(False) # don't allow actions while the debugger is busy
         # show the menu at the cursor position
         menu.exec(self.table.viewport().mapToGlobal(position))
 
     @async_slot
-    async def _prompt_for_address(self):
+    async def _go_to_address_prompt(self):
         """
         Opens a dialog to jump to a specific address.
         """
-        text, ok = QInputDialog.getText(self, "Disassemble At", "Address:")
-        if ok and text:
-            try:
-                # evaluate the expression
-                address = await self._debugger_worker.call_async(self._debugger_worker.evaluate_expression, text)
-                await self._make_disassemble_from_address(address)
-            except Exception as e:
-                # show an error dialog if the expression couldn't be evaluated
-                error_dialog = QMessageBox(self)
-                error_dialog.setIcon(QMessageBox.Icon.Critical)
-                error_dialog.setWindowTitle("Error")
-                # show the exception type and message in the error dialog
-                error_dialog.setText(f"<b>{e.__class__.__name__}</b>: {str(e)}")
-                error_dialog.exec()
+        address = await prompt_for_expression(self, "Disassemble At", "Address:", self._debugger_worker)
+        if address is not None:
+            await self._make_disassemble_from_address(address)
 
     @async_slot
     async def _toggle_breakpoint(self, address: int):

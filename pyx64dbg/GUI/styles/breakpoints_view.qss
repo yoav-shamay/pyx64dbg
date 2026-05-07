@@ -1,0 +1,35 @@
+QListWidget {
+    background-color: #ffffff;
+    border: 1px solid #d1d1d1;
+    border-radius: 4px;
+    outline: none; /* Removes the dotted focus rectangle */
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 15px;
+    color: #333333;
+}
+
+QListWidget::item {
+    padding: 6px 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Alternating row color */
+QListWidget::item:alternate {
+    background-color: #f9f9f9;
+}
+
+QListWidget::item:hover {
+    background-color: #f0f7ff;
+}
+
+QListWidget::item:selected {
+    background-color: #e5effa;
+    color: #0056b3;
+    border-left: 3px solid #0056b3; /* Pro "active" indicator */
+}
+
+QListWidget::item:selected:!active {
+    background-color: #f0f0f0;
+    color: #666666;
+    border-left: 3px solid #999999;
+}
