@@ -103,8 +103,7 @@ class DebuggerWorker(QObject):
         
         self.shell.autocall = 2 # autocall - call functions without parenthesis
         self.shell.show_rewritten_input = False # don't show the input twice when autocall is triggered
-        #TODO enable back, currently disabled for debugging
-        #self.shell.showtraceback = self._show_simple_error # override default IPython traceback to show simpler error messages in the console widget
+        self.shell.showtraceback = self._show_simple_error # override default IPython traceback to show simpler error messages in the console widget
 
         # initialize the interactive console object and set up callbacks for synchronization with the worker state
         

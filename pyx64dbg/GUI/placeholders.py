@@ -33,12 +33,3 @@ class PlaceholderPtyStdioView(PlaceholderTextEdit):
 
 class PlaceholderWatchView(PlaceholderTextEdit):
     text = "Run a process to access watch."
-
-# temporary placeholder table class until we implement the real views, to avoid having to duplicate the same code in each view.
-class PlaceholderTable(QTableWidget):
-    def __init__(self, headers: list[str], parent: QWidget | None = None) -> None:
-        super().__init__(0, len(headers), parent)
-        self.setHorizontalHeaderLabels(headers)
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
