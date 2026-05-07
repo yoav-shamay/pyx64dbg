@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QListWidgetItem, QVBoxLayout, QWidget, QListWidget, QMenu
+from PySide6.QtWidgets import QListWidgetItem, QToolBar, QVBoxLayout, QWidget, QListWidget, QMenu
 from PySide6.QtGui import QAction
 from pyx64dbg.GUI.async_slot import async_slot
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
@@ -24,12 +24,20 @@ class BreakpointsView(QWidget):
 
     def _register_callbacks(self):
         self._debugger_worker.state_update.connect(self._on_state_update)
+        self._debugger_worker.debugger_busy.connect(self._on_debugger_busy)
+        self._debugger_worker.debugger_ready.connect(self._on_debugger_ready)
     
     def _load_qss(self):
         with open("pyx64dbg/GUI/styles/breakpoints_view.qss", "r") as f:
             self.setStyleSheet(f.read())
     
     def _init_ui(self):
+        # toolbar with a + button
+        toolbar = QToolBar()
+        self._add_action = QAction("+", self)
+        self._add_action.triggered.connect(self._add_breakpoint)
+        toolbar.addAction(self._add_action)
+        # list widget with breakpoints
         self._list_widget = QListWidget(self)
         self._list_widget.setAlternatingRowColors(True) # make it easier to read
         # register right click menu
@@ -37,6 +45,7 @@ class BreakpointsView(QWidget):
         self._list_widget.customContextMenuRequested.connect(self._show_context_menu)
 
         layout = QVBoxLayout(self)
+        layout.addWidget(toolbar)
         layout.addWidget(self._list_widget)
     
     def _show_context_menu(self, pos):
@@ -53,6 +62,11 @@ class BreakpointsView(QWidget):
         # Disable "Remove" if nothing is actually selected
         selected_items = self._list_widget.selectedItems()
         remove_action.setEnabled(len(selected_items) > 0)
+
+        # Disable both if the debugger is busy, as we won't be able to call the thread to add/remove breakpoints
+        if self._main_window.debugger_busy:
+            add_action.setEnabled(False)
+            remove_action.setEnabled(False)
         
         # Populate and Execute
         menu.addAction(add_action)
@@ -90,3 +104,10 @@ class BreakpointsView(QWidget):
         breakpoints = debugger_state.breakpoints
         self._set_table(breakpoints)
         
+    def _on_debugger_busy(self):
+        # if the debugger is busy, disable the add action
+        self._add_action.setEnabled(False)
+    
+    def _on_debugger_ready(self):
+        # if the debugger is available, enable the add action
+        self._add_action.setEnabled(True)

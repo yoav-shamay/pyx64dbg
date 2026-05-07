@@ -98,7 +98,10 @@ class SymbolsView(QWidget):
         Handles double clicking a cell.
         If it's a function, navigates to the disassembly view at the function's address.
         Otherwise, does nothing.
+        Does nothing if the debugger is busy.
         """
+        if self._main_window.debugger_busy:
+            return # if the debugger is busy, don't try to jump as we can't call the thread
         type_item = self.table.item(row, 3)
         
         # Check if the symbol is a function before jumping

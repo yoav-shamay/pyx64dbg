@@ -234,6 +234,8 @@ class DisassemblyView(QWidget):
         await self._refresh_view()
 
     async def _refresh_view(self):
+        if self._main_window.debugger_busy:
+            return # if the debugger is busy, don't try to refresh as we can't call the thread
         instructions = None
         if self._disassemble_from_rip:
             instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._rip, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)

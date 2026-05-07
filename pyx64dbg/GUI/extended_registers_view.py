@@ -179,6 +179,8 @@ class ExtendedRegistersView(QWidget):
     
     @async_slot
     async def _on_item_double_clicked(self, item: QTreeWidgetItem, column: int):
+        if self._main_window.debugger_busy:
+            return # if the debugger is busy, don't allow editing as we can't call the thread
         reg_name = item.data(0, ROLE_REG_NAME)
         if reg_name is None:
             return # if the item doesn't have a register associated with it, ignore the double click

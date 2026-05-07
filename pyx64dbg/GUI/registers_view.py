@@ -83,6 +83,8 @@ class RegistersView(QWidget):
     
     @async_slot
     async def _on_cell_double_clicked(self, row: int, col: int) -> None:
+        if self._main_window.debugger_busy:
+            return # if the debugger is busy, don't allow editing as we can't call the thread
         reg_name = self._table.item(row, 0).text()
         if col == 2:
             start_val = self._table.item(row, 2).text() # show decimal value if user double clicked the decimal column
