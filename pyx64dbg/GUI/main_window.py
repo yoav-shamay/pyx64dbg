@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QThread, Qt, QSettings
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDockWidget, QMainWindow, QStackedWidget, QTabWidget, QWidget
 
 from pyx64dbg.GUI.breakpoints_view import BreakpointsView
@@ -35,6 +35,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PyX64Dbg")
         self.resize(1600, 1000)
         self.debugger_busy = False # whether the debugger worker is currently busy in a blocking wait call
+        self.setWindowIcon(QIcon("pyx64dbg/GUI/assets/icon.svg"))
         self._create_debugger_worker_thread_and_connect_init_ui()
 
     def _init_widgets(self):
