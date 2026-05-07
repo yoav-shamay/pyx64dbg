@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QInputDialog, QListWidgetItem, QVBoxLayout, QWidget, QListWidget, QMenu
+from PySide6.QtWidgets import QListWidgetItem, QVBoxLayout, QWidget, QListWidget, QMenu
 from PySide6.QtGui import QAction
 from pyx64dbg.GUI.async_slot import async_slot
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
@@ -11,7 +11,7 @@ from pyx64dbg.GUI.utils import prompt_for_expression
 if TYPE_CHECKING:
     from pyx64dbg.GUI.main_window import MainWindow
 
-BP_SYMBOL = "🔴" # symbol to indicate a breakpoint in the UI, can be changed to anything else (e.g. "●", "■", etc.)
+BP_SYMBOL = "🔴" # symbol that will appear before the breakpoint address in the list
 
 class BreakpointsView(QWidget):
     def __init__(self, main_window : MainWindow) -> None:
@@ -73,10 +73,8 @@ class BreakpointsView(QWidget):
         if selected_breakpoint:
             bp_address = selected_breakpoint.data(Qt.ItemDataRole.UserRole)
             await self._debugger_worker.call_async(self._debugger_worker.remove_breakpoint, bp_address)
-
-    def _on_state_update(self, debugger_state):
-        breakpoints = debugger_state.breakpoints
-        # clear the list and repopulate it
+    
+    def _set_table(self, breakpoints : list[int]):
         self._list_widget.clear()
         for bp in breakpoints:
             bp_text = f"{BP_SYMBOL} 0x{bp:016x}"  # show breakpoint symbol and address as 64-bit hex
@@ -86,4 +84,9 @@ class BreakpointsView(QWidget):
             item.setData(Qt.ItemDataRole.ToolTipRole, address_hex) # show only address in tooltip
             item.setData(Qt.ItemDataRole.UserRole, bp) # store the breakpoint address in the user data to access later
             self._list_widget.addItem(item)
+
+
+    def _on_state_update(self, debugger_state):
+        breakpoints = debugger_state.breakpoints
+        self._set_table(breakpoints)
         

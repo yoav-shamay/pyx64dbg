@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from pyx64dbg.GUI.async_slot import async_slot
-from pyx64dbg.debugger import Debugger
+from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 
 if TYPE_CHECKING:
     from pyx64dbg.GUI.main_window import MainWindow
@@ -13,12 +13,12 @@ if TYPE_CHECKING:
 class DebugControlsView(QWidget):
     def __init__(self, main_window: MainWindow) -> None:
         super().__init__(main_window)
-        self._main_window = main_window
-        self._debugger_worker = main_window.debugger_worker
-        self._connect_callbacks()
+        self._main_window: MainWindow = main_window
+        self._debugger_worker: DebuggerWorker = main_window.debugger_worker
+        self._register_callbacks()
         self._init_ui()
     
-    def _connect_callbacks(self):
+    def _register_callbacks(self) -> None:
         self._debugger_worker.process_started.connect(self._on_debugger_ready)
         self._debugger_worker.debugger_ready.connect(self._on_debugger_ready)
         self._debugger_worker.process_exited.connect(self._on_process_exited)
@@ -83,7 +83,7 @@ class DebugControlsView(QWidget):
     async def _on_step_out(self) -> None:
         await self._debugger_worker.call_async(self._debugger_worker.finish)
 
-    def _on_process_exited(self):
+    def _on_process_exited(self) -> None:
         """
         Enable/Disable buttons based on the process isn't running (on exit / file selection)
         When the process is stopped, only the "Run" button should be enabled.
@@ -95,7 +95,7 @@ class DebugControlsView(QWidget):
         self.continue_button.setEnabled(False)
         self.step_out_button.setEnabled(False)
 
-    def _on_debugger_ready(self):
+    def _on_debugger_ready(self) -> None:
         """
         Enable/Disable buttons based on the process being running and available.
         Only the "Run" button should be disabled.
@@ -107,7 +107,7 @@ class DebugControlsView(QWidget):
         self.continue_button.setEnabled(True)
         self.step_out_button.setEnabled(True)
     
-    def _on_debugger_busy(self):
+    def _on_debugger_busy(self) -> None:
         """
         Enable/Disable buttons based on the debugger being busy.
         Only the "Stop" button should be enabled (as it's the only one that doesn't require the thread to be available)

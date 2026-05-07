@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
                 self._docks["disassembly"],
                 self._docks["registers"],
             ],
-            [400, 1000, 300],
+            [400, 1000, 400],
             Qt.Orientation.Horizontal,
         )
         # Debug Controls vs Symbol-Disassembly-Registers group vs Interactive Console-PTY vertical sizes
