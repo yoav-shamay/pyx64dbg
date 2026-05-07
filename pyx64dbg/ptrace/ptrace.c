@@ -11,6 +11,11 @@
 #include "utils.h"
 #include "xstate.h"
 
+/*
+Implementation of the traceme method for the python binding.
+Gets no parameter and returns nothing.
+calls ptrace with PTRACE_TRACEME.
+*/
 static PyObject *method_traceme(PyObject *self, PyObject *ignored)
 {
     int res = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
@@ -22,6 +27,11 @@ static PyObject *method_traceme(PyObject *self, PyObject *ignored)
     Py_RETURN_NONE;
 }
 
+/*
+Implementation of the cont method for the python binding.
+Gets the child process id and an optional signal number to be sent to the child process when continued, and returns nothing.
+calls ptrace with PTRACE_CONT.
+*/
 static PyObject *method_cont(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -40,6 +50,11 @@ static PyObject *method_cont(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+/*
+An implementation of the peekdata method for the python binding.
+Gets the child process id and the address to peek, and returns the data at that address in the child process as a python integer.
+calls ptrace with PTRACE_PEEKDATA.
+*/
 static PyObject *method_peekdata(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -48,7 +63,7 @@ static PyObject *method_peekdata(PyObject *self, PyObject *args)
     {
         return NULL;
     }
-    errno = 0;
+    errno = 0; // reset errno so we can accurately tell if ptrace failed or if the data at the address is actually -1
     unsigned long res = ptrace(PTRACE_PEEKDATA, child_pid, (void *)address, NULL);
     if (errno == 0)
     {
@@ -61,6 +76,11 @@ static PyObject *method_peekdata(PyObject *self, PyObject *args)
     }
 }
 
+/*
+Implementation of the pokedata method for the python binding.
+Gets the child process id, the address to poke and the data to poke, and returns nothing.
+calls ptrace with PTRACE_POKEDATA.
+*/
 static PyObject *method_pokedata(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -79,6 +99,11 @@ static PyObject *method_pokedata(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+/*
+Implementation of the single_step method for the python binding.
+Gets the child process id and an optional signal number to be sent to the child process when continued, and returns nothing.
+calls ptrace with PTRACE_SINGLESTEP.
+*/
 static PyObject *method_single_step(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -97,6 +122,12 @@ static PyObject *method_single_step(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+/*
+Implementation of the get_standard_regs method for the python binding.
+Gets the child process id and returns a dict containing the standard registers of the child process.
+The keys are python strings with the register names, and the values are bytes objects.
+calls ptrace with PTRACE_GETREGSET on NT_PRSTATUS.
+*/
 static PyObject *method_get_standard_regs(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -105,15 +136,18 @@ static PyObject *method_get_standard_regs(PyObject *self, PyObject *args)
         return NULL;
     }
     struct user_regs_struct regs;
+    // init an iov pointing to the regs struct
     struct iovec iov;
     iov.iov_base = &regs;
     iov.iov_len = sizeof(regs);
+
     int ptrace_res = ptrace(PTRACE_GETREGSET, child_pid, NT_PRSTATUS, &iov);
     if (ptrace_res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
+    // create a dictionary with all fields of the regs struct, with the field names as keys and the field values as bytes objects
     PyObject *res = PyDict_New();
     PyDict_SetItemString(res, "rax", bytes_from_field(&regs.rax, sizeof(regs.rax)));
     PyDict_SetItemString(res, "rbx", bytes_from_field(&regs.rbx, sizeof(regs.rbx)));
@@ -145,7 +179,13 @@ static PyObject *method_get_standard_regs(PyObject *self, PyObject *args)
     return res;
 }
 
-
+/*
+Implementation of the get_extended_regs method for the python binding.
+Gets the child process id and returns a dict containing the extended registers of the child process.
+Currently only contains the legacy region and YMM registers, can be extended to contain more registers in the future if needed.
+The keys are python strings with the register names, and the values are bytes objects.
+calls ptrace with PTRACE_GETREGSET on NT_X86_XSTATE.
+*/
 static PyObject *method_get_extended_regs(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -155,16 +195,23 @@ static PyObject *method_get_extended_regs(PyObject *self, PyObject *args)
     }
     char *xstate_buffer = NULL;
     size_t xstate_size = 0;
-    if (get_xstate_buffer_from_child(child_pid, &xstate_buffer, &xstate_size) == -1)
+    if (get_xstate_buffer_from_child(child_pid, &xstate_buffer, &xstate_size) == -1) // first get the xstate buffer using the get_xstate_buffer_from_child function
     {
         return NULL;
     }
     PyObject *res = PyDict_New();
-    parse_xstate_buffer_to_dict(xstate_buffer, xstate_size, res);
-    free(xstate_buffer);
+    parse_xstate_buffer_to_dict(xstate_buffer, xstate_size, res); // call parse_xstate_buffer_to_dict to parse the buffer and fill the dict.
+    free(xstate_buffer); // free the xstate buffer now that it's unused.
     return res;
 }
 
+/*
+Implementation of the set_standard_regs method for the python binding.
+Gets the child process id and a dict containing the standard registers to be set in the child process, and returns nothing.
+The keys of the dict are python strings with the register names, and the values are bytes objects with the register values.
+Can contain any subset of registers (as it will first get the current ones and just then modify).
+calls ptrace with PTRACE_SETREGSET on NT_PRSTATUS.
+*/
 static PyObject *method_set_standard_regs(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -221,6 +268,14 @@ static PyObject *method_set_standard_regs(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+/*
+Implementation of the set_extended_regs method for the python binding.
+Gets the child process id and a dict containing the extended registers to be set in the child process, and returns nothing.
+The keys of the dict are python strings with the register names, and the values are bytes objects with the register values.
+Currently only supports the legacy region and YMM registers, can be extended to support more registers in the future if needed.
+Can contain any subset of registers (as it will first get the current ones and just then modify).
+calls ptrace with PTRACE_SETREGSET on NT_X86_XSTATE.
+*/
 static PyObject *method_set_extended_regs(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -231,21 +286,25 @@ static PyObject *method_set_extended_regs(PyObject *self, PyObject *args)
     }
     char *xstate_buffer = NULL;
     size_t xstate_size = 0;
+    // first we need to get the xstate buffer, as we don't recieve every register and need to modify an existing buffer.
     if (get_xstate_buffer_from_child(child_pid, &xstate_buffer, &xstate_size) == -1)
     {
         return NULL;
     }
+    // call modify_xstate_buffer_from_dict to modify it. It returns -1 if it failed.
     int status = modify_xstate_buffer_from_dict(xstate_buffer, xstate_size, regs_dict);
     if (status == -1)
     {
         free(xstate_buffer);
         return NULL;
     }
+    // create an iov pointing to the modified buffer
     struct iovec iov;
     iov.iov_base = xstate_buffer;
     iov.iov_len = xstate_size;
+    // call ptrace to write it to the child process
     int res = ptrace(PTRACE_SETREGSET, child_pid, NT_X86_XSTATE, &iov);
-    free(xstate_buffer);
+    free(xstate_buffer); // free the xstate buffer now that it's unused. We do it before checking for an error as it needs to be done anyway.
     if (res == -1)
     {
         PyErr_SetFromErrno(PyExc_OSError);
@@ -254,6 +313,11 @@ static PyObject *method_set_extended_regs(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+/*
+Implementation of the get_memory_range method for the python binding.
+Gets the child process id, the start address and the length of the memory range to read, and returns the data in that memory range as a bytes object.
+calls process_vm_readv to read the memory range from the child process.
+*/
 static PyObject *method_get_memory_range(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -263,27 +327,35 @@ static PyObject *method_get_memory_range(PyObject *self, PyObject *args)
     {
         return NULL;
     }
+    // create a python bytes object to hold the data
     PyObject *buffer = PyBytes_FromStringAndSize(NULL, length);
     if (buffer == NULL)
     {
         return NULL;
     }
+    // create an iov for the local buffer
     struct iovec local_iov[1];
     local_iov[0].iov_base = PyBytes_AS_STRING(buffer);
     local_iov[0].iov_len = length;
+    // create an iov for the remote buffer
     struct iovec remote_iov[1];
     remote_iov[0].iov_base = (void *)address;
     remote_iov[0].iov_len = length;
     ssize_t nread = process_vm_readv(child_pid, local_iov, 1, remote_iov, 1, 0);
-    if (nread == -1 || nread < (ssize_t) length)
+    if (nread == -1 || nread < (ssize_t) length) // if we failed to read or we read less than the required length, error
     {
-        Py_DECREF(buffer);
+        Py_DECREF(buffer); // free the buffer we created, as it's unused in case of an error
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
     }
     return buffer;
 }
 
+/*
+Implementation of the write_memory_range method for the python binding.
+Gets the child process id, the start address and a bytes object containing the data to write,and returns nothing.
+calls process_vm_writev to write the memory range to the child process.
+*/
 static PyObject *method_write_memory_range(PyObject *self, PyObject *args)
 {
     int child_pid;
@@ -293,16 +365,17 @@ static PyObject *method_write_memory_range(PyObject *self, PyObject *args)
     {
         return NULL;
     }
-
+    // local buffer iov (parameter we are given)
     struct iovec local_iov[1];
     local_iov[0].iov_base = buf.buf;
     local_iov[0].iov_len = buf.len;
+    // remote iov (the address we want to write to in the child process)
     struct iovec remote_iov[1];
     remote_iov[0].iov_base = (void *)address;
     remote_iov[0].iov_len = buf.len;
     ssize_t nwritten = process_vm_writev(child_pid, local_iov, 1, remote_iov, 1, 0);
-    PyBuffer_Release(&buf);
-    if (nwritten == -1 || nwritten < buf.len)
+    PyBuffer_Release(&buf); // release the buffer we got from the parameters, as it's unused after this point. We do it before checking for an error as it needs to be done anyway.
+    if (nwritten == -1 || nwritten < buf.len) // If we failed to write or we wrote less than the required length, error
     {
         PyErr_SetFromErrno(PyExc_OSError);
         return NULL;
@@ -310,6 +383,11 @@ static PyObject *method_write_memory_range(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+/*
+Implementation of the kill method for the python binding.
+Gets the child process id and returns nothing.
+calls ptrace with PTRACE_KILL to kill the child process.
+*/
 static PyObject *method_kill(PyObject *self, PyObject *args)
 {
     int child_pid;
