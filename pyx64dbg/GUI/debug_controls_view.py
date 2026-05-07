@@ -38,18 +38,18 @@ class DebugControlsView(QWidget):
         self.step_into_button.clicked.connect(self._on_step_into)
         self.step_over_button = QPushButton("Step Over", self)
         self.step_over_button.clicked.connect(self._on_step_over)
-        self.continue_button = QPushButton("Continue", self)
-        self.continue_button.clicked.connect(self._on_continue)
         self.step_out_button = QPushButton("Step Out", self)
         self.step_out_button.clicked.connect(self._on_step_out)
+        self.continue_button = QPushButton("Continue", self)
+        self.continue_button.clicked.connect(self._on_continue)
 
         buttons = (
             self.run_button,
             self.stop_button,
             self.step_into_button,
             self.step_over_button,
-            self.continue_button,
             self.step_out_button,
+            self.continue_button,
         )
         for button in buttons:
             button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

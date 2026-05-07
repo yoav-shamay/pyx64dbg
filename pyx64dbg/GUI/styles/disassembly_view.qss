@@ -13,7 +13,7 @@ QTableWidget {
     border: none;
     gridline-color: transparent;
     outline: none;
-    /* This is critical for removing gaps between rows */
+    /* Remove gap between rows */
     padding: 0px; 
 }
 

@@ -97,6 +97,9 @@ class StackFrame:
             return res[0]
         else:
             return res
+    
+    def __repr__(self):
+        return f"StackFrame(rbp={hex(self.rbp)}, rsp={hex(self.rsp)}, saved_rbp={hex(self.saved_rbp)}, saved_rip={hex(self.saved_rip)})"
 
 
 class Stack:
@@ -132,3 +135,23 @@ class Stack:
             # move to the caller's frame by reading the saved RBP and using RSP + 16 (exclude the saved RBP and saved RIP) as the new RSP
             current_frame = StackFrame(current_frame.saved_rbp, current_frame.rbp + 16, self.memory, self._ensure_running)
         return current_frame
+    
+    def frame_count(self):
+        """
+        Returns the number of stack frames available, by traversing the stack until we reach a frame with saved RBP of 0.
+        """
+        self._ensure_running()
+        count = 0
+        cur_frame = self.current_frame()
+        while True:
+            count += 1
+            if cur_frame.saved_rbp == 0:
+                break
+            cur_frame = StackFrame(cur_frame.saved_rbp, cur_frame.rbp + 16, self.memory, self._ensure_running)
+        return count
+
+    def __repr__(self):
+        """
+        Show the number of frames in the stack as a general overview.
+        """
+        return f"Stack(frame_count={self.frame_count()})"

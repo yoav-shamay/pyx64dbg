@@ -288,10 +288,24 @@ class DebuggerWorker(QObject):
     
     def continue_execution(self):
         """
-        Continues the execution of the debugged process.
+        Call continue_execution on the debugger if it exists.
         """
         if self.debugger:
             self.debugger.continue_execution()
+    
+    def next_instruction(self):
+        """
+        Call next on the debugger if it exists.
+        """
+        if self.debugger:
+            self.debugger.next()
+    
+    def finish(self):
+        """
+        Call finish on the debugger if it exists.
+        """
+        if self.debugger:
+            self.debugger.finish()
     
     def set_register(self, register: str, value: int):
         """
