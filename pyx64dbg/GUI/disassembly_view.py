@@ -11,6 +11,7 @@ import capstone
 from capstone.x86 import X86_OP_IMM, X86_OP_REG, X86_OP_MEM, X86_REG_RIP
 
 from pyx64dbg.GUI.debugger_state import DebuggerState
+from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 from pyx64dbg.GUI.utils import prompt_for_expression
 from pyx64dbg.number_types import Int64
 
@@ -35,8 +36,8 @@ COLORS = {
 class DisassemblyView(QWidget):
     def __init__(self, main_window: MainWindow) -> None:
         super().__init__(main_window)
-        self._main_window = main_window
-        self._debugger_worker = main_window.debugger_worker
+        self._main_window: MainWindow = main_window
+        self._debugger_worker: DebuggerWorker = main_window.debugger_worker
         self._address_to_symbol = {}
         self._rip = 0
         self._debugger_state = None
@@ -99,6 +100,7 @@ class DisassemblyView(QWidget):
     def _init_callbacks(self):
         self._debugger_worker.process_started.connect(self._on_process_run)
         self._debugger_worker.state_update.connect(self._on_state_update)
+        self._debugger_worker.file_selected.connect(self._on_file_selected)
 
 
     def _create_cell_label(self, text, status_val, alignment=Qt.AlignmentFlag.AlignLeft):
@@ -336,3 +338,13 @@ class DisassemblyView(QWidget):
         Sets the instruction pointer (RIP) to the given address.
         """
         await self._debugger_worker.call_async(self._debugger_worker.set_register, "rip", address)
+    
+    def _on_file_selected(self):
+        """
+        Callback for when a new file is selected in the debugger.
+        Resets the disassembly view to follow RIP.
+        As the process is not running yet, no actual visual update is needed, just internal state reset.
+        """
+        self._disassemble_from_rip = True
+        self._disassemble_range = None
+        self._disassemble_address = None

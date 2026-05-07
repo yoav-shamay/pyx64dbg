@@ -11,6 +11,5 @@ class DebuggerState:
         Allows initialization from a Debugger object.
         """
         self.standard_regs = debugger.registers.standard_regs
-        self.extended_regs = debugger.registers.extended_regs
         self.breakpoints = debugger.breakpoints.get_breakpoints()
         self.stopped_signal = debugger.stopped_signal

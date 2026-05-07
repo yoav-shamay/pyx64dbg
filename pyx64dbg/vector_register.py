@@ -1,6 +1,9 @@
-from typing import Type, Any, Union, Iterable
+from typing import TYPE_CHECKING, Type, Any, Union, Iterable, Optional
 from pyx64dbg.number_types import Float32, Float64, Int16, UInt16, Int8, UInt32, Int32, UInt64, Int64, UInt8
 
+if TYPE_CHECKING:
+    from pyx64dbg.registers import Registers
+    
 
 class VectorView:
     """
@@ -96,15 +99,16 @@ class VectorRegister:
      - Allows scalar access to the lowest lane for floats (sf32, sf64).
     """
     size = None # to be defined in subclasses
-    def __init__(self, data: bytes, parent_regs: Any, name: str):
+    def __init__(self, data: bytes, parent_regs: Optional["Registers"] = None, name: Optional[str] = None):
         self._data = data
         self._parent = parent_regs
         self._name = name
         self.size = len(data)
 
     def _trigger_update(self):
-        # Calls the parent Registers.set(name, bytes)
-        self._parent.set(self._name, self._data)
+        if self._parent is not None:
+            # Calls the parent Registers.set(name, bytes)
+            self._parent.set(self._name, self._data)
 
     @property
     def f32(self):
@@ -210,7 +214,7 @@ class VectorRegister:
         return f"Vector{self.size}({self._data.hex()})"
 
     @classmethod
-    def from_bytes(cls, data: bytes, parent_regs: Any):
+    def from_bytes(cls, data: bytes, parent_regs: Optional["Registers"] = None) -> "VectorRegister":
         return cls(data, parent_regs)
     
     def to_bytes(self) -> bytes:

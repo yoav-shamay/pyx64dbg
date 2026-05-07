@@ -205,13 +205,22 @@ class Registers:
         elif reg_name in EXTENDED_REGS:
             reg_info = EXTENDED_REGS[reg_name]
             act_names, reg_type = reg_info
+            exists = True
             if isinstance(act_names, list):
                 # register split across multiple actual registers (e.g. ymm) - concatenate the parts together
                 reg_bytes = b""
                 for act_name in act_names:
+                    if act_name not in self.extended_regs:
+                        exists = False
+                        break
                     reg_bytes += self.extended_regs[act_name]
             else:
-                reg_bytes = self.extended_regs[act_names]
+                if act_names not in self.extended_regs:
+                    exists = False
+                else:
+                    reg_bytes = self.extended_regs[act_names]
+            if not exists:
+                raise ValueError(f"Register {reg_name} not available on this system or in the current process state")
             # if it's a vector register we need to pass the parent Registers object to it, so it can trigger updates when its lanes are modified
             if issubclass(reg_type, VectorRegister):
                 return reg_type(reg_bytes, self, reg_name)

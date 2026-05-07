@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, Signal, QEventLoop, QTimer
 import capstone
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
-from typing import Optional
+from typing import Any, Optional
 from ipykernel.kernelapp import IPKernelApp
 import sys
 from ipykernel.eventloops import enable_gui
@@ -306,6 +306,15 @@ class DebuggerWorker(QObject):
         """
         if self.debugger:
             self.debugger.finish()
+
+    def get_register(self, register: str):
+        """
+        Gets the value of a register from the debugged process.
+        Returns None if no debugger is active.
+        """
+        if self.debugger:
+            return self.debugger.registers[register]
+        return None
     
     def set_register(self, register: str, value: int):
         """
@@ -313,6 +322,21 @@ class DebuggerWorker(QObject):
         """
         if self.debugger:
             self.debugger.registers[register] = value
+    
+    def update_vector_register(self, reg_name: str, lane_name: str, lane_index: Optional[int], new_value: Any):
+        """
+        Updates a vector register lane with a new value.
+        If lane_index is provided, updates the corresponding array lane view (e.g. ymm0.f32[i]).
+        Otherwise, updates the single lane view (e.g. ymm0.sf32).
+        """
+        if self.debugger:
+            reg = self.debugger.registers[reg_name]
+            if lane_index is not None: # if lane index is provided, get the attribute and update at index
+                lane = getattr(reg, lane_name)
+                lane[lane_index] = new_value
+            else:
+                setattr(reg, lane_name, new_value) # otherwise use setattr to update the single lane view directly
+
     
     def get_all_symbols(self):
         """
