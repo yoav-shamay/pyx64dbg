@@ -4,6 +4,7 @@ QTableWidget {
     gridline-color: #f0f0f0;
     border: 1px solid #d1d1d1;
     outline: none;
+    font-family: "Segoe UI", sans-serif; /* Default font - will only be used for labels, numbers will be configured programmatically */
     font-size: 14px;
     color: #333333;
 }
@@ -23,11 +24,6 @@ QHeaderView::section {
 QTableWidget::item {
     padding: 4px 8px;
     border: none;
-}
-
-/* Use consolas monospace font */
-QTableWidget {
-    font-family: 'Consolas', 'Monaco', monospace; 
 }
 
 QTableWidget::item:selected {

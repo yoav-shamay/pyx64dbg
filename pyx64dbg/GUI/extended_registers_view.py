@@ -13,7 +13,7 @@ from pyx64dbg.GUI.async_slot import async_slot
 if TYPE_CHECKING:
     from pyx64dbg.GUI.main_window import MainWindow
 
-# structure: a dict where keys are group names (e.g. "FPU", "xmm"), and values are names in debugger
+# structure: a dict where keys are group names (e.g. "FPU", "xmm"), and values are either dicts or a list of register names
 TREE_STRUCTURE = {
     "FPU": {
         "control": ["fcw", "fsw", "ftw", "fop", "fip", "fdp"],
@@ -58,11 +58,20 @@ class ExtendedRegistersView(QWidget):
 
         self._init_ui()
         self._register_callbacks()
+        self._load_qss()
     
     def _register_callbacks(self):
         self._debugger_worker.state_update.connect(self._on_state_update)
+    
+    def _load_qss(self):
+        with open("pyx64dbg/GUI/styles/extended_registers_view.qss", "r") as f:
+            self.setStyleSheet(f.read())
 
     def _init_ui(self):
+        # setup a monospace consolas font for the register values
+        self._values_font = QFont("Consolas", 10)
+        self._values_font.setStyleHint(QFont.StyleHint.Monospace)
+        # configure tree widget
         self._tree = QTreeWidget(self)
         self._tree.setColumnCount(2) # one column for register names, one for values
         self._tree.setAlternatingRowColors(True) # alternating row colors makes it easier to read
@@ -76,8 +85,10 @@ class ExtendedRegistersView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._tree)
 
+
     def _create_reg_item(self, reg_item: QTreeWidgetItem, reg_path: str):
         reg_item.setText(1, "N/A") # default value until we fill it in
+        reg_item.setFont(1, self._values_font) # use other font for register values
         reg_item.setData(0, ROLE_REG_NAME, reg_path)
         reg_item.setData(0, ROLE_IS_VALID, False) # N/A means invalid
         self._register_nodes[reg_path] = reg_item # save the item in self._register_nodes for access later
@@ -99,6 +110,7 @@ class ExtendedRegistersView(QWidget):
         for i, val in enumerate(arr):
             lane_item = QTreeWidgetItem(array_item, [f"[{i}]"])
             lane_item.setText(1, str(val))
+            lane_item.setFont(1, self._values_font) # use other font for lane values
             lane_item.setData(0, ROLE_REG_NAME, reg_name)
             lane_item.setData(0, ROLE_LANE_NAME, path_name)
             lane_item.setData(0, ROLE_LANE_INDEX, i)
@@ -110,6 +122,7 @@ class ExtendedRegistersView(QWidget):
         for path_name in ALL_SINGLE_PATHS:
             item = QTreeWidgetItem(reg_item, [path_name])
             item.setText(1, str(getattr(vector_reg, path_name)))
+            item.setFont(1, self._values_font) # use other font for lane values
             item.setData(0, ROLE_REG_NAME, reg_name)
             item.setData(0, ROLE_LANE_NAME, path_name)
             item.setData(0, ROLE_IS_VALID, True) # valid as isn't N/A
@@ -137,6 +150,7 @@ class ExtendedRegistersView(QWidget):
         except ValueError:
             # register isn't available
             reg_item.setText(1, f"N/A")
+            reg_item.setFont(1, self._values_font) # use other font for register values
             reg_item.setData(0, ROLE_IS_VALID, False) # mark as invalid to prevent editing
             reg_item.takeChildren() # clear all children, relevant for vector registers
             if reg_name in self._vector_nodes: # delete its vector nodes if we saved them

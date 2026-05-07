@@ -44,6 +44,11 @@ class RegistersView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._table)
 
+        # use Consolas monospace for font for the numbers
+        # needs to be declared here as qss can't distinguish between columns
+        self._values_font = QFont("Consolas", 10)
+        self._values_font.setStyleHint(QFont.StyleHint.Monospace)
+
     def _register_callbacks(self):
         self._debugger_worker.state_update.connect(self._on_state_update)
 
@@ -60,14 +65,17 @@ class RegistersView(QWidget):
             value_hex_col = QTableWidgetItem()
             value_hex_col.setData(Qt.ItemDataRole.DisplayRole, value_hex_str)
             value_hex_col.setData(Qt.ItemDataRole.ToolTipRole, value_hex_str) # also show value in tooltip
+            value_hex_col.setFont(self._values_font) # use monospace font for hex values
 
             value_dec_col = QTableWidgetItem()
             value_dec_col.setData(Qt.ItemDataRole.DisplayRole, value_dec_str)
             value_dec_col.setData(Qt.ItemDataRole.ToolTipRole, value_dec_str) # also show value in tooltip
+            value_dec_col.setFont(self._values_font) # use monospace font for decimal values
 
             self._table.setItem(index, 0, name_col)
             self._table.setItem(index, 1, value_hex_col)
             self._table.setItem(index, 2, value_dec_col)
+            
         
     def _on_state_update(self, state: DebuggerState) -> None:
         regs = state.standard_regs
