@@ -1,9 +1,24 @@
-from setuptools import setup, Extension
+from setuptools import setup, find_packages
+from pybind11.setup_helpers import Pybind11Extension, build_ext
 
 ext_modules = [
-    Extension('pyx64dbg.ptrace', sources=['pyx64dbg/ptrace/ptrace.c', 'pyx64dbg/ptrace/utils.c', 'pyx64dbg/ptrace/xstate.c']),
+    Pybind11Extension(
+        'pyx64dbg.ptrace',
+        sources=[
+            'pyx64dbg/ptrace/ptrace.cpp', 
+            'pyx64dbg/ptrace/utils.cpp', 
+            'pyx64dbg/ptrace/xstate.cpp'
+        ],
+        # Include the directory where utils.hpp and xstate.hpp are
+        include_dirs=["pyx64dbg/ptrace"],
+        # Use C++20 standard for compilation
+        cxx_std=20,
+    ),
 ]
 
 setup(
     ext_modules=ext_modules,
+    packages=find_packages(), 
+    # Use the pybind11 build_ext which optimizes for smaller binaries
+    cmdclass={"build_ext": build_ext},
 )

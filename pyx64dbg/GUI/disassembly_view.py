@@ -15,7 +15,7 @@ from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 from pyx64dbg.GUI.utils import prompt_for_expression
 from pyx64dbg.number_types import Int64
 
-from async_slot import async_slot
+from pyx64dbg.GUI.async_slot import async_slot
 
 if TYPE_CHECKING:
     from pyx64dbg.GUI.main_window import MainWindow

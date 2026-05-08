@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
 
-from async_slot import async_slot
+from pyx64dbg.GUI.async_slot import async_slot
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 
 # we need it as main window imports top menu

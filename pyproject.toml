@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "wheel", "pybind11"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,4 +9,8 @@ description = "A debugger implemented in Python"
 authors = [
     { name = "Yoav Shamay", email = "yoavsh97@gmail.com" }
 ]
-dependencies = []
+dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "qtconsole", "termqt"]
+
+[project.scripts]
+pyx64dbg = "pyx64dbg.CLI.main:main"
+pyx64dbg-gui = "pyx64dbg.GUI.main:main"

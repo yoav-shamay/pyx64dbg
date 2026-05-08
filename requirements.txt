@@ -1,7 +1,0 @@
-ipython
-capstone
-pyelftools
-prompt_toolkit
-pyside6
-qtconsole
-termqt
