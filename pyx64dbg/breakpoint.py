@@ -1,7 +1,7 @@
 from typing import Callable
 from pyx64dbg.utils import get_first_byte, change_first_byte
 import pyx64dbg.ptrace as ptrace
-from pyx64dbg.cint import CInt
+from pyx64dbg.number_types import CIntBase
 
 # the breakpoint instruction in x86_64. It's a single CC byte.
 BREAKPOINT_INSTRUCTION = 0xCC
@@ -26,7 +26,7 @@ class Breakpoints:
         self._ensure_running()
         return self.addresses
     
-    def add_breakpoint(self, address : CInt | int, notify_updates: bool = True) -> None:
+    def add_breakpoint(self, address : CIntBase | int, notify_updates: bool = True) -> None:
         """
         Adds a breakpoint at the given address.
         """
@@ -42,7 +42,7 @@ class Breakpoints:
         if notify_updates:
             self._trigger_update_callbacks()
     
-    def remove_breakpoint(self, address : CInt | int, notify_updates: bool = True) -> None:
+    def remove_breakpoint(self, address : CIntBase | int, notify_updates: bool = True) -> None:
         """
         Removes a breakpoint at the given address.
         """

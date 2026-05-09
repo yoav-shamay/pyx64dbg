@@ -14,6 +14,14 @@ ext_modules = [
         # Use C++20 standard for compilation
         cxx_std=20,
     ),
+    Pybind11Extension(
+        'pyx64dbg.number_types',
+        sources=[
+            'pyx64dbg/number_types/number_types.cpp',
+        ],
+        include_dirs=["pyx64dbg/number_types"],
+        cxx_std=20,
+    )
 ]
 
 setup(

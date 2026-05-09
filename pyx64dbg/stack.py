@@ -1,5 +1,4 @@
-from pyx64dbg.number_types import UInt64
-from pyx64dbg.cint import CInt
+from pyx64dbg.number_types import UInt64, CIntBase
 
 class StackFrame:
     """
@@ -25,12 +24,12 @@ class StackFrame:
                 raise ValueError("StackFrame slice must have start and stop defined")
             step = (
                 int(key.step) if key.step is not None else 1
-            )  # convert to int if CInt and handle None
-            start = int(key.start + self.rbp)  # convert to int if CInt
-            stop = int(key.stop + self.rbp)  # convert to int if CInt
+            )  # convert to int if CIntBase and handle None
+            start = int(key.start + self.rbp)  # convert to int if CIntBase
+            stop = int(key.stop + self.rbp)  # convert to int if CIntBase
             return self.memory[start:stop:step]
         else:
-            key = int(key) # convert to int if CInt
+            key = int(key) # convert to int if CIntBase
             return self.memory[self.rbp + key]
     
     def __setitem__(self, key, value):
@@ -45,21 +44,21 @@ class StackFrame:
                 raise ValueError("StackFrame slice must have start and stop defined")
             step = (
                 int(key.step) if key.step is not None else 1
-            )  # convert to int if CInt and handle None
-            start = int(key.start + self.rbp)  # convert to int if CInt
-            stop = int(key.stop + self.rbp)  # convert to int if CInt
+            )  # convert to int if CIntBase and handle None
+            start = int(key.start + self.rbp)  # convert to int if CIntBase
+            stop = int(key.stop + self.rbp)  # convert to int if CIntBase
             self.memory[start:stop:step] = value
         else:
-            key = int(key) # convert to int if CInt
+            key = int(key) # convert to int if CIntBase
             self.memory[self.rbp + key] = value
     @property
     def saved_rbp(self):
         return UInt64.from_bytes(self[0:8])
     
     @saved_rbp.setter
-    def saved_rbp(self, value : int | CInt):
+    def saved_rbp(self, value : int | CIntBase):
         # convert value to bytes
-        if isinstance(value, CInt):
+        if isinstance(value, CIntBase):
             value = value.to_bytes()
         else:
             value = value.to_bytes(8, byteorder="little")
@@ -71,9 +70,9 @@ class StackFrame:
         return UInt64.from_bytes(self[8:16])
     
     @saved_rip.setter
-    def saved_rip(self, value : int | CInt):
+    def saved_rip(self, value : int | CIntBase):
         # convert value to bytes
-        if isinstance(value, CInt):
+        if isinstance(value, CIntBase):
             value = value.to_bytes()
         else:
             value = value.to_bytes(8, byteorder="little")
@@ -107,7 +106,7 @@ class Stack:
     Represents the call stack of the debugged program, allowing access to individual stack frames.
     Allows accessing current frame using current_frame(), and specific frame using [index].
     The current frame is index 0, the caller's frame is index 1, etc.
-    To get help on usage of StackFrames, use help(StackFrame) in the console.
+    See the help of StackFrame for more information on how to use a specific stack frame.
     """
     def __init__(self, memory, registers, ensure_running):
         self.memory = memory
@@ -120,7 +119,7 @@ class Stack:
             raise IndexError("No stack frames available")
         return StackFrame(self.registers.rbp, self.registers.rsp, self.memory, self._ensure_running)
 
-    def __getitem__(self, index : int | CInt):
+    def __getitem__(self, index : int | CIntBase):
         """
         Get the index-th stack frame.
         0 is the current frame, 1 is the caller's frame, etc.

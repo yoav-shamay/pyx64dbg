@@ -1,7 +1,5 @@
-from pyx64dbg.cint import CInt
 import pyx64dbg.ptrace as ptrace
-from pyx64dbg.cfloat import CFloat
-from pyx64dbg.number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80
+from pyx64dbg.number_types import Int8, Int16, Int32, Int64, Float32, Float64, Float80, CFloatBase, CIntBase
 from pyx64dbg.vector_register import Vector64, Vector128, Vector256, VectorRegister
 
 # format: "reg_name": ["reg_name_in_struct", (first_byte, last_byte, type)]
@@ -149,7 +147,7 @@ def _convert_value_to_bytes(value, width_bytes):
             return Float32(value).to_bytes()[:width_bytes].ljust(width_bytes, b'\x00') # pad with zeros if the required width is larger
         else:
             raise ValueError(f"Cannot convert float to bytes for register assignment with width {width_bytes} bytes")
-    elif isinstance(value, CInt):
+    elif isinstance(value, CIntBase):
         res = value.to_bytes()
         if value.is_signed and value < 0:
             # for negative signed values, we need to ensure the bytes are in correct two's complement form by padding with 0xFF if needed
@@ -157,7 +155,7 @@ def _convert_value_to_bytes(value, width_bytes):
         else:
             res = res.ljust(width_bytes, b'\x00')
         return res[:width_bytes]
-    elif isinstance(value, CFloat) or isinstance(value, VectorRegister):
+    elif isinstance(value, CFloatBase) or isinstance(value, VectorRegister):
         res = value.to_bytes()
         res = res.ljust(width_bytes, b'\x00') # pad with zeros if the float/vector is smaller than the required width
         return res[:width_bytes]

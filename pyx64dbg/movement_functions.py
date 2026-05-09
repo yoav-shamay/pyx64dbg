@@ -10,7 +10,7 @@ import pyx64dbg.ptrace as ptrace
 import os
 from capstone import CS_GRP_CALL
 import signal
-from pyx64dbg.cint import CInt
+from pyx64dbg.number_types import CIntBase
 from pyx64dbg.utils import change_first_byte
 
 def _handle_signal(self, status, stepped=False):
@@ -42,8 +42,8 @@ def _handle_signal(self, status, stepped=False):
         raise Exception("Unexpected status after ptrace movement: " + str(status))
     
     
-def _step_from_breakpoint(self, address : CInt | int):
-    address = int(address) # convert to int if it's a CInt
+def _step_from_breakpoint(self, address : CIntBase | int):
+    address = int(address) # convert to int if it's a CIntBase
     original_byte = self.breakpoints.original_bytes[address]
     breakpoint_word = ptrace.peekdata(self.child_pid, address)
     non_breakpoint_word = change_first_byte(breakpoint_word, original_byte)

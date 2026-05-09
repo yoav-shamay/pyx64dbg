@@ -68,6 +68,8 @@ def test_integer_behavior(cls, num1, num2, overflow_num_1, overflow_num_2):
     assert int(a & b) == (num1 & num2)
     assert int(a | b) == (num1 | num2)
     assert int(a ^ b) == (num1 ^ num2)
+    assert int(~a) == c_wrap(~num1, bits, signed)
+    assert int(~b) == c_wrap(~num2, bits, signed)
 
     # Comparison
     assert (a > b) == (num1 > num2)
@@ -121,7 +123,8 @@ def test_different_type_comparison():
     assert UInt8(255) > Int8(120)
     assert Float32(0.5) == 0.5
     assert Float32(0.1) < Float64(0.2)
-    assert Int16(-1) < UInt16(1)
+    assert Int16(-1) > UInt16(1) # as UInt16 has higher priority, this would evaluate to 0xffff > 1 which is true
+    assert Int32(-1) < UInt16(1) # this time Int32 has higher priority, so this would evaluate to -1 < 1 which is true
 
 
 @pytest.mark.parametrize("cls, val1, val2", [
@@ -238,3 +241,76 @@ def test_float80_precision():
     diff = b - a
     tolerance = 1e-19 # we need to define custom tolerance as pytest.approx will consider 0 and 1e-18 to be approximately equal. This is small enough to not have false-positives.
     assert float(diff) == pytest.approx(float(small_increment), abs=tolerance)
+
+def test_overflow_in_initialization():
+    assert int(Int8(128)) == -128
+    assert int(Int8(-129)) == 127
+    assert int(UInt8(257)) == 1
+    assert int(Int64(2 ** 63 + 5)) == -2 ** 63 + 5
+    assert float(Float32(1e40)) == float('inf')  # Overflow to infinity for floats
+    assert float(Float32(-1e40)) == float('-inf')
+    assert float(Float80(1e500)) == float('inf')
+    assert float(Float80(-1e500)) == float('-inf')
+
+
+def test_truthiness():
+    """
+    Validates __bool__ protocol correctly handles 0, 0.0, and non-zeros
+    """
+    assert not bool(Int32(0))
+    assert bool(Int32(-1))
+    assert not bool(Float64(0.0))
+    assert bool(Float64(0.5))
+
+def test_shift_wrapping():
+    """
+    Validates that shifting beyond bitwidth wraps gracefully instead of UB
+    """
+    assert int(Int8(1) << 8) == 0 # masking for int8 and int16 are still 31
+    assert int(Int16(1) << 16) == 0
+    assert int(Int32(1) << 33) == 2
+    assert int(Int64(1) << 66) == 4
+    assert int(UInt32(1) << 33) == 2
+    assert int(UInt64(1) << 66) == 4
+
+def test_division_by_zero():
+    """
+    Validates that division by zero raises an exception instead of UB
+    """
+    with pytest.raises(ZeroDivisionError):
+        _ = Int32(1) // 0
+    with pytest.raises(ZeroDivisionError):
+        _ = UInt32(1) // 0
+    with pytest.raises(ZeroDivisionError):
+        _ = Int64(1) // 0
+    with pytest.raises(ZeroDivisionError):
+        _ = UInt64(1) // 0
+    with pytest.raises(ZeroDivisionError):
+        _ = Float32(0.5) / 0
+    with pytest.raises(ZeroDivisionError):
+        _ = Float64(0.5) / 0
+    with pytest.raises(ZeroDivisionError):
+        _ = Float80(0.5) / 0
+
+def test_inplace_promotion():
+    """
+    Validates that in-place operations do not promote, unlike normal operations.
+    """
+    a = Int32(1)
+    a += Float32(2.5)
+    assert isinstance(a, Int32)
+    assert int(a) == 3
+
+    b = UInt16(100)
+    b *= Float64(2.5)
+    assert isinstance(b, UInt16)
+    assert int(b) == 250
+
+def test_division_overflow_exception():
+    """
+    Validates that division overflow raises an exception instead of UB
+    """
+    with pytest.raises(OverflowError):
+        _ = Int32(-2**31) // -1
+    with pytest.raises(OverflowError):
+        _ = Int64(-2**63) // -1

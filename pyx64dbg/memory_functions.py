@@ -1,5 +1,5 @@
 import capstone
-from pyx64dbg.cint import CInt
+from pyx64dbg.number_types import CIntBase
 import mmap
 from typing import Optional
 
@@ -37,15 +37,15 @@ def read_number(self, address, type, cnt=None):
         return res
 
 
-def write_number(self, address, value: int | CInt, width: int = None, trigger_updates = True):
+def write_number(self, address, value: int | CIntBase, width: int = None, trigger_updates = True):
     """
     Writes a number to the given address.
-    Value can be an int or a CInt. If it's a CInt, the width will be determined from the type.
+    Value can be an int or a CIntBase. If it's a CIntBase, the width will be determined from the type.
     Otherwise, the width should be provided as a parameter (in bytes)
     """
     self._ensure_running()
-    if isinstance(value, CInt):
-        width = value.size # determine width from the CInt type
+    if isinstance(value, CIntBase):
+        width = value.size # determine width from the CIntBase type
         bytes_to_write = value.to_bytes()
     else:
         if width is None:
@@ -59,12 +59,12 @@ def write_number(self, address, value: int | CInt, width: int = None, trigger_up
 # get the system page size for reading c strings in chunks
 PAGE_SIZE = mmap.PAGESIZE
 
-def read_c_string(self, address : int | CInt) -> bytes:
+def read_c_string(self, address : int | CIntBase) -> bytes:
     """
     Reads a null-terminated string from the given address.
     """
     self._ensure_running()
-    address = int(address) # convert to int if it's a CInt
+    address = int(address) # convert to int if it's a CIntBase
     res = b""
     while b"\x00" not in res:
         # batch read a whole page of memory to use less syscalls.
