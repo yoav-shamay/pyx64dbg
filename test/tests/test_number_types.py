@@ -37,19 +37,32 @@ def c_mod(a, b):
     return -res if a < 0 else res
 
 @pytest.mark.parametrize(
-    "cls, num1, num2, overflow_num_1, overflow_num_2",
+    "cls, num1, num2,",
     [
-        (Int8, -10, 3, 120, 10),
-        (Int16, -1000, 3, 32000, 1000),
-        (Int32, -100000, 3, 2_147_483_640, 10),
-        (Int64, -1_000_000_000, 3, 9_223_372_036_854_775_800, 10),
-        (UInt8, 250, 10, 250, 10),
-        (UInt16, 65000, 10, 65000, 1000),
-        (UInt32, 4_000_000_000, 100, 4_000_000_000, 300_000_000),
-        (UInt64, 10_000_000_000, 100, 18_000_000_000_000_000_000, 1_000_000_000_000_000_000),
+        (Int8, -10, 3),
+        (Int8, 120, 7),
+        (Int16, -1000, 3),
+        (Int16, 32000, 1000),
+        (Int32, -100000, 3),
+        (Int32, 2 ** 31 - 1, 10),
+        (Int32, -2 ** 31, -1),
+        (Int64, -1_000_000_000, 3),
+        (Int64, 2 ** 63 - 1, 1000),
+        (UInt8, 2, 3),
+        (UInt8, 250, 10),
+        (UInt16, 65000, 10),
+        (UInt16, 65000, 1000),
+        (UInt32, 4_000_000_000, 100),
+        (UInt32, 4_000_000_000, 300_000_000),
+        (UInt64, 10_000_000_000, 100),
+        (UInt64, 18_000_000_000_000_000_000, 1_000_000_000_000_000_000)
     ]
 )
-def test_integer_behavior(cls, num1, num2, overflow_num_1, overflow_num_2):
+def test_integer_behavior(cls, num1, num2):
+    """
+    Tests general integer behavior (all operators) on a bunch of cases in all integer classes.
+    Checks both overflow and non-overflow cases.
+    """
     a = cls(num1)
     b = cls(num2)
     bits = cls.size * 8
@@ -59,8 +72,11 @@ def test_integer_behavior(cls, num1, num2, overflow_num_1, overflow_num_2):
     assert int(a + b) == c_wrap(num1 + num2, bits, signed)
     assert int(a - b) == c_wrap(num1 - num2, bits, signed)
     assert int(a * b) == c_wrap(num1 * num2, bits, signed)
-    assert int(a // b) == c_div(num1, num2)
-    assert int(a % b) == c_mod(num1, num2)
+    if num2 != 0 and (num2 != -1 or num1 != -2**(bits-1)): # avoid division overflow case
+        assert int(a // b) == c_div(num1, num2)
+        assert int(a % b) == c_mod(num1, num2)
+    assert int(-a) == c_wrap(-num1, bits, signed)
+    assert int(-b) == c_wrap(-num2, bits, signed)
 
     # Bitwise (Python shifts don't wrap, so we must wrap the expectation)
     assert int(a << 2) == c_wrap(num1 << 2, bits, signed)
@@ -80,45 +96,46 @@ def test_integer_behavior(cls, num1, num2, overflow_num_1, overflow_num_2):
     assert (a <= b) == (num1 <= num2)
     assert a <= a
     assert a >= a
+    # check abs
+    assert int(abs(a)) == c_wrap(abs(num1), bits, signed)
+    assert int(abs(-a)) == c_wrap(abs(c_wrap(-num1, bits, signed)), bits, signed) # we need to do this as negation can cause a wrap and if the number is the minimum negative abs can cause a wrap
+    assert int(abs(b)) == c_wrap(abs(num2), bits, signed)
+    assert int(abs(-b)) == c_wrap(abs(c_wrap(-num2, bits, signed)), bits, signed) # we need to do this as negation can cause a wrap and if the number is the minimum negative abs can cause a wrap
 
-    # Overflow verification
-    d = cls(overflow_num_1)
-    e = cls(overflow_num_2)
-    res = d + e
-    assert int(res) == c_wrap(overflow_num_1 + overflow_num_2, bits, signed)
-    assert isinstance(res, cls)
+@pytest.mark.parametrize("cls_higher, cls_lower, val1, val2", [
+    # Same size, Signed + Unsigned -> Unsigned wins
+    (UInt32, Int32, 1, 1),
+    (UInt8, Int8, 1, 1),
+    # Different size, Larger size wins
+    (Int32, Int8, 1, 1),
+    # Signed Higher Rank vs Unsigned Lower Rank -> Signed Higher Rank wins
+    (Int32, UInt16, 1, 65535),
+    (Int64, UInt32, 1, 1),
+    # Float Promotion
+    (Float32, UInt64, 1.0, 1),
+    (Float64, Float32, 1.0, 1.0),
+])
+def test_priority(cls_higher, cls_lower, val1, val2):
+    """
+    Tests that the priority rules for operations between different types are followed correctly.
+    """
+    a = cls_higher(val1)
+    b = cls_lower(val2)
 
-def test_priority():
-    # 1. Same size, Signed + Unsigned -> Unsigned wins
-    res1 = UInt32(1) + Int32(1)
-    assert isinstance(res1, UInt32)
-    assert res1 == UInt32(2)
-    res2 = Int8(1) + UInt8(1)
-    assert isinstance(res2, UInt8)
-    assert res2 == UInt8(2)
-
-    # 2. Different size -> Larger size wins
-    res3 = Int8(1) + Int32(1)
-    assert isinstance(res3, Int32)
-    assert res3 == Int32(2)
-    
-    # 3. Signed Higher Rank vs Unsigned Lower Rank -> Signed Higher Rank wins
-    res3 = UInt16(65535) + Int32(1)
-    assert isinstance(res3, Int32)
-    assert res3 == Int32(65536)
-    res4 = UInt32(1) + Int64(1)
-    assert isinstance(res4, Int64)
-    assert res4 == Int64(2)
-
-    # 4. Float Promotion
-    res5 = UInt64(1) + Float32(1.0)
-    assert isinstance(res5, Float32)
-    assert float(res5) == pytest.approx(2.0)
-    res6 = Float32(1.0) + Float64(1.0)
-    assert isinstance(res6, Float64)
-    assert float(res6) == pytest.approx(2.0)
+    # Test that the result of an operation between a and b has the type of cls_higher
+    assert isinstance(a + b, cls_higher)
+    assert a + b == a + cls_higher(b) # check that it doesn't overflow based on lower class
+    assert isinstance(b + a, cls_higher)
+    assert b + a == a + b # as we already verified a + b value we can compare to it
+    assert isinstance(a - b, cls_higher)
+    assert a - b == a - cls_higher(b)
+    assert isinstance(b - a, cls_higher)
+    assert b - a == cls_higher(b) - a
 
 def test_different_type_comparison():
+    """
+    Tests comparison between different types, which should follow the same priority rules as arithmetic operations.
+    """
     assert Int32(-1) == Int64(-1)
     assert UInt8(255) > Int8(120)
     assert Float32(0.5) == 0.5
@@ -133,6 +150,9 @@ def test_different_type_comparison():
     (Float80, 0.1, 0.2),
 ])
 def test_float_arithmetic(cls, val1, val2):
+    """
+    Tests arithmetic and comparison operations on floating point types, and checks that they behave approximately as expected.
+    """
     a = cls(val1)
     b = cls(val2)
     
@@ -153,7 +173,8 @@ def test_float_arithmetic(cls, val1, val2):
     
     # Test unary
     assert float(-a) == pytest.approx(-val1)
-    assert float(abs(cls(-5.5))) == pytest.approx(5.5)
+    # test abs
+    assert float(abs(-a)) == pytest.approx(abs(-float(a)))
 
 @pytest.mark.parametrize("cls, val", [
     (Float32, 3.14159),
@@ -169,24 +190,47 @@ def test_float_arithmetic(cls, val1, val2):
     (UInt64, 18446744073709551615),
 ])
 def test_number_types_bytes_roundtrip(cls, val):
+    """
+    Test the roundtrip of from_bytes and to_bytes on cases for all number types (floats and integers, signed and unsigned)
+    """
     num = cls(val)
     raw = num.to_bytes()
     assert len(raw) == cls.size
     assert cls.from_bytes(raw) == num
 
-def test_float_division_by_zero():
+@pytest.mark.parametrize("cls, val", [
+    (Int8, 0),
+    (Int16, 0),
+    (Int32, 0),
+    (Int64, 0),
+    (UInt8, 0),
+    (UInt16, 0),
+    (UInt32, 0),
+    (UInt64, 0),
+    (Float32, 0.0),
+    (Float64, 0.0),
+    (Float80, 0.0)
+])
+def test_float_division_by_zero(cls, val):
     with pytest.raises(ZeroDivisionError):
-        _ = Float32(1.0) / 0.0
+        _ = cls(val) / 0.0
 
-def test_float_specials():
-    inf = Float32(float('inf'))
-    nan = Float32(float('nan'))
+@pytest.mark.parametrize("cls", [Float32, Float64, Float80])
+def test_float_specials(cls):
+    """
+    Tests the behavior of infinities and NaN on all float types
+    """
+    inf = cls(float('inf'))
+    nan = cls(float('nan'))
+    ninf = cls(float('-inf'))
     
     assert math.isinf(float(inf))
     assert math.isnan(float(nan))
+    assert math.isinf(float(ninf)) and float(ninf) < 0
     
     # Operations with inf
     assert math.isinf(float(inf + 1.0))
+    assert math.isinf(float(ninf + 1.0)) and float(ninf + 1.0) < 0
 
 @pytest.mark.parametrize("cls, bytes_val, expected", [
     # Signed Integers
@@ -224,9 +268,12 @@ def test_float_specials():
 ])
 
 def test_from_bytes(cls, bytes_val, expected):
+    """
+    Tests that from_bytes works correctly based on an hardcoded representations.
+    """
     result = cls.from_bytes(bytes_val)
     assert result == expected
-    # Ensure it's not just a Python int/float but our custom wrapper
+    # Ensure it' returns the correct class
     assert isinstance(result, cls)
 
 def test_float80_precision():
@@ -243,6 +290,9 @@ def test_float80_precision():
     assert float(diff) == pytest.approx(float(small_increment), abs=tolerance)
 
 def test_overflow_in_initialization():
+    """
+    Tests that initializing with a value that overflows correctly wraps around, instead of raising an error or something else.
+    """
     assert int(Int8(128)) == -128
     assert int(Int8(-129)) == 127
     assert int(UInt8(257)) == 1
@@ -255,7 +305,7 @@ def test_overflow_in_initialization():
 
 def test_truthiness():
     """
-    Validates __bool__ protocol correctly handles 0, 0.0, and non-zeros
+    Tests that __bool__ protocol correctly handles 0, 0.0, and non-zeros
     """
     assert not bool(Int32(0))
     assert bool(Int32(-1))
@@ -264,7 +314,7 @@ def test_truthiness():
 
 def test_shift_wrapping():
     """
-    Validates that shifting beyond bitwidth wraps gracefully instead of UB
+    Tests that shifting beyond bitwidth wraps gracefully instead of UB
     """
     assert int(Int8(1) << 8) == 0 # masking for int8 and int16 are still 31
     assert int(Int16(1) << 16) == 0
@@ -275,7 +325,7 @@ def test_shift_wrapping():
 
 def test_division_by_zero():
     """
-    Validates that division by zero raises an exception instead of UB
+    Tests that division by zero raises an exception instead of UB
     """
     with pytest.raises(ZeroDivisionError):
         _ = Int32(1) // 0
@@ -294,7 +344,7 @@ def test_division_by_zero():
 
 def test_inplace_promotion():
     """
-    Validates that in-place operations do not promote, unlike normal operations.
+    Tests that in-place operations do not promote, unlike normal operations.
     """
     a = Int32(1)
     a += Float32(2.5)
@@ -308,7 +358,7 @@ def test_inplace_promotion():
 
 def test_division_overflow_exception():
     """
-    Validates that division overflow raises an exception instead of UB
+    Tests that division overflow raises an exception instead of UB
     """
     with pytest.raises(OverflowError):
         _ = Int32(-2**31) // -1

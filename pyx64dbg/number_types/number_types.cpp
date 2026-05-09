@@ -21,6 +21,9 @@ int true_size()
     return sizeof(T);
 }
 
+/*
+An enum of all supported CNums, used as unique identifier.
+*/
 enum CNumTypeID {
     INT8 = 0, UINT8 = 1,
     INT16 = 2, UINT16 = 3,
@@ -164,7 +167,7 @@ int get_priority(py::handle h) {
     return -1;
 }
 
-// Safety wrappers around Div/Mod/Shifts, to behave like hardware and raise an exception when dividing by zero or overflow.
+// Safety wrappers around Div/Mod/Shifts, to behave like hardware (in shifts masking) and raise an exception when dividing by zero or overflow (otherwise it'll raise a signal and crash instead of raising a python exception).
 struct SafeDiv { 
     template<typename T> T operator()(T a, T b) const {
         if (b == 0)
@@ -215,6 +218,7 @@ struct SafeRShift {
         return a >> (b & mask);
     }
 };
+
 // There's no abs operator in C++ to use so we have to define it ourselves
 struct OpAbs { 
     template<typename T> T operator()(T a) const { 
@@ -488,18 +492,16 @@ py::object dispatch_r_binary_integer_op(py::object self, py::object other) {
 /*
 An implementation of the __int__ method for the python binding.
 */
-py::object cnum_int(py::object self) {
-    auto* self_cnumbase = py::cast<CNumBase*>(self); // cast to CNumBase
-    py::object self_pyobject = self_cnumbase->as_python_object(); // use as_python_object, which returns either int or float
+py::object cnum_int(CNumBase *self) {
+    py::object self_pyobject = self->as_python_object(); // use as_python_object, which returns either int or float
     return py::int_(self_pyobject); // convert to pybind int_
 }
 
 /*
 An implementation of the __float__ method for the python binding.
 */
-py::object cnum_float(py::object self) {
-    auto* self_cnumbase = py::cast<CNumBase*>(self); // cast to CNumBase
-    py::object self_pyobject = self_cnumbase->as_python_object(); // use as_python_object, which returns either int or float
+py::object cnum_float(CNumBase *self) {
+    py::object self_pyobject = self->as_python_object(); // use as_python_object, which returns either int or float
     return py::float_(self_pyobject); // convert to pybind float_
 }
 
@@ -507,15 +509,14 @@ py::object cnum_float(py::object self) {
 An implementation of the __bool__ method for the python binding.
 Uses cpp built-in bool conversion to mimic its behavior.
 */
-bool cnum_bool(py::object self) {
-    auto *self_cnumbase = py::cast<CNumBase*>(self); // cast to CNumBase
-    if (dynamic_cast<CFloatBase*>(self_cnumbase)) // separate check for float types and integer types, so we cast it to the right thing
+bool cnum_bool(CNumBase *self) {
+    if (dynamic_cast<CFloatBase*>(self)) // separate check for float types and integer types, so we cast it to the right thing
     {
-        return (bool)self_cnumbase->as_float();
+        return (bool)self->as_float();
     }
     else
     {
-        return (bool)self_cnumbase->as_integer();
+        return (bool)self->as_integer();
     }
 }
 
