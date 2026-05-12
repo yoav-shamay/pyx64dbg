@@ -1,7 +1,16 @@
+"""
+This module contains the functions for printing styled disassembly in the interactive console.
+"""
+import capstone
 from capstone.x86 import *
+from git import TYPE_CHECKING
 from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.styles import Style
 
+if TYPE_CHECKING:
+    from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
+
+# the color map for the disassembly output
 disasm_style = Style.from_dict(
     {
         "addr": "#888888",  # hex addresses - Grey
@@ -16,25 +25,26 @@ disasm_style = Style.from_dict(
 )
 
 
-def _mem_operand_to_str(self, instruction, op):
+def _mem_operand_to_str(self: "InteractiveConsole", instruction: capstone.CsInsn, op: X86Op) -> str:
     """
     Converts an x86 memory operand into a formatted HTML string.
     Structure: segment:[base + index * scale + disp]
     Will attempt to resolve symbols and show RIP-relative addresses in a user-friendly way.
     """
-    parts = []
+    # Contains the various parts of the memory operand
+    parts: list[str] = []
 
-    # 1. Segment (e.g., fs:)
+    # Segment (e.g., fs:)
     segment_prefix = ""
     if op.mem.segment != 0:
         reg_name = instruction.reg_name(op.mem.segment)
         segment_prefix = f"<reg>{reg_name}</reg><punct>:</punct>"
 
-    # 2. Base Register
+    # Base Register
     if op.mem.base != 0:
         parts.append(f"<reg>{instruction.reg_name(op.mem.base)}</reg>")
 
-    # 3. Index Register * Scale
+    # Index Register * Scale
     if op.mem.index != 0:
         if parts:
             parts.append("<punct>+</punct>")
@@ -46,7 +56,7 @@ def _mem_operand_to_str(self, instruction, op):
             # Scale is the multiplier (number), * is the operator
             parts.append(f"<punct>*</punct><imm>{op.mem.scale}</imm>")
 
-    # 4. Displacement / Displacement Symbol
+    # Displacement (constant offset from register / absolute address) - including symbol resolution
     if op.mem.disp != 0:
         # If there are already registers, we need a sign
         if parts:
@@ -55,8 +65,9 @@ def _mem_operand_to_str(self, instruction, op):
             else:
                 parts.append("<punct>-</punct>")
 
-        # Determine if the displacement is a known symbol when there's no base/index
+        # if there's a previous part we already added +/- so we need to show the absolute value.
         val_to_show = abs(op.mem.disp) if parts else op.mem.disp
+        # Determine if the displacement is a known symbol when there's no base/index
         if op.mem.base == 0 and op.mem.index == 0:
             symbol = self.debugger.address_to_symbol.get(op.mem.disp)
             if symbol:
@@ -66,16 +77,19 @@ def _mem_operand_to_str(self, instruction, op):
         else:
             parts.append(f"<imm>{hex(val_to_show)}</imm>")
 
-
+    # combine the parts together with the segment prefix and memory brackets
     inner = "".join(parts)
 
+    # show with the segment prefix and memory brackets
     res = f"{segment_prefix}<mem>[</mem>{inner}<mem>]</mem>"
 
     # for RIP-relative addressing, show the actual address and potentially resolve it to a symbol
     if op.mem.base == X86_REG_RIP and op.mem.index == 0:
         rip_relative_address = instruction.address + instruction.size + op.mem.disp
+        # potentially resolve this RIP-relative address for a symbol
         symbol = self.debugger.address_to_symbol.get(rip_relative_address)
         if symbol:
+            # if there's a symbol, show as (symbol, 0xaddress)
             res += (
                 f" <punct>(</punct>"
                 f"<sym>{symbol}</sym>"
@@ -84,16 +98,17 @@ def _mem_operand_to_str(self, instruction, op):
                 f"<punct>)</punct>"
             )
         else:
+            # otherwise show just as (0xaddress)
             res += f" <addr>({hex(rip_relative_address)})</addr>"
     return res
 
 
-def print_disassembly(self, address: int, instruction_cnt: int) -> None:
+def print_disassembly(self: "InteractiveConsole", address: int, instruction_cnt: int) -> None:
     """
     Prints the disassembly of the instructions at the given address.
     Disassembles instruction_cnt instructions.
     """
-    instructions = self.debugger.read_instruction(address, instruction_cnt)
+    instructions = self.debugger.memory.read_instruction(address, instruction_cnt)
 
     # get RIP to highlight the current instruction
     current_rip = self.debugger.registers.rip
@@ -101,15 +116,15 @@ def print_disassembly(self, address: int, instruction_cnt: int) -> None:
     for insn in instructions:
         is_current = insn.address == current_rip
 
-        # 1. Address and Mnemonic
+        # Address and Mnemonic
         addr_html = f"<addr>0x{insn.address:012x}</addr>"
         mnem_html = f"<mnemonic>{insn.mnemonic:<8}</mnemonic>"
 
-        # 2. Process Operands
+        # Process Operands
         operands_html = []
         for op in insn.operands:
             if op.type == X86_OP_IMM:
-                # Immediate value (e.g., call 0x401000)
+                # Immediate value (e.g., call 0x401000) - try to resolve symbol, otherwise just show 0xaddress
                 sym = self.debugger.address_to_symbol.get(op.imm)
                 if sym:
                     operands_html.append(
@@ -119,20 +134,23 @@ def print_disassembly(self, address: int, instruction_cnt: int) -> None:
                     operands_html.append(f"<imm>{hex(op.imm)}</imm>")
 
             elif op.type == X86_OP_REG:
-                # Pure Register (e.g., mov rax, rbx)
+                # Pure Register (e.g., mov rax, rbx) - show register name
                 operands_html.append(f"<reg>{insn.reg_name(op.reg)}</reg>")
 
             elif op.type == X86_OP_MEM:
-                # Memory Reference (e.g., [rax + rdi*4])
+                # Memory Reference (e.g., [rax + rdi*4]) - use helper method
                 operands_html.append(self._mem_operand_to_str(insn, op))
 
-        # 3. Assemble the line
+        # Assemble the line by joining every operand
         ops_str = "<punct>, </punct>".join(operands_html)
+        # show > before the instruction if it's the current one
         prefix = "<b>&gt; </b>" if is_current else "  "
+        # combine all parts together
         line_html = f"{prefix}{addr_html}  {mnem_html} {ops_str}"
 
-        # 4. Apply current line background if applicable
+        # Apply current line background if applicable
         if is_current:
             line_html = f"<current>{line_html}</current>"
 
+        # print using prompt_toolkit with the defined style
         print_formatted_text(HTML(line_html), style=disasm_style, output=self._toolkit_output)

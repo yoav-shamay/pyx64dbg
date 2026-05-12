@@ -1,9 +1,9 @@
 import sys
-from typing import Callable
+from typing import TextIO, Optional
 
-from elftools.construct import Debugger
-from pyx64dbg.interactive_console.console_commands import (
-    get_available_commands,
+from pyx64dbg.debugger import Debugger
+from pyx64dbg.interactive_console.console_aliases import (
+    get_aliases,
     get_all_commands_help,
 )
 from pyx64dbg.interactive_console.exception_trap import ExceptionTrap
@@ -32,34 +32,42 @@ class InteractiveConsole:
 
     def __init__(
         self,
-        file_name: str = None,
+        file_name: Optional[str] = None,
         redirect_stdio_to_pty : bool = True,
         disable_pty_echo: bool = True,
-        stdout_stream=None,
+        stdout_stream: Optional[TextIO]=None,
     ):
-        self.file_name = file_name
-        self.debugger = None
-        self.process_running = False
+        """
+        Initializes the interactive console.
+        Options:
+        file_name - initial file to debug (can also be set later with select_file command)
+        redirect_stdio_to_pty - whether to redirect the debugged process's stdio to a PTY
+        disable_pty_echo - whether to disable echo on the PTY (if redirecting)
+        stdout_stream - the stream to print output to (defaults to sys.stdout)
+        """
+        self.file_name: str | None = file_name
+        self.debugger: Debugger | None = None
         self._init_help_message()
-        self.file_select_callbacks = CallbackList()
-        self.update_aliases_callbacks = CallbackList()
-        self.new_debugger_object_callbacks = CallbackList()
-        self._process_already_running_trap = ExceptionTrap(ProcessAlreadyRunningError())
-        self._process_not_running_trap = ExceptionTrap(ProcessNotRunningError())
-        self._output_stream = stdout_stream if stdout_stream is not None else sys.stdout
-        self._toolkit_output = Vt100_Output(self._output_stream, lambda: (24, 80))
-        self._redirect_stdio_to_pty = redirect_stdio_to_pty
-        self._disable_pty_echo = disable_pty_echo
-        
-    def get_aliases(self):
-        cur_commands = get_available_commands(self, self.process_running)
-        aliases = {}
-        for names, obj in cur_commands:
-            for name in names:
-                aliases[name] = obj
-        return aliases
+        self.file_select_callbacks: CallbackList[[str]] = CallbackList()
+        self.update_aliases_callbacks: CallbackList[[dict[str, object]]] = CallbackList()
+        self.new_debugger_object_callbacks: CallbackList[[Debugger | None]] = CallbackList()
+        self._process_already_running_trap: ExceptionTrap = ExceptionTrap(ProcessAlreadyRunningError())
+        self._process_not_running_trap: ExceptionTrap = ExceptionTrap(ProcessNotRunningError())
+        self._output_stream: TextIO = stdout_stream if stdout_stream is not None else sys.stdout
+        # the output object for the toolkit, used for formatting text.
+        # for the terminal size, use a hardcoded lambda with the standard default size (80x24) as it doesn't matter for our usage.
+        self._toolkit_output: Vt100_Output = Vt100_Output(self._output_stream, lambda: (24, 80))
+        self._redirect_stdio_to_pty: bool = redirect_stdio_to_pty
+        self._disable_pty_echo: bool = disable_pty_echo
 
-    def _init_help_message(self):
+    def get_aliases(self) -> dict[str, object]:
+        """
+        Returns the current aliases for the interactive console based on the process state.
+        """
+        process_running = self.debugger is not None # we have a running process iff debugger object is not None
+        return get_aliases(self, process_running)
+
+    def _init_help_message(self) -> None:
         """
         Initializes the help message by replacing the <METHODS_LIST> placeholder with a list of the available methods and their descriptions.
         """
@@ -70,7 +78,14 @@ class InteractiveConsole:
         self.help_message = help_message.replace("<METHODS_LIST>", methods_list)
 
 
-    def _handle_process_exit(self):
+    def _handle_process_exit(self) -> None:
+        """
+        Callback when the process exits.
+        Prints a message and updates the internal state.
+        """
+        if self.debugger is None:
+            # if this was mistakenly called when there's no debugger, just ignore it and return without doing anything
+            return
         if self.debugger.exit_code is not None:
             print(f"Process exited with code {self.debugger.exit_code}.", file=self._output_stream)
         else:
@@ -81,18 +96,21 @@ class InteractiveConsole:
         self.debugger.stop_callbacks.remove(self._handle_process_stop)
         self.debugger = None
         self.new_debugger_object_callbacks.trigger(None)
-        self._on_process_exit() # call the process exit handler to update aliases and help message
+        self._on_process_exit() # call the process exit handler to update aliases
 
-    def _handle_process_stop(self):
+    def _handle_process_stop(self) -> None:
         """
-        Handle process stopping by signal, not forwarding it yet, which means the process is still active.
+        Callback when the process stops by signal, not forwarding it yet, which means the process is still active.
         """
+        if self.debugger is None:
+            # if this was mistakenly called when there's no debugger, just ignore it and return without doing anything
+            return
         stop_signal = self.debugger.stopped_signal
         if stop_signal is not None:
             # if we stopped by a real signal and not a breakpoint
             print(f"Process stopped by signal {stop_signal}.", file=self._output_stream)
 
-    def print_error(self, exc_name, exc_desc):
+    def print_error(self, exc_name: str, exc_desc: str) -> None:
         """
         Function to call in order to print a triggered exception in a user-friendly way.
         Should be manually called by the CLI / GUI using this object.
@@ -100,39 +118,48 @@ class InteractiveConsole:
         output = f"<ansired><b>{exc_name}</b></ansired>: {exc_desc}"
         print_formatted_text(HTML(output), output=self._toolkit_output)
     
-    def handle_exit(self):
+    def handle_exit(self) -> None:
         """
         An exit handler that kills the debugged process if it's still running when exiting the CLI.
         Should be manually set by the CLI / GUI using this object.
         """
-        if self.process_running:
-            # remove the exit callback to avoid printing exit message after exiting
-            self.debugger.exit_callbacks.remove(self._handle_process_exit)
-            self.debugger.kill_process()
+        if self.debugger is None: # if the debugger is already None, it means the process isn't running and we don't have to do anything
+            return
+        # remove the exit callback to avoid printing exit message after exiting
+        self.debugger.exit_callbacks.remove(self._handle_process_exit)
+        self.debugger.control.kill_process()
     
-    def _on_process_run(self):
+    def _on_process_run(self) -> None:
+        """
+        A helper function that sets up the debugger callbacks and aliases when the process starts.
+        Should be run whenever a new debugger object is created.
+        """
+        if self.debugger is None:
+            # if this was mistakenly called when there's no debugger, just ignore it and return without doing anything
+            return
         self.debugger.exit_callbacks.add(self._handle_process_exit)
         self.debugger.stop_callbacks.add(self._handle_process_stop)
-        self.process_running = True
         # update the aliases in the interactive console to reflect the new state of the debugger, which may have new commands available now that the process is running
         self.update_aliases_callbacks.trigger(self.get_aliases())
     
-    def _on_process_exit(self):
-        self.process_running = False
+    def _on_process_exit(self) -> None:
+        """
+        A helper function that handles the stuff needs to be done when a process exits.
+        Currently just calls the update aliases callback to update the aliases in the console itself.
+        Should be run whenever the debugger object is set to None.
+        """
         # update the aliases in the interactive console to reflect the new state of the debugger, which may have some commands unavailable now that the process is not running
         self.update_aliases_callbacks.trigger(self.get_aliases())
     
-    def update_debugger(self, debugger):
+    def update_debugger(self, debugger: Debugger | None) -> None:
         """
         Should be called when the debugger object is updated from an external source.
         Syncs the state of the interactive console with the new debugger state.
         """
         self.debugger = debugger
         if self.debugger is None:
-            self.process_running = False
             self._on_process_exit()
         else:
-            self.process_running = True
             self._on_process_run()
 
     from pyx64dbg.interactive_console.disassembly_function import (

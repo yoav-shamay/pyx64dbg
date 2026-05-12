@@ -620,6 +620,16 @@ py::object cnum_repr(py::object self) {
 }
 
 /*
+An implementation of the __format__ method for the python binding.
+Uses the format of the matching python object (int or float).
+*/
+py::object cnum_format(CNumBase *self, py::object format_spec)
+{
+    py::object self_pyobject = self->as_python_object(); // use as_python_object, which returns either int or float
+    return self_pyobject.attr("__format__")(format_spec); // use the __format__ method of the python object
+}
+
+/*
 An helper function to fully bind a CNum of a specific type to python.
 Binds all the functions and properties, and takes into consideration whether it's an integer or float to bind it to the appropriate base class.
 */
@@ -728,6 +738,7 @@ Float80 / LongDouble
     base.def("__bool__", &cnum_bool);
     base.def("__repr__", &cnum_repr);
     base.def("__hash__", &cnum_hash);
+    base.def("__format__", &cnum_format);
     base.def("to_bytes", &cnum_to_bytes, "Returns the byte representation of the CNum.");
 
 
