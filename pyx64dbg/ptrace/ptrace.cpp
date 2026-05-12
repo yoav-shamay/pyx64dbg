@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "utils.hpp"
 #include "xstate.hpp"
@@ -41,34 +42,6 @@ static void cont(int child_pid, std::optional<long> signal)
         sig = reinterpret_cast<void *>(sig_number); // cast the signal number to void *
     }
     long res = ptrace(PTRACE_CONT, child_pid, NULL, sig);
-    if (res == -1)
-        raise_errno_as_os_error();
-}
-
-/*
-An implementation of the peekdata method for the python binding.
-Gets the child process id and the address to peek, and returns the data at that address in the child process as a python integer.
-calls ptrace with PTRACE_PEEKDATA.
-*/
-static unsigned long peekdata(int child_pid, uintptr_t address)
-{
-    errno = 0; // set errno to 0 so we can accurately tell if ptrace failed or if the data at the address is actually -1
-    unsigned long res = ptrace(PTRACE_PEEKDATA, child_pid, (void *)address, NULL);
-    if (errno != 0)
-    {
-        raise_errno_as_os_error();
-    }
-    return res;
-}
-
-/*
-Implementation of the pokedata method for the python binding.
-Gets the child process id, the address to poke and the data to poke, and returns nothing.
-calls ptrace with PTRACE_POKEDATA.
-*/
-static void pokedata(int child_pid, uintptr_t address, unsigned long data)
-{
-    long res = ptrace(PTRACE_POKEDATA, child_pid, (void *)address, (void *)data);
     if (res == -1)
         raise_errno_as_os_error();
 }
@@ -254,26 +227,25 @@ static py::bytes get_memory_range(int child_pid, uintptr_t address, size_t lengt
 /*
 Implementation of the write_memory_range method for the python binding.
 Gets the child process id, the start address and a bytes object containing the data to write,and returns nothing.
-calls process_vm_writev to write the memory range to the child process.
+Uses /proc/<pid> mem to write to the memory range, as process_vm_writev (the matching function to what we use on read) can't write to RO memory.
 */
 static void write_memory_range(int child_pid, size_t address, std::string data)
 {
-    // local iov - buffer containing the data to write
-    struct iovec local_iov[1];
-    local_iov[0].iov_base = const_cast<char *>(data.data());
-    local_iov[0].iov_len = data.size();
-    // remote iov - address pointer in the child process
-    struct iovec remote_iov[1];
-    remote_iov[0].iov_base = (void *)address;
-    remote_iov[0].iov_len = data.size();
-    ssize_t nwritten = process_vm_writev(child_pid, local_iov, 1, remote_iov, 1, 0);
-    if (nwritten == -1) // if we got -1, throw an error
+    std::string mem_path = "/proc/" + std::to_string(child_pid) + "/mem";
+    int fd = open(mem_path.c_str(), O_RDWR);
+    if (fd == -1)
     {
         raise_errno_as_os_error();
     }
-    if (nwritten < (ssize_t)data.size()) // if we wrote less than the requested length, also throw an error (though this time errno won't reflect an error)
+    ssize_t written = pwrite(fd, data.data(), data.size(), address);
+    close(fd); // close the fd immediately afterwards, even if there was an error
+    if (written == -1) // error when writing
     {
-        throw std::runtime_error("Could not write the entire memory range to the child process");
+        raise_errno_as_os_error();
+    }
+    else if (written < (ssize_t)data.size()) // if we wrote less than the requested length, also throw an error (though this time errno won't reflect an error)
+    {
+        throw std::runtime_error("Could not write the entire data to the child process memory");
     }
 }
 /*
@@ -293,14 +265,12 @@ PYBIND11_MODULE(ptrace, m)
     m.doc() = "C++ ptrace wrapper";
     m.def("traceme", &traceme, "ptrace call with PTRACE_TRACEME");
     m.def("cont", &cont, "ptrace call with PTRACE_CONT", py::arg("child_pid"), py::arg("signal") = py::none());
-    m.def("peekdata", &peekdata, "ptrace call with PTRACE_PEEKDATA");
-    m.def("pokedata", &pokedata, "ptrace call with PTRACE_POKEDATA");
     m.def("single_step", &single_step, "ptrace call with PTRACE_SINGLESTEP", py::arg("child_pid"), py::arg("signal") = py::none());
     m.def("get_standard_regs", &get_standard_regs, "ptrace call with PTRACE_GETREGSET on NT_PRSTATUS");
     m.def("get_extended_regs", &get_extended_regs, "ptrace call with PTRACE_GETREGSET on NT_X86_XSTATE");
     m.def("set_standard_regs", &set_standard_regs, "ptrace call with PTRACE_SETREGSET on NT_PRSTATUS");
     m.def("set_extended_regs", &set_extended_regs, "ptrace call with PTRACE_SETREGSET on NT_X86_XSTATE");
     m.def("get_memory_range", &get_memory_range, "read memory range of the child process using process_vm_readv");
-    m.def("write_memory_range", &write_memory_range, "write memory range of the child process using process_vm_writev");
+    m.def("write_memory_range", &write_memory_range, "write memory range of the child process using /proc/<pid>/mem");
     m.def("kill", &kill_child, "ptrace call with PTRACE_KILL");
 }

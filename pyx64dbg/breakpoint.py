@@ -1,10 +1,14 @@
-from typing import Callable
-from pyx64dbg.utils import get_first_byte, change_first_byte
+from typing import TYPE_CHECKING
 import pyx64dbg.ptrace as ptrace
-from pyx64dbg.number_types import CIntBase
+from pyx64dbg.number_types import CIntBase, UInt64
 
 # the breakpoint instruction in x86_64. It's a single CC byte.
 BREAKPOINT_INSTRUCTION = 0xCC
+# bytes representation of the breakpoint instruction, used for writing to memory.
+BREAKPOINT_INSTRUCTION_BYTES = bytes([BREAKPOINT_INSTRUCTION])
+
+if TYPE_CHECKING:
+    from pyx64dbg.debugger import Debugger
 
 class Breakpoints:
     """
@@ -12,49 +16,44 @@ class Breakpoints:
     Allows to add/remove/get breakpoints.
     Uses software breakpoints, placing an 0xCC byte at the address.
     """
-    def __init__(self, child_pid: int, ensure_running: Callable, trigger_update_callbacks: callable) -> None:
-        self.addresses: set[int] = set()
-        self.original_bytes: dict[int, int] = {}
-        self.child_pid: int = child_pid
-        self._ensure_running: Callable = ensure_running
-        self._trigger_update_callbacks: Callable = trigger_update_callbacks
+    def __init__(self, debugger: "Debugger") -> None:
+        self._addresses: set[UInt64] = set()
+        self._original_bytes: dict[UInt64, int] = {}
+        self._debugger: Debugger = debugger
 
-    def get_breakpoints(self) -> list[int]:
+    def get_breakpoints(self) -> set[UInt64]:
         """
-        Returns a list of the current breakpoints.
+        Returns a set of the current breakpoints.
         """
-        self._ensure_running()
-        return self.addresses
+        self._debugger._ensure_running()
+        return self._addresses
     
     def add_breakpoint(self, address : CIntBase | int, notify_updates: bool = True) -> None:
         """
         Adds a breakpoint at the given address.
         """
-        self._ensure_running()
-        address = int(address) # convert to int if it's a CInt
-        if address in self.addresses:
+        self._debugger._ensure_running()
+        address = UInt64(address) # convert to UInt64 if it's another type
+        if address in self._addresses:
             return
-        original_word = ptrace.peekdata(self.child_pid, address) # take the original word at the address
-        breakpoint_word = change_first_byte(original_word, BREAKPOINT_INSTRUCTION) # change the first byte to a breakpoint
-        ptrace.pokedata(self.child_pid, address, breakpoint_word) # write it to the memory
-        self.addresses.add(address)
-        self.original_bytes[address] = get_first_byte(original_word) # save the original byte
+        original_byte = ptrace.get_memory_range(self._debugger.child_pid, int(address), 1) # take the original word at the address
+        self._original_bytes[address] = original_byte[0] # save the original byte for the address (use index 0 as it's bytes object)
+        ptrace.write_memory_range(self._debugger.child_pid, int(address), BREAKPOINT_INSTRUCTION_BYTES) # write the breakpoint instruction at the address
+        self._addresses.add(address)
         if notify_updates:
-            self._trigger_update_callbacks()
+            self._debugger.update_callbacks.trigger()
     
     def remove_breakpoint(self, address : CIntBase | int, notify_updates: bool = True) -> None:
         """
         Removes a breakpoint at the given address.
         """
-        self._ensure_running()
-        address = int(address) # convert to int if it's a CInt
-        if address not in self.addresses: # check if it's actually a breakpoint before trying to remove it
+        self._debugger._ensure_running()
+        address = UInt64(address) # convert to UInt64 if it's another type
+        if address not in self._addresses: # check if it's actually a breakpoint before trying to remove it
             raise ValueError("Addresses isn't a breakpoint")
-        original_byte = self.original_bytes[address] # get the original byte for the address
-        breakpoint_word = ptrace.peekdata(self.child_pid, address) # get the full word as we can only write a word at a time
-        non_breakpoint_word = change_first_byte(breakpoint_word, original_byte)
-        ptrace.pokedata(self.child_pid, address, non_breakpoint_word)
-        self.addresses.remove(address) # remove the address from the breakpoints set and original bytes dict
-        del self.original_bytes[address]
+        original_byte = self._original_bytes[address] # get the original byte for the address
+        ptrace.write_memory_range(self._debugger.child_pid, int(address), bytes([original_byte])) # write the original byte back to the address
+        self._addresses.remove(address) # remove the address from the breakpoints set and original bytes dict
+        del self._original_bytes[address]
         if notify_updates:
-            self._trigger_update_callbacks()
+            self._debugger.update_callbacks.trigger()

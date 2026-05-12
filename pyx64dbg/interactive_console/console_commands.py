@@ -7,7 +7,9 @@ if TYPE_CHECKING:
     from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 
 # Define all active commands once with dotted path names - single source of truth
-# format - ([aliases], ("path.to.method.active", "path.to.method.inactive"), "help_description" (or None for not showing))
+# format - ([aliases], (["active_path"], ["inactive_path"]), "help_description" (or None for not showing)
+# Paths are list of strings / lists of strings, where strings indicate attribute access and lists indicate indexing.
+# Those are evaluated with the console as the root object.
 ALL_COMMANDS = [
     (["run_process", "run", "r"], (["_process_already_running_trap"], ["run_process"]), "Run the process"),
     (["single_step", "step", "s"], (["debugger", "single_step"], ["_process_not_running_trap"]), "Step into the next instruction."),

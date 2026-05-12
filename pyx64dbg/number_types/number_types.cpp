@@ -631,10 +631,10 @@ void bind_cnum(py::module_& m, const std::string name, const std::string& doc = 
     py::class_<CNum<T>, BaseType> c(m, name.c_str(), doc.c_str());
     // define the constructor
     c.def(py::init(&cnum_create<T, P, ID>),
-          "Initializes a CNum from either an int, float, bytes or another CNum");
+          "Initializes from either an int, float, bytes or another CNum");
     // define the static from_bytes method (as it actually needs to be defined there and not generically)
     c.def_static("from_bytes", &cnum_from_bytes<T, P, ID>, py::arg("data"),
-                 "Creates a CNum from a bytes object. The number of bytes must match the size of the type.");
+                 "Creates an instance from a bytes object.\nThe number of bytes must match the size of the type.");
     // add size and is_signed as static class attributes as well
     c.attr("size") = true_size<T>();
     c.attr("is_signed") = std::is_signed_v<T>;
@@ -658,9 +658,9 @@ Float64 / Double,
 Float80 / LongDouble
     )pbdoc";
     // Expose base classes to python
-    py::class_<CNumBase> base(m, "CNumBase");
-    py::class_<CIntBase, CNumBase> int_base(m, "CIntBase");
-    py::class_<CFloatBase, CNumBase> float_base(m, "CFloatBase");
+    py::class_<CNumBase> base(m, "CNumBase", "Base class for all numeric types in this module.\nShouldn't be used directly.");
+    py::class_<CIntBase, CNumBase> int_base(m, "CIntBase", "Base class for all integer types in this module.\nShouldn't be used directly.");
+    py::class_<CFloatBase, CNumBase> float_base(m, "CFloatBase", "Base class for all floating point types in this module.\nShouldn't be used directly.");
 
     // Expose .value to as_python_object    
     base.def_property_readonly("value", &CNumBase::as_python_object); 
@@ -728,7 +728,7 @@ Float80 / LongDouble
     base.def("__bool__", &cnum_bool);
     base.def("__repr__", &cnum_repr);
     base.def("__hash__", &cnum_hash);
-    base.def("to_bytes", &cnum_to_bytes, "Returns the CNum as a bytes object.");
+    base.def("to_bytes", &cnum_to_bytes, "Returns the byte representation of the CNum.");
 
 
     // Bind all cnums to python
