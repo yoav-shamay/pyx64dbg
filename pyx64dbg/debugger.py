@@ -53,9 +53,9 @@ class Debugger:
         self.registers: Registers = Registers(self)
         self.stack: Stack = Stack(self)
         self.control = Control(self)
-        self.stdio: Optional[StdioTube] = None
+        self._stdio: Optional[StdioTube] = None
         if child_pty is not None: # if we are given a child PTY, assign the stdio tube to it.
-            self.stdio: Optional[StdioTube] = StdioTube(child_pty)
+            self._stdio: Optional[StdioTube] = StdioTube(child_pty)
 
         self._cs: Cs = Cs(CS_ARCH_X86, CS_MODE_64)
         self._cs.detail = True
@@ -145,6 +145,16 @@ class Debugger:
         # refresh shared objects, as the linker loads them during its execution
         res.refresh_shared_objects()
         return res
+
+    @property
+    def stdio(self) -> StdioTube:
+        """
+        Returns the StdioTube object for interacting with the debugged process's stdio.
+        Raises an exception if the stdio wasn't redirected to a PTY when starting the debugger, as in this case we won't have a StdioTube.
+        """
+        if self._stdio is None:
+            raise ValueError("Stdio wasn't redirected to a PTY")
+        return self._stdio
     
     def refresh_shared_objects(self) -> None:
         """

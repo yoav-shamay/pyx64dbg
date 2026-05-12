@@ -2,10 +2,10 @@ from typing import (
     TYPE_CHECKING,
     Collection,
     Iterator,
+    Self,
     Type,
     Any,
     TypeVar,
-    Union,
     Iterable,
     Optional,
     overload,
@@ -56,7 +56,7 @@ class VectorView[T]:
     @overload
     def __getitem__(self, idx: slice) -> list[T]: ...
 
-    def __getitem__(self, idx: int | CIntBase | slice) -> Union[T, list[T]]:
+    def __getitem__(self, idx: int | CIntBase | slice) -> T | list[T]:
         """
         Square bracket access for the view.
         Supports both integer indexing and slicing.
@@ -197,7 +197,7 @@ class VectorRegister:
         For internal updates, parent_regs and name should be provided so that changes there trigger a proper ptrace update.
         """
         self._data: bytes = data
-        self._parent: Union[Registers, None] = parent_regs
+        self._parent: Registers | None = parent_regs
         self._name: str | None = name
 
     def _trigger_update(self) -> None:
@@ -392,7 +392,7 @@ class VectorRegister:
         data: bytes,
         parent_regs: Optional["Registers"] = None,
         name: Optional[str] = None,
-    ) -> "VectorRegister":
+    ) -> Self:
         """
         Constructs a VectorRegister from bytes, with an optional parent Registers reference for updates.
         """

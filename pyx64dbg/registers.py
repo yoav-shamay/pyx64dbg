@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
 
 import pyx64dbg.ptrace as ptrace
 from pyx64dbg.number_types import CNumBase, Int8, Int16, Int32, Int64, Float32, Float64, Float80, CFloatBase, CIntBase
@@ -6,136 +6,6 @@ from pyx64dbg.vector_register import Vector64, Vector128, Vector256, VectorRegis
 
 if TYPE_CHECKING:
     from pyx64dbg.debugger import Debugger
-
-# format: "reg_name": ["reg_name_in_struct", (first_byte, last_byte, type)]
-STANDARD_REGS: dict[str, tuple[str, int, int, type]] = {
-    "rax": ("rax", 0, 7, Int64),
-    "eax": ("rax", 0, 3, Int32),
-    "ax": ("rax", 0, 1, Int16),
-    "al": ("rax", 0, 0, Int8),
-    "ah": ("rax", 1, 1, Int8),
-
-    "rbx": ("rbx", 0, 7, Int64),
-    "ebx": ("rbx", 0, 3, Int32),
-    "bx": ("rbx", 0, 1, Int16),
-    "bl": ("rbx", 0, 0, Int8),
-    "bh": ("rbx", 1, 1, Int8),
-
-    "rcx": ("rcx", 0, 7, Int64),
-    "ecx": ("rcx", 0, 3, Int32),
-    "cx": ("rcx", 0, 1, Int16),
-    "cl": ("rcx", 0, 0, Int8),
-    "ch": ("rcx", 1, 1, Int8),
-
-    "rdx": ("rdx", 0, 7, Int64),
-    "edx": ("rdx", 0, 3, Int32),
-    "dx": ("rdx", 0, 1, Int16),
-    "dl": ("rdx", 0, 0, Int8),
-    "dh": ("rdx", 1, 1, Int8),
-
-    "rsi": ("rsi", 0, 7, Int64),
-    "esi": ("rsi", 0, 3, Int32),
-    "si": ("rsi", 0, 1, Int16),
-
-    "rdi": ("rdi", 0, 7, Int64),
-    "edi": ("rdi", 0, 3, Int32),
-    "di": ("rdi", 0, 1, Int16),
-
-    "rsp": ("rsp", 0, 7, Int64),
-    "esp": ("rsp", 0, 3, Int32),
-    "sp": ("rsp", 0, 1, Int16),
-
-    "rbp": ("rbp", 0, 7, Int64),
-    "ebp": ("rbp", 0, 3, Int32),
-    "bp": ("rbp", 0, 1, Int16),
-
-    "rip": ("rip", 0, 7, Int64),
-    "eip": ("rip", 0, 3, Int32),
-    "ip": ("rip", 0, 1, Int16),
-
-    "r8": ("r8", 0, 7, Int64),
-    "r9": ("r9", 0, 7, Int64),
-    "r10": ("r10", 0, 7, Int64),
-    "r11": ("r11", 0, 7, Int64),
-    "r12": ("r12", 0, 7, Int64),
-    "r13": ("r13", 0, 7, Int64),
-    "r14": ("r14", 0, 7, Int64),
-    "r15": ("r15", 0, 7, Int64),
-
-    "cs": ("cs", 0, 7, Int64),
-    "ss": ("ss", 0, 7, Int64),
-    "ds": ("ds", 0, 7, Int64),
-    "es": ("es", 0, 7, Int64),
-    "fs": ("fs", 0, 7, Int64),
-    "gs": ("gs", 0, 7, Int64),
-
-    "eflags": ("eflags", 0, 7, Int64),
-    "fs_base": ("fs_base", 0, 7, Int64),
-    "gs_base": ("gs_base", 0, 7, Int64),
-    "orig_rax": ("orig_rax", 0, 7, Int64),
-}
-
-# format: "reg_name": (["reg_name_in_struct_list"], type)
-# different from STANDARD_REGS as they don't have sub-registers.
-# the list of names is from low bytes to high bytes. This is used in ymm registers where the value is split between xmm and ymm_h
-EXTENDED_REGS: dict[str, tuple[list[str], type]] = {
-    "fcw": (["fcw"], Int16),
-    "fsw": (["fsw"], Int16),
-    "ftw": (["ftw"], Int8),
-    "fop": (["fop"], Int16),
-    "fip": (["fip"], Int64),
-    "fdp": (["fdp"], Int64),
-    "mxcsr": (["mxcsr"], Int32),
-    "mxcsr_mask": (["mxcsr_mask"], Int32),
-    "st0": (["st_mm0"], Float80),
-    "st1": (["st_mm1"], Float80),
-    "st2": (["st_mm2"], Float80),
-    "st3": (["st_mm3"], Float80),
-    "st4": (["st_mm4"], Float80),
-    "st5": (["st_mm5"], Float80),
-    "st6": (["st_mm6"], Float80),
-    "st7": (["st_mm7"], Float80),
-    "mm0": (["st_mm0"], Vector64),
-    "mm1": (["st_mm1"], Vector64),
-    "mm2": (["st_mm2"], Vector64),
-    "mm3": (["st_mm3"], Vector64),
-    "mm4": (["st_mm4"], Vector64),
-    "mm5": (["st_mm5"], Vector64),
-    "mm6": (["st_mm6"], Vector64),
-    "mm7": (["st_mm7"], Vector64),
-    "xmm0": (["xmm0"], Vector128),
-    "xmm1": (["xmm1"], Vector128),
-    "xmm2": (["xmm2"], Vector128),
-    "xmm3": (["xmm3"], Vector128),
-    "xmm4": (["xmm4"], Vector128),
-    "xmm5": (["xmm5"], Vector128),
-    "xmm6": (["xmm6"], Vector128),
-    "xmm7": (["xmm7"], Vector128),
-    "xmm8": (["xmm8"], Vector128),
-    "xmm9": (["xmm9"], Vector128),
-    "xmm10": (["xmm10"], Vector128),
-    "xmm11": (["xmm11"], Vector128),
-    "xmm12": (["xmm12"], Vector128),
-    "xmm13": (["xmm13"], Vector128),
-    "xmm14": (["xmm14"], Vector128),
-    "xmm15": (["xmm15"], Vector128),
-    "ymm0": (["xmm0", "ymm0_h"], Vector256),
-    "ymm1": (["xmm1", "ymm1_h"], Vector256),
-    "ymm2": (["xmm2", "ymm2_h"], Vector256),
-    "ymm3": (["xmm3", "ymm3_h"], Vector256),
-    "ymm4": (["xmm4", "ymm4_h"], Vector256),
-    "ymm5": (["xmm5", "ymm5_h"], Vector256), 
-    "ymm6": (["xmm6", "ymm6_h"], Vector256),
-    "ymm7": (["xmm7", "ymm7_h"], Vector256),
-    "ymm8": (["xmm8", "ymm8_h"], Vector256),
-    "ymm9": (["xmm9", "ymm9_h"], Vector256),
-    "ymm10": (["xmm10", "ymm10_h"], Vector256),
-    "ymm11": (["xmm11", "ymm11_h"], Vector256),
-    "ymm12": (["xmm12", "ymm12_h"], Vector256),
-    "ymm13": (["xmm13", "ymm13_h"], Vector256),
-    "ymm14": (["xmm14", "ymm14_h"], Vector256),
-    "ymm15": (["xmm15", "ymm15_h"], Vector256),
-}
 
 # types that we can convert to bytes and assign to a register
 REGISTER_SETTABLE_TYPES: TypeAlias = int | float | CNumBase | VectorRegister | list["REGISTER_SETTABLE_TYPES"] | bytes
@@ -193,6 +63,132 @@ def _convert_value_to_bytes(value: REGISTER_SETTABLE_TYPES, width_bytes: int) ->
     else:
         # for any other type, raise an error as we don't know how to convert it to bytes for register assignment
         raise TypeError(f"Cannot convert value of type {type(value)} to bytes for register assignment")
+    
+
+T_Reg = TypeVar('T_Reg', bound=CNumBase | VectorRegister)
+
+class StandardRegister(Generic[T_Reg]):
+    """
+    Descriptor for Standard Registers.
+    Used for property access to registers like registers.rax, registers.eax, etc.
+    """
+    def __init__(self, dict_name: str, first_byte: int, length: int, reg_type: type[T_Reg]):
+        """
+        Initializes the descriptor.
+        Requires the name in the standard_regs dictionary, the first and last byte of the register in that struct, and the type of the register (Int64, Int32, etc.).
+        """
+        self.struct_name: str = dict_name
+        self.first_byte: int = first_byte
+        self.length: int = length
+        self.reg_type: type[T_Reg] = reg_type
+
+    def __get__(self, instance: "Registers | None", owner: type) -> T_Reg:
+        """
+        Getter for the descriptor.
+        Returns the value of the register.
+        """
+        if instance is None:
+            # disallow access to the descriptor through the class as it doesn't make sense
+            raise AttributeError("Can only access registers through an instance")
+        instance._debugger._ensure_running()
+        # get the bytes from the dict using slicing
+        reg_bytes = instance.standard_regs[self.struct_name][self.first_byte : self.first_byte + self.length]
+        return self.reg_type.from_bytes(reg_bytes) # convert to the right number type
+
+    def __set__(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES) -> None:
+        """
+        Setter for the descriptor.
+        Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
+        """
+        self.set_value(instance, value, trigger_updates=True)
+
+    def set_value(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES, trigger_updates: bool = True) -> None:
+        """
+        A function to set the value of the register (with an option to not trigger callbacks).
+        """
+        instance._debugger._ensure_running()
+        value_bytes = _convert_value_to_bytes(value, self.reg_type.size) # convert to bytes using the helper method
+        full_reg_value = bytearray(instance.standard_regs[self.struct_name]) # change to bytearray for editing
+        full_reg_value[self.first_byte : self.first_byte + self.length] = value_bytes
+        instance.standard_regs[self.struct_name] = bytes(full_reg_value) # change back to bytes and assign to the dict
+        # write the modified register struct back to the debugged process using ptrace
+        modified_regs_dict = {self.struct_name: instance.standard_regs[self.struct_name]}
+        ptrace.set_standard_regs(instance._debugger.child_pid, modified_regs_dict)
+        if trigger_updates:
+            instance._debugger.update_callbacks.trigger()
+
+
+class ExtendedRegister(Generic[T_Reg]):
+    """
+    Descriptor for Extended Registers.
+    Used for property access to registers like registers.xmm0, registers.ymm0, etc.
+    """
+    def __init__(self, act_names: list[str], reg_type: type[T_Reg]):
+        """
+        Initializes the descriptor.
+        Requires the list of names in the extended_regs dictionary that compose the register.
+        """
+        self.act_names: list[str] = act_names
+        self.reg_type: type[T_Reg] = reg_type
+        self._reg_name: str = ""
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        """
+        A special method that is called when the descriptor is assigned to a class attribute.
+        We use it to save the name of the register for giving to vector registers.
+        """
+        self._reg_name = name
+
+    def __get__(self, instance: "Registers | None", owner: type) -> T_Reg:
+        """
+        Getter for the descriptor.
+        Returns the value of the register.
+        """
+        if instance is None:
+            # disallow access to the descriptor through the class as it doesn't make sense
+            raise AttributeError("Can only access registers through an instance")
+        instance._debugger._ensure_running()
+        # combine the various parts and check if it really exists
+        exists = True
+        reg_bytes = b""
+        for act_name in self.act_names:
+            if act_name not in instance.extended_regs:
+                exists = False
+                break
+            reg_bytes += instance.extended_regs[act_name]
+        if not exists:
+            raise ValueError(f"Register {self._reg_name} not available")
+        # initialization for VectorRegister is different as it needs the parent instance and name
+        if issubclass(self.reg_type, VectorRegister):
+            return self.reg_type.from_bytes(reg_bytes, instance, self._reg_name)
+        else:
+            return self.reg_type.from_bytes(reg_bytes)
+
+    def __set__(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES) -> None:
+        """
+        Setter for the descriptor.
+        Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
+        """
+        self.set_value(instance, value, trigger_updates=True)
+
+    def set_value(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES, trigger_updates: bool = True) -> None:
+        """
+        A function to set the value of the register (with an option to not trigger callbacks).
+        """
+        instance._debugger._ensure_running()
+        value_bytes = _convert_value_to_bytes(value, self.reg_type.size) # convert to bytes using the helper method
+        # iterate over every part and write the corresponding part of the value bytes to the matching register
+        modified_regs_dict: dict[str, bytes] = {}
+        for i, act_name in enumerate(self.act_names):
+            low_byte = i * (len(value_bytes) // len(self.act_names))
+            high_byte = (i + 1) * (len(value_bytes) // len(self.act_names))
+            part_bytes = value_bytes[low_byte : high_byte]
+            # modify both the cached value and the dict we use in ptrace
+            instance.extended_regs[act_name] = part_bytes
+            modified_regs_dict[act_name] = part_bytes
+        ptrace.set_extended_regs(instance._debugger.child_pid, modified_regs_dict)
+        if trigger_updates:
+            instance._debugger.update_callbacks.trigger()
 
 class Registers:
     """
@@ -203,6 +199,135 @@ class Registers:
     Vector registers (ymm / xmm) are returned in the VectorRegister format.
     see help of VectorRegister for more details and supported operations on vector registers.
     """
+    # definition of all registers as descriptors
+    # standard regs
+    rax = StandardRegister("rax", 0, 8, Int64)
+    eax = StandardRegister("rax", 0, 4, Int32)
+    ax = StandardRegister("rax", 0, 2, Int16)
+    al = StandardRegister("rax", 0, 1, Int8)
+    ah = StandardRegister("rax", 1, 1, Int8)
+
+    rbx = StandardRegister("rbx", 0, 8, Int64)
+    ebx = StandardRegister("rbx", 0, 4, Int32)
+    bx = StandardRegister("rbx", 0, 2, Int16)
+    bl = StandardRegister("rbx", 0, 1, Int8)
+    bh = StandardRegister("rbx", 1, 1, Int8)
+
+    rcx = StandardRegister("rcx", 0, 8, Int64)
+    ecx = StandardRegister("rcx", 0, 4, Int32)
+    cx = StandardRegister("rcx", 0, 2, Int16)
+    cl = StandardRegister("rcx", 0, 1, Int8)
+    ch = StandardRegister("rcx", 1, 1, Int8)
+
+    rdx = StandardRegister("rdx", 0, 8, Int64)
+    edx = StandardRegister("rdx", 0, 4, Int32)
+    dx = StandardRegister("rdx", 0, 2, Int16)
+    dl = StandardRegister("rdx", 0, 1, Int8)
+    dh = StandardRegister("rdx", 1, 1, Int8)
+
+    rsi = StandardRegister("rsi", 0, 8, Int64)
+    esi = StandardRegister("rsi", 0, 4, Int32)
+    si = StandardRegister("rsi", 0, 2, Int16)
+
+    rdi = StandardRegister("rdi", 0, 8, Int64)
+    edi = StandardRegister("rdi", 0, 4, Int32)
+    di = StandardRegister("rdi", 0, 2, Int16)
+
+    rsp = StandardRegister("rsp", 0, 8, Int64)
+    esp = StandardRegister("rsp", 0, 4, Int32)
+    sp = StandardRegister("rsp", 0, 2, Int16)
+
+    rbp = StandardRegister("rbp", 0, 8, Int64)
+    ebp = StandardRegister("rbp", 0, 4, Int32)
+    bp = StandardRegister("rbp", 0, 2, Int16)
+
+    rip = StandardRegister("rip", 0, 8, Int64)
+    eip = StandardRegister("rip", 0, 4, Int32)
+    ip = StandardRegister("rip", 0, 2, Int16)
+
+    r8 = StandardRegister("r8", 0, 8, Int64)
+    r9 = StandardRegister("r9", 0, 8, Int64)
+    r10 = StandardRegister("r10", 0, 8, Int64)
+    r11 = StandardRegister("r11", 0, 8, Int64)
+    r12 = StandardRegister("r12", 0, 8, Int64)
+    r13 = StandardRegister("r13", 0, 8, Int64)
+    r14 = StandardRegister("r14", 0, 8, Int64)
+    r15 = StandardRegister("r15", 0, 8, Int64)
+
+    cs = StandardRegister("cs", 0, 8, Int64)
+    ss = StandardRegister("ss", 0, 8, Int64)
+    ds = StandardRegister("ds", 0, 8, Int64)
+    es = StandardRegister("es", 0, 8, Int64)
+    fs = StandardRegister("fs", 0, 8, Int64)
+    gs = StandardRegister("gs", 0, 8, Int64)
+
+    eflags = StandardRegister("eflags", 0, 8, Int64)
+    fs_base = StandardRegister("fs_base", 0, 8, Int64)
+    gs_base = StandardRegister("gs_base", 0, 8, Int64)
+    orig_rax = StandardRegister("orig_rax", 0, 8, Int64)
+
+    # extended registers
+    fcw = ExtendedRegister(["fcw"], Int16)
+    fsw = ExtendedRegister(["fsw"], Int16)
+    ftw = ExtendedRegister(["ftw"], Int8)
+    fop = ExtendedRegister(["fop"], Int16)
+    fip = ExtendedRegister(["fip"], Int64)
+    fdp = ExtendedRegister(["fdp"], Int64)
+    mxcsr = ExtendedRegister(["mxcsr"], Int32)
+    mxcsr_mask = ExtendedRegister(["mxcsr_mask"], Int32)
+
+    st0 = ExtendedRegister(["st_mm0"], Float80)
+    st1 = ExtendedRegister(["st_mm1"], Float80)
+    st2 = ExtendedRegister(["st_mm2"], Float80)
+    st3 = ExtendedRegister(["st_mm3"], Float80)
+    st4 = ExtendedRegister(["st_mm4"], Float80)
+    st5 = ExtendedRegister(["st_mm5"], Float80)
+    st6 = ExtendedRegister(["st_mm6"], Float80)
+    st7 = ExtendedRegister(["st_mm7"], Float80)
+
+    mm0 = ExtendedRegister(["st_mm0"], Vector64)
+    mm1 = ExtendedRegister(["st_mm1"], Vector64)
+    mm2 = ExtendedRegister(["st_mm2"], Vector64)
+    mm3 = ExtendedRegister(["st_mm3"], Vector64)
+    mm4 = ExtendedRegister(["st_mm4"], Vector64)
+    mm5 = ExtendedRegister(["st_mm5"], Vector64)
+    mm6 = ExtendedRegister(["st_mm6"], Vector64)
+    mm7 = ExtendedRegister(["st_mm7"], Vector64)
+
+    xmm0 = ExtendedRegister(["xmm0"], Vector128)
+    xmm1 = ExtendedRegister(["xmm1"], Vector128)
+    xmm2 = ExtendedRegister(["xmm2"], Vector128)
+    xmm3 = ExtendedRegister(["xmm3"], Vector128)
+    xmm4 = ExtendedRegister(["xmm4"], Vector128)
+    xmm5 = ExtendedRegister(["xmm5"], Vector128)
+    xmm6 = ExtendedRegister(["xmm6"], Vector128)
+    xmm7 = ExtendedRegister(["xmm7"], Vector128)
+    xmm8 = ExtendedRegister(["xmm8"], Vector128)
+    xmm9 = ExtendedRegister(["xmm9"], Vector128)
+    xmm10 = ExtendedRegister(["xmm10"], Vector128)
+    xmm11 = ExtendedRegister(["xmm11"], Vector128)
+    xmm12 = ExtendedRegister(["xmm12"], Vector128)
+    xmm13 = ExtendedRegister(["xmm13"], Vector128)
+    xmm14 = ExtendedRegister(["xmm14"], Vector128)
+    xmm15 = ExtendedRegister(["xmm15"], Vector128)
+
+    ymm0 = ExtendedRegister(["xmm0", "ymm0_h"], Vector256)
+    ymm1 = ExtendedRegister(["xmm1", "ymm1_h"], Vector256)
+    ymm2 = ExtendedRegister(["xmm2", "ymm2_h"], Vector256)
+    ymm3 = ExtendedRegister(["xmm3", "ymm3_h"], Vector256)
+    ymm4 = ExtendedRegister(["xmm4", "ymm4_h"], Vector256)
+    ymm5 = ExtendedRegister(["xmm5", "ymm5_h"], Vector256)
+    ymm6 = ExtendedRegister(["xmm6", "ymm6_h"], Vector256)
+    ymm7 = ExtendedRegister(["xmm7", "ymm7_h"], Vector256)
+    ymm8 = ExtendedRegister(["xmm8", "ymm8_h"], Vector256)
+    ymm9 = ExtendedRegister(["xmm9", "ymm9_h"], Vector256)
+    ymm10 = ExtendedRegister(["xmm10", "ymm10_h"], Vector256)
+    ymm11 = ExtendedRegister(["xmm11", "ymm11_h"], Vector256)
+    ymm12 = ExtendedRegister(["xmm12", "ymm12_h"], Vector256)
+    ymm13 = ExtendedRegister(["xmm13", "ymm13_h"], Vector256)
+    ymm14 = ExtendedRegister(["xmm14", "ymm14_h"], Vector256)
+    ymm15 = ExtendedRegister(["xmm15", "ymm15_h"], Vector256)
+
     def __init__(self, debugger: "Debugger") -> None:
         self._debugger = debugger
         self._refresh_registers()
@@ -221,58 +346,22 @@ class Registers:
         Gets the register with the given name.
         """
         self._debugger._ensure_running()
-        if reg_name in STANDARD_REGS:
-            reg_name, first_byte, last_byte, reg_type = STANDARD_REGS[reg_name]
-            reg_bytes = self.standard_regs[reg_name][first_byte : last_byte + 1]
-            return reg_type.from_bytes(reg_bytes)
-        elif reg_name in EXTENDED_REGS:
-            reg_info = EXTENDED_REGS[reg_name]
-            act_names, reg_type = reg_info
-            exists = True
-            reg_bytes = b""
-            for act_name in act_names:
-                if act_name not in self.extended_regs:
-                    exists = False
-                    break
-                reg_bytes += self.extended_regs[act_name]
-            if not exists:
-                raise ValueError(f"Register {reg_name} not available on this system or in the current process state")
-            # if it's a vector register we need to pass the parent Registers object to it, so it can trigger updates when its lanes are modified
-            if issubclass(reg_type, VectorRegister):
-                return reg_type(reg_bytes, self, reg_name)
-            else:
-                return reg_type.from_bytes(reg_bytes)
-        else:
-            raise KeyError(reg_name)
+        try:
+            return getattr(self, reg_name) # use the getattr method to get the register from the descriptor attribute
+        except AttributeError:
+            raise KeyError(reg_name) # if the descriptor didn't find the register, we raise a KeyError for consistency with dict-like access
     
     def set(self, reg_name: str, value: REGISTER_SETTABLE_TYPES, trigger_updates: bool = True) -> None:
         """
         Sets the register with the given name to the given value.
         """
         self._debugger._ensure_running()
-        if reg_name in STANDARD_REGS:
-            reg_name, first_byte, last_byte, reg_type = STANDARD_REGS[reg_name]
-            value = _convert_value_to_bytes(value, reg_type.size)
-            full_reg_value = bytearray(self.standard_regs[reg_name])
-            full_reg_value[first_byte : last_byte + 1] = value
-            self.standard_regs[reg_name] = bytes(full_reg_value)
-            modified_regs_dict = {reg_name: self.standard_regs[reg_name]}
-            ptrace.set_standard_regs(self._debugger.child_pid, modified_regs_dict)
-        elif reg_name in EXTENDED_REGS:
-            reg_info = EXTENDED_REGS[reg_name]
-            act_names, reg_type = reg_info
-            # we need to convert the value to bytes
-            value_bytes = _convert_value_to_bytes(value, reg_type.size)
-            modified_regs_dict: dict[str, bytes] = {}
-            # Registers split across multiple actual registers (e.g. ymm) - need to split the value bytes accordingly
-            for i, act_name in enumerate(act_names):
-                low_byte = i * (len(value_bytes) // len(act_names))
-                high_byte = (i + 1) * (len(value_bytes) // len(act_names))
-                part_bytes = value_bytes[low_byte : high_byte]
-                self.extended_regs[act_name] = part_bytes
-                modified_regs_dict[act_name] = part_bytes
-            ptrace.set_extended_regs(self._debugger.child_pid, modified_regs_dict)
-        else: # if we haven't found this register anywhere, raise an error
+        try:
+            desc = vars(type(self))[reg_name] # get the descriptor for the register using vars on the class
+            if not isinstance(desc, (StandardRegister, ExtendedRegister)):
+                raise KeyError(reg_name) # if it's not a descriptor, it's not a register we can set, so we raise a KeyError
+            desc.set_value(self, value, trigger_updates=False) # use the set_value method of the descriptor to set the value without triggering updates (as we will trigger them after)
+        except AttributeError:
             raise KeyError(reg_name)
         if trigger_updates:
             self._debugger.update_callbacks.trigger()
@@ -290,23 +379,3 @@ class Registers:
         Sets the register with the given name to the given value, same as set method.
         """
         self.set(key, value)
-
-    def __getattr__(self, name: str) -> CNumBase | VectorRegister:
-        """
-        Dot access to registers.
-        Returns the register with the given name, same as get method.
-        """
-        if name in STANDARD_REGS or name in EXTENDED_REGS:
-            return self.get(name)
-        else:
-            raise AttributeError(name)
-
-    def __setattr__(self, name: str, value: REGISTER_SETTABLE_TYPES) -> None:
-        """
-        Dot assignment to registers.
-        Sets the register with the given name to the given value, same as set method.
-        """
-        if name in STANDARD_REGS or name in EXTENDED_REGS:
-            self.set(name, value)
-        else:
-            super().__setattr__(name, value)

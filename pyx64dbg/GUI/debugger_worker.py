@@ -312,7 +312,7 @@ class DebuggerWorker(QObject):
         Returns None if no debugger is active.
         """
         if self.debugger:
-            return self.debugger.registers[register]
+            return self.debugger.registers.get(register)
         return None
     
     def set_register(self, register: str, value: int):
@@ -320,7 +320,7 @@ class DebuggerWorker(QObject):
         Sets the value of a register in the debugged process.
         """
         if self.debugger:
-            self.debugger.registers[register] = value
+            self.debugger.registers.set(register, value)
     
     def update_vector_register(self, reg_name: str, lane_name: str, lane_index: Optional[int], new_value: Any):
         """
@@ -329,7 +329,7 @@ class DebuggerWorker(QObject):
         Otherwise, updates the single lane view (e.g. ymm0.sf32).
         """
         if self.debugger:
-            reg = self.debugger.registers[reg_name]
+            reg = self.debugger.registers.get(reg_name)
             if lane_index is not None: # if lane index is provided, get the attribute and update at index
                 lane = getattr(reg, lane_name)
                 lane[lane_index] = new_value

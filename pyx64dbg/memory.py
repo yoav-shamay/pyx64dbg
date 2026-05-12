@@ -1,4 +1,4 @@
-from pyx64dbg.number_types import CIntBase, Int8, UInt64, UInt8
+from pyx64dbg.number_types import CIntBase, CNumBase, UInt8
 import pyx64dbg.ptrace as ptrace
 from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION
 from typing import TYPE_CHECKING, Optional, TypeVar, overload
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 PAGE_SIZE = mmap.PAGESIZE
 
 # generic for type annotation in read_number
-T = TypeVar("T", bound=CIntBase)
+T = TypeVar("T", bound=CNumBase)
 
 
 class Memory:
@@ -235,6 +235,16 @@ class Memory:
                 ]  # if it's a bytes object, take the first byte as the value to write
             self.set_byte(key, value, trigger_updates=False)
         self._debugger.update_callbacks.trigger()  # as it's an operator, we can't have an optional parameter, so we trigger in the end anyway
+
+    # overloads for read_instruction, as it can return either a single instruction or a list based on whether or not the instruction count is provided
+    @overload
+    def read_instruction(
+        self, address: int | CIntBase, instruction_cnt: None = None
+    ) -> capstone.CsInsn: ...
+    @overload
+    def read_instruction(
+        self, address: int | CIntBase, instruction_cnt: int
+    ) -> list[capstone.CsInsn]: ...
 
     def read_instruction(
         self, address: int | CIntBase, instruction_cnt: Optional[int] = None

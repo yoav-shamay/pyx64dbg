@@ -114,7 +114,7 @@ class Control:
         self._debugger._ensure_running()
         if notify_updates:
             self._debugger.busy_callbacks.trigger()
-        rip = UInt64(self._debugger.registers["rip"])  # we use UInt64 for addresses
+        rip = UInt64(self._debugger.registers.rip)  # we use UInt64 for addresses
         if rip in self._debugger.breakpoints.get_breakpoints():
             # if we are in a breakpoint we need to use the special method
             self._step_from_breakpoint(rip)
@@ -141,7 +141,7 @@ class Control:
         self._debugger._ensure_running()
         if notify_updates:
             self._debugger.busy_callbacks.trigger()
-        rip = UInt64(self._debugger.registers["rip"])
+        rip = UInt64(self._debugger.registers.rip)
         if rip in self._debugger.breakpoints.get_breakpoints():
             self._step_from_breakpoint(rip)
             if (
@@ -174,7 +174,7 @@ class Control:
         self._debugger._ensure_running()
         if notify_updates:
             self._debugger.busy_callbacks.trigger()
-        rip: UInt64 = self._debugger.registers["rip"]
+        rip: UInt64 = UInt64(self._debugger.registers.rip)  # we use UInt64 for addresses
         cur_instruction: CsInsn = self._debugger.memory.read_instruction(rip)  # read the instruction on current RIP
         if CS_GRP_CALL in cur_instruction.groups:
             # if the instruction is a call, set a temporary breakpoint on the next instruction and continue until hitting it (or other breakpoints)
