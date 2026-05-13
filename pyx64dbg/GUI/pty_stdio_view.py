@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class PtyTerminalIO(TerminalPOSIXIO):
     """
-    An implementation of TerminalPOSIXIO that is designed to work with a PTY file descriptor instead of creating a process.
+    An implementation of TerminalPOSIXIO from the termqt library that is designed to work with a PTY file descriptor instead of creating a process.
     It uses a QSocketNotifier to listen for data on the PTY and reads it asynchronously
     """
     def __init__(self, cols: int, rows: int, parent : QWidget, logger=None):

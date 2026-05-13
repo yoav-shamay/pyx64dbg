@@ -1,4 +1,5 @@
 from pyx64dbg.debugger import Debugger
+from pyx64dbg.number_types import UInt64
 
 class DebuggerState:
     """
@@ -10,6 +11,6 @@ class DebuggerState:
         """
         Allows initialization from a Debugger object.
         """
-        self.standard_regs = debugger.registers.standard_regs
-        self.breakpoints = debugger.breakpoints.get_breakpoints()
-        self.stopped_signal = debugger.stopped_signal
+        self.standard_regs: dict[str, bytes] = debugger.registers.standard_regs
+        self.breakpoints: set[UInt64] = debugger.breakpoints.get_breakpoints()
+        self.stopped_signal: int | None = debugger.stopped_signal

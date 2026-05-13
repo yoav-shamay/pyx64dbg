@@ -3,6 +3,11 @@ from pyx64dbg.debugger import Debugger
 EXECUTABLE_ADDRESS = "./test/executables/extended_registers/test_extended_registers"
 
 def test_read_ymm():
+    """
+    Tests reading ymm registers in the debugged process.
+    We stop at various points in the program where ymm0 is modified (when the values are loaded and when they are added).
+    Each time, we check that the values are correct.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x6a) # breakpoint right before the first assignment to ymm0
@@ -18,6 +23,12 @@ def test_read_ymm():
     dbg.control.kill_process()
 
 def test_write_ymm():
+    """
+    Tests writing to ymm registers in the debugged process.
+    We set a breakpoint right before the first assignment to ymm0, send input, and then modify the value in ymm0.
+    We check that the modified value is correctly written and that further reads show the same value.
+    We also check that the values the program prints at the end are based on the modified values in ymm0.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x6a) # breakpoint right before the first assignment to ymm0

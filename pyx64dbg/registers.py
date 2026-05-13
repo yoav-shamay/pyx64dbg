@@ -8,9 +8,9 @@ if TYPE_CHECKING:
     from pyx64dbg.debugger import Debugger
 
 # types that we can convert to bytes and assign to a register
-REGISTER_SETTABLE_TYPES: TypeAlias = int | float | CNumBase | VectorRegister | list["REGISTER_SETTABLE_TYPES"] | bytes
+RegisterSettableTypes: TypeAlias = int | float | CNumBase | VectorRegister | list["REGISTER_SETTABLE_TYPES"] | bytes
 
-def _convert_value_to_bytes(value: REGISTER_SETTABLE_TYPES, width_bytes: int) -> bytes:
+def _convert_value_to_bytes(value: RegisterSettableTypes, width_bytes: int) -> bytes:
     """
     An helper function to convert a value of various possible types to bytes for register assignment.
     Works with integers, floats, C integers, VectorRegister, bytes, and list of any of those types.
@@ -95,14 +95,14 @@ class StandardRegister(Generic[T_Reg]):
         reg_bytes = instance.standard_regs[self.struct_name][self.first_byte : self.first_byte + self.length]
         return self.reg_type.from_bytes(reg_bytes) # convert to the right number type
 
-    def __set__(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES) -> None:
+    def __set__(self, instance: "Registers", value: RegisterSettableTypes) -> None:
         """
         Setter for the descriptor.
         Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
         """
         self.set_value(instance, value, trigger_updates=True)
 
-    def set_value(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES, trigger_updates: bool = True) -> None:
+    def set_value(self, instance: "Registers", value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
         """
         A function to set the value of the register (with an option to not trigger callbacks).
         """
@@ -164,14 +164,14 @@ class ExtendedRegister(Generic[T_Reg]):
         else:
             return self.reg_type.from_bytes(reg_bytes)
 
-    def __set__(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES) -> None:
+    def __set__(self, instance: "Registers", value: RegisterSettableTypes) -> None:
         """
         Setter for the descriptor.
         Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
         """
         self.set_value(instance, value, trigger_updates=True)
 
-    def set_value(self, instance: "Registers", value: REGISTER_SETTABLE_TYPES, trigger_updates: bool = True) -> None:
+    def set_value(self, instance: "Registers", value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
         """
         A function to set the value of the register (with an option to not trigger callbacks).
         """
@@ -351,7 +351,7 @@ class Registers:
         except AttributeError:
             raise KeyError(reg_name) # if the descriptor didn't find the register, we raise a KeyError for consistency with dict-like access
     
-    def set(self, reg_name: str, value: REGISTER_SETTABLE_TYPES, trigger_updates: bool = True) -> None:
+    def set(self, reg_name: str, value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
         """
         Sets the register with the given name to the given value.
         """
@@ -373,7 +373,7 @@ class Registers:
         """
         return self.get(key)
     
-    def __setitem__(self, key: str, value: REGISTER_SETTABLE_TYPES) -> None:
+    def __setitem__(self, key: str, value: RegisterSettableTypes) -> None:
         """
         Square bracket assignment to registers.
         Sets the register with the given name to the given value, same as set method.

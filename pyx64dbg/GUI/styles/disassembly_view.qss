@@ -1,4 +1,4 @@
-/* Global Monospace Font */
+/* Global table font and padding configuration */
 QTableWidget, QLabel {
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 13px;

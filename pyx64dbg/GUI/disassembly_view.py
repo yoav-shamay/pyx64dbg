@@ -5,15 +5,15 @@ from PySide6.QtWidgets import (
     QMenu, QMessageBox, QTableWidgetItem, QWidget, QVBoxLayout, QTableWidget, 
     QLabel, QAbstractItemView, QHeaderView, QInputDialog
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QPoint
 
 import capstone
-from capstone.x86 import X86_OP_IMM, X86_OP_REG, X86_OP_MEM, X86_REG_RIP
+from capstone.x86 import X86_OP_IMM, X86_OP_REG, X86_OP_MEM, X86_REG_RIP, X86Op
 
 from pyx64dbg.GUI.debugger_state import DebuggerState
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 from pyx64dbg.GUI.utils import prompt_for_expression
-from pyx64dbg.number_types import Int64
+from pyx64dbg.number_types import Int64, UInt64
 
 from pyx64dbg.GUI.async_slot import async_slot
 
@@ -34,33 +34,40 @@ COLORS = {
 }
 
 class DisassemblyView(QWidget):
+    """
+    This class defines the disassembly view widget in the GUI.
+    Displays the disassembled instructions of the debugged process.
+    """
     def __init__(self, main_window: MainWindow) -> None:
         super().__init__(main_window)
         self._main_window: MainWindow = main_window
         self._debugger_worker: DebuggerWorker = main_window.debugger_worker
-        self._address_to_symbol = {}
-        self._rip = 0
-        self._debugger_state = None
+        self._address_to_symbol: dict[UInt64, str] = {}
+        self._rip: UInt64 = UInt64(0)
+        self._debugger_state: DebuggerState | None = None
         
-        self.cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
-        self.cs.detail = True
+        self._cs: capstone.Cs = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+        self._cs.detail = True
         # disassembly mode - from RIP, address range (usually a symbol), or specific address (default count)
-        self._disassemble_from_rip = None
-        self._disassemble_range = None # tuple of (start, end) addresses to disassemble. end isn't inclusive.
-        self._disassemble_address = None
+        self._disassemble_from_rip: bool = False
+        self._disassemble_range: tuple[UInt64, UInt64] | None = None # tuple of (start, end) addresses to disassemble. end isn't inclusive.
+        self._disassemble_address: UInt64 | None = None
 
         self._init_ui()
         self._init_callbacks()
         self._load_qss()
 
-    def _load_qss(self):
+    def _load_qss(self) -> None:
         """
-        Load the style qss file
+        Load the style qss file.
         """
         with open("pyx64dbg/GUI/styles/disassembly_view.qss", "r") as f:
             self.setStyleSheet(f.read())
 
-    def _init_ui(self):
+    def _init_ui(self) -> None:
+        """
+        Inits the UI, creating the table and setting its properties.
+        """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         # create the table for the disassembly with 4 columns
@@ -97,32 +104,42 @@ class DisassemblyView(QWidget):
 
         layout.addWidget(self.table)
 
-    def _init_callbacks(self):
+    def _init_callbacks(self) -> None:
+        """
+        Registers the callbacks to update the view on various process events.
+        """
         self._debugger_worker.process_started.connect(self._on_process_run)
         self._debugger_worker.state_update.connect(self._on_state_update)
         self._debugger_worker.file_selected.connect(self._on_file_selected)
 
 
-    def _create_cell_label(self, text, status_val, alignment=Qt.AlignmentFlag.AlignLeft):
+    def _create_cell_label(self, text: str, status_val: str, alignment: Qt.AlignmentFlag=Qt.AlignmentFlag.AlignLeft) -> QLabel:
         """
-        Helper to create a styled label for any column
+        Helper to create a styled label for any column.
+        Gets the text, the status value for the row (for QSS styling) and the alignment for the cell.
         """
         lbl = QLabel(text)
+        # set the "status" property which will be used in styling
         lbl.setProperty("status", status_val)
-        # Ensure the label fills the entire cell height/width
+        # Set the alignment of the label, ensuring it's vertically cenetred in addition to the provided alignment
         lbl.setAlignment(alignment | Qt.AlignmentFlag.AlignVCenter)
         # Add a tiny bit of padding so text isn't touching the line
         lbl.setContentsMargins(5, 0, 5, 0)
         return lbl
 
     def _load_disassembly(self, instructions: list[capstone.CsInsn]):
+        """
+        Loads a specified list of instructions into the table.
+        """
+        # set the table row count to match the number of instructions we want to display
         self.table.setRowCount(len(instructions))
-
+        # add each instruction to the table
         for row, insn in enumerate(instructions):
+            # Determine indicators - if it's the current instruction and if it's a breakpoint
             is_rip = (insn.address == self._rip)
             is_bp = (insn.address in self._debugger_state.breakpoints if self._debugger_state else False)
 
-            # Determine "Status" property for QSS
+            # Determine "Status" property for QSS, and indicator column
             status = "normal"
             indicator = ""
             if is_rip and is_bp:
@@ -133,10 +150,10 @@ class DisassemblyView(QWidget):
                 status, indicator = "bp", "🔴"
 
 
-            # 1. Indicator Column
+            # Indicator Column
             self.table.setCellWidget(row, 0, self._create_cell_label(indicator, status, Qt.AlignmentFlag.AlignCenter))
 
-            # 2. Address Column.
+            # Address Column.
             # have an item with the address number, to access programmatically (for context menu)
             addr_item = QTableWidgetItem()
             addr_item.setData(Qt.ItemDataRole.UserRole, insn.address)
@@ -147,126 +164,175 @@ class DisassemblyView(QWidget):
             addr_html = f"<span style='color:{COLORS['addr']};'>{addr_str}</span>"
             self.table.setCellWidget(row, 1, self._create_cell_label(addr_html, status))
 
-            # 3. Mnemonic Column
+            # Mnemonic Column
             # Wrap in span for bold/color
             mnem_html = f"<span style='color:{COLORS['mnem']}; font-weight:bold;'>{insn.mnemonic}</span>"
             self.table.setCellWidget(row, 2, self._create_cell_label(mnem_html, status))
 
-            # 4. Operands Column
+            # Operands Column
             ops_html = self._format_operands_html(insn)
             self.table.setCellWidget(row, 3, self._create_cell_label(ops_html, status))
 
     def _format_operands_html(self, insn: capstone.CsInsn) -> str:
-        # (Same logic as before, just generating spans for registers/immediates)
-        # Using inline styles for tokens (colors) is still okay here 
-        # because those represent data-types (registers vs symbols),
-        # whereas row colors represent debugger-state.
-        parts = []
+        """
+        Formats the operand part of an instruction to label text (with HTML).
+        Returns the formatted HTML string for the operands.
+        """
+        parts: list[str] = []
         for op in insn.operands:
             if op.type == X86_OP_IMM:
+                # immediate operand - try to resolve to a symbol
                 sym = self._address_to_symbol.get(op.imm)
-                parts.append(f"<span style='color:#660099;'><b>{sym}</b></span>" if sym else f"<span style='color:#006600;'>{hex(op.imm)}</span>")
+                if sym:
+                    parts.append(f"<span style='color:{COLORS['sym']};'><b>{sym}</b></span>")
+                else:
+                    parts.append(f"<span style='color:{COLORS['imm']};'>{hex(op.imm)}</span>")
             elif op.type == X86_OP_REG:
-                parts.append(f"<span style='color:#A00000;'>{insn.reg_name(op.reg)}</span>")
+                # register operand - just show the register name
+                parts.append(f"<span style='color:{COLORS['reg']};'>{insn.reg_name(op.reg)}</span>")
             elif op.type == X86_OP_MEM:
+                # mem operand - use the helper function
                 parts.append(self._format_mem_html(insn, op))
+        # return the parts joined with a comma
         return ", ".join(parts)
 
     def _tag(self, text: str, color_key: str, bold: bool = False) -> str:
+        """
+        Puts the text in a span with the color from COLORS based on the color_key, and bold if specified.
+        Returns the formatted HTML string for the text.
+        """
         color = COLORS.get(color_key, "#000000")
         style = f"color:{color};"
         if bold: style += "font-weight:bold;"
         return f"<span style='{style}'>{text}</span>"
 
-    def _format_mem_html(self, insn, op):
-        parts = []
-        # Segment
+    def _format_mem_html(self, insn: capstone.CsInsn, op: X86Op) -> str:
+        """
+        Formats a memory operand into an HTML string, resolving symbols where possible.
+        Returns the formatted HTML string for the memory operand.
+        """
+        parts: list[str] = []
+        segment_part = ""
+        # Segment register
         if op.mem.segment != 0:
-            parts.append(f"{self._tag(insn.reg_name(op.mem.segment), 'reg')}{self._tag(':', 'punct')}")
-        # Base
+            segment_part = f"{self._tag(insn.reg_name(op.mem.segment), 'reg')}{self._tag(':', 'punct')}"
+        # Base register
         if op.mem.base != 0:
             parts.append(self._tag(insn.reg_name(op.mem.base), 'reg'))
-        # Index
+        # Index register, including scale
         if op.mem.index != 0:
             if parts: parts.append(self._tag("+", "punct"))
             parts.append(self._tag(insn.reg_name(op.mem.index), 'reg'))
             if op.mem.scale != 1:
                 parts.append(f"{self._tag('*', 'punct')}{self._tag(str(op.mem.scale), 'imm')}")
-        # Displacement
+        # Displacement - including symbol resolution for absolute addresses (disp with no base or index)
         if op.mem.disp != 0:
-            if parts:
+            if len(parts) > 0:
                 parts.append(self._tag("+" if op.mem.disp > 0 else "-", "punct"))
                 val = abs(op.mem.disp)
             else:
                 val = op.mem.disp
             
             # Symbol check for absolute displacements
-            if op.mem.base == 0 and op.mem.index == 0:
+            if op.mem.base == 0 and op.mem.index == 0: # absolute address
                 symbol = self._address_to_symbol.get(op.mem.disp)
-                parts.append(self._tag(symbol, "sym", True) if symbol else self._tag(hex(val), "imm"))
+                if symbol:
+                    parts.append(self._tag(symbol, "sym", True))
+                else:
+                    parts.append(self._tag(hex(val), "imm"))
             else:
                 parts.append(self._tag(hex(val), "imm"))
-
+        
+        # join the parts together, and use format segment:[parts] if there's a segment
         inner = "".join(parts)
-        res = f"{self._tag('[', 'punct')}{inner}{self._tag(']', 'punct')}"
+        res = f"{segment_part}{self._tag('[', 'punct')}{inner}{self._tag(']', 'punct')}"
 
-        # RIP-Relative Resolution
-        if op.mem.base == X86_REG_RIP and op.mem.index == 0:
+        # RIP-Relative Resolution (parenthesis after the instruction)
+        if op.mem.base == X86_REG_RIP and op.mem.index == 0: # [RIP+disp] addressing
             rip_target = insn.address + insn.size + op.mem.disp
-            symbol = self._address_to_symbol.get(rip_target)
+            symbol = self._address_to_symbol.get(rip_target) # try to resolve symbol
             res += f" {self._tag('(', 'punct')}"
             if symbol:
+                # if symbol, format as symbol, address
                 res += f"{self._tag(symbol, 'sym', True)}{self._tag(',', 'punct')} "
+            # without symbol, just show the address
             res += f"{self._tag(hex(rip_target), 'addr')}{self._tag(')', 'punct')}"
             
         return res
 
     @async_slot
-    async def _on_process_run(self):
+    async def _on_process_run(self) -> None:
+        """
+        Callback for when the process starts running.
+        Fetches the address to symbol mapping and starts disassembling from RIP.
+        """
         self._address_to_symbol = await self._debugger_worker.call_async(self._debugger_worker.get_address_to_symbol_mapping)
         # by default - disassemble from RIP
-        await self._make_disassemble_from_rip()
+        await self.make_disassemble_from_rip()
 
     @async_slot
-    async def _on_state_update(self, debugger_state: DebuggerState):
+    async def _on_state_update(self, debugger_state: DebuggerState) -> None:
+        """
+        Callback for when the debugger state updates (like after stepping or hitting a breakpoint).
+        Updates the RIP and refreshes the view if we're in a mode that follows RIP.
+        """
         self._debugger_state = debugger_state
         self._rip = Int64.from_bytes(debugger_state.standard_regs["rip"])
         await self._refresh_view()
 
-    async def _refresh_view(self):
+    async def _refresh_view(self) -> None:
+        """
+        Function that refreshes the disassembly view after an update.
+        Fetches the instructions based on the mode and loads them into the view.
+        """
         if self._main_window.debugger_busy:
             return # if the debugger is busy, don't try to refresh as we can't call the thread
-        instructions = None
-        if self._disassemble_from_rip:
-            instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._rip, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
-        elif self._disassemble_range:
-            code = await self._debugger_worker.call_async(self._debugger_worker.read_memory, self._disassemble_range[0], self._disassemble_range[1])
-            instructions = list(self.cs.disasm(code, self._disassemble_range[0]))
-        elif self._disassemble_address:
-            instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._disassemble_address, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
-        if instructions: # instructions might be None if there was some error (like debugger not fully initialized). in this case, just don't update the view.
+        try:
+            instructions = None
+            if self._disassemble_from_rip:
+                # from RIP - read the instructions, take SPECIFIC_ADDRESS_INSTRUCTION_COUNT instructions from the current RIP address
+                instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._rip, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
+            elif self._disassemble_range:
+                # range - read the memory for the range and dissasemble it here as the debugger doesn't have a method for disassembling a range
+                code = await self._debugger_worker.call_async(self._debugger_worker.read_memory, self._disassemble_range[0], self._disassemble_range[1])
+                instructions = list(self._cs.disasm(code, self._disassemble_range[0]))
+            elif self._disassemble_address:
+                # specific address - read SPECIFIC_ADDRESS_INSTRUCTION_COUNT instructions from the specific address (similar to from RIP)
+                instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._disassemble_address, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
             self._load_disassembly(instructions)
+        except:
+            # There might be an error while reading memory (like invalid address). in this case we'll just not update the view.
+            pass
 
     # Disassembly Option Setters
-    async def _make_disassemble_from_rip(self):
+    async def make_disassemble_from_rip(self) -> None:
+        """
+        Method to change the dissasembly mode to follow RIP.
+        """
         self._disassemble_from_rip = True
         self._disassemble_range = None
         self._disassemble_address = None
         if self._debugger_state: await self._refresh_view()
 
-    async def make_disassemble_memory_range(self, start: int, end: int):
+    async def make_disassemble_memory_range(self, start: int, end: int) -> None:
+        """
+        Method to change the disassembly mode to disassemble a memory range (usually a symbol).
+        """
         self._disassemble_from_rip = False
         self._disassemble_range = (start, end)
         self._disassemble_address = None
         if self._debugger_state: await self._refresh_view()
 
-    async def _make_disassemble_from_address(self, address: int):
+    async def make_disassemble_from_address(self, address: int) -> None:
+        """
+        Method to change the disassembly mode to disassemble from a specific address.
+        """
         self._disassemble_from_rip = False
         self._disassemble_range = None
         self._disassemble_address = address
         if self._debugger_state: await self._refresh_view()
 
-    def _show_context_menu(self, position):
+    def _show_context_menu(self, position: QPoint) -> None:
         """
         Builds and displays the right-click menu.
         Available options:
@@ -304,7 +370,7 @@ class DisassemblyView(QWidget):
 
         # Change disassembly to RIP
         act_reset_rip = menu.addAction("Go to current RIP")
-        act_reset_rip.triggered.connect(async_slot(self._make_disassemble_from_rip)) # wrap in async_slot as this function is async but doesn't have the decorator as it's called internally
+        act_reset_rip.triggered.connect(async_slot(self.make_disassemble_from_rip)) # wrap in async_slot as this function is async but doesn't have the decorator as it's called internally
         if self._main_window.debugger_busy:
             act_reset_rip.setEnabled(False) # don't allow actions while the debugger is busy
         # Choose a location (Prompt)
@@ -316,16 +382,16 @@ class DisassemblyView(QWidget):
         menu.exec(self.table.viewport().mapToGlobal(position))
 
     @async_slot
-    async def _go_to_address_prompt(self):
+    async def _go_to_address_prompt(self) -> None:
         """
         Opens a dialog to jump to a specific address.
         """
         address = await prompt_for_expression(self, "Disassemble At", "Address:", self._debugger_worker)
         if address is not None:
-            await self._make_disassemble_from_address(address)
+            await self.make_disassemble_from_address(address)
 
     @async_slot
-    async def _toggle_breakpoint(self, address: int):
+    async def _toggle_breakpoint(self, address: int) -> None:
         """
         Toggle a breakpoint on the given address.
         """
@@ -335,13 +401,13 @@ class DisassemblyView(QWidget):
             await self._debugger_worker.call_async(self._debugger_worker.add_breakpoint, address)
 
     @async_slot
-    async def _set_rip(self, address: int):
+    async def _set_rip(self, address: int) -> None:
         """
         Sets the instruction pointer (RIP) to the given address.
         """
         await self._debugger_worker.call_async(self._debugger_worker.set_register, "rip", address)
     
-    def _on_file_selected(self):
+    def _on_file_selected(self) -> None:
         """
         Callback for when a new file is selected in the debugger.
         Resets the disassembly view to follow RIP.

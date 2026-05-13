@@ -5,6 +5,9 @@ EXECUTABLE_ADDRESS = "./test/executables/basic_crackme/test_basic_crackme"
 CRACKME_SOL = 687113069
 
 def test_execute_wrong():
+    """
+    Test the execution of the crackme with wrong input, and check that we receive the "Wrong!" message at the end.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     dbg.stdio.sendline("0")
     dbg.control.continue_execution()
@@ -12,6 +15,9 @@ def test_execute_wrong():
     assert dbg.stdio.recvall() == b"Wrong!\r\n"
     
 def test_execute_correct():
+    """
+    Test the execution of the crackme with correct input, and check that we receive the "Correct!" message at the end.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     dbg.stdio.sendline(str(CRACKME_SOL))
     dbg.control.continue_execution()
@@ -19,6 +25,11 @@ def test_execute_correct():
     assert dbg.stdio.recvall() == b"Correct!\r\n"
 
 def test_breakpoint():
+    """
+    Test that we can set a breakpoint at the beginning of main.
+    Ensures the rip after stopping is correct, and that it appears in the breakpoint set.
+    Also checks that removing this breakpoint works and it no longer appears in the breakpoint set.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main)
@@ -27,8 +38,14 @@ def test_breakpoint():
     assert dbg.registers.rip == main
     dbg.breakpoints.remove_breakpoint(main)
     assert dbg.breakpoints.get_breakpoints() == set()
+    dbg.control.kill_process()
 
 def test_next():
+    """
+    Test the operation of the next movement command, which should step over function calls.
+    We set a breakpoint right before a call to printf, and then use next to step over it.
+    Checks that printf is actually executed and that the RIP is correct after stepping over.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x44) # breakpoint right before the call to printf
@@ -40,6 +57,11 @@ def test_next():
     dbg.control.kill_process() # kill the process once we finished the test to avoid leaving orphan process
 
 def test_single_step():
+    """
+    Tests the operation of the single step movement command, which should step into function calls.
+    We set a breakpoint right before a call to printf, and then use single step to step into it.
+    Checks that we are actually in the printf function and that the RIP is correct after stepping in.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x44) # breakpoint right before the call to printf
@@ -49,7 +71,13 @@ def test_single_step():
     assert dbg.registers.rip == dbg.symbols.printf_plt # we should be at the printf plt stub
     dbg.control.kill_process()
 
-def test_memory_read_write():
+def test_memory_read_write_number():
+    """
+    Tests reading and writing numbers to memory in the debugged process.
+    We set a breakpoint right after a call to scanf, which reads input into a stack variable.
+    We then read the value that was read by scanf, check that it's correct, write a new value to that memory location, and check that the new value is correct.
+    We change the value to be the correct password, and we continue to check that we get the "Correct!" message.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x64) # breakpoint right after the call to scanf
@@ -69,6 +97,12 @@ def test_memory_read_write():
     assert dbg.stdio.recvall() == b"Correct!\r\n" # check that the modified number was used and we received the correct answer
 
 def test_stack_frame():
+    """
+    Tests the stack frame functionality of the debugger.
+    We stop inside the libc puts function which is called in the end.
+    We check the saved_rip and the saved_rbp of the current frame, and the rbp of the next frame.
+    We also check reading memory from the stack using the previous frame, and check that it contains the expected value.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0xe1) # breakpoint right before the call to puts on correct
@@ -94,6 +128,12 @@ def test_stack_frame():
     dbg.control.kill_process()
 
 def test_register_write():
+    """
+    Tests writing to registers in the debugged process.
+    We set a breakpoint right before a cmp instruction that compares the computed value to the correct password.
+    We then modify the value in rax to be the correct password.
+    We test that further .rax reads show the modified value, and we continue execution to check that we get the "Correct!" message.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0xcf) # breakpoint right before the cmp
@@ -107,6 +147,11 @@ def test_register_write():
     assert dbg.stdio.recvall() == b"Correct!\r\n" # check that modifying rax caused the cmp to succeed and we received the correct answer
 
 def test_finish():
+    """
+    Tests the finish movement command, which should step out of the current function.
+    We set a breakpoint right before a call to printf, and then use finish to step out of the current function.
+    We check that it indeed prints the prompt and that the rip in the end is correct.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     printf = dbg.shared_objects["libc.so.6"].symbols.printf

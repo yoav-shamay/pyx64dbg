@@ -211,7 +211,10 @@ def test_number_types_bytes_roundtrip(cls, val):
     (Float64, 0.0),
     (Float80, 0.0)
 ])
-def test_float_division_by_zero(cls, val):
+def test_division_by_zero(cls, val):
+    """
+    Tests that division by zero raises a ZeroDivisionError.
+    """
     with pytest.raises(ZeroDivisionError):
         _ = cls(val) / 0.0
 
@@ -322,25 +325,6 @@ def test_shift_wrapping():
     assert int(Int64(1) << 66) == 4
     assert int(UInt32(1) << 33) == 2
     assert int(UInt64(1) << 66) == 4
-
-def test_division_by_zero():
-    """
-    Tests that division by zero raises an exception instead of UB
-    """
-    with pytest.raises(ZeroDivisionError):
-        _ = Int32(1) // 0
-    with pytest.raises(ZeroDivisionError):
-        _ = UInt32(1) // 0
-    with pytest.raises(ZeroDivisionError):
-        _ = Int64(1) // 0
-    with pytest.raises(ZeroDivisionError):
-        _ = UInt64(1) // 0
-    with pytest.raises(ZeroDivisionError):
-        _ = Float32(0.5) / 0
-    with pytest.raises(ZeroDivisionError):
-        _ = Float64(0.5) / 0
-    with pytest.raises(ZeroDivisionError):
-        _ = Float80(0.5) / 0
 
 def test_inplace_promotion():
     """

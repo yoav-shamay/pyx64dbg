@@ -6,6 +6,11 @@ EXECUTABLE_ADDRESS = "./test/executables/floating_point/test_fp"
 
 
 def test_xmm_floating_point_reading():
+    """
+    Tests reading floating point values in xmm registers in the debugged process.
+    We stop at various points in the program where xmm0 and xmm1 are modified (when the values are loaded and when they are added).
+    Each time, we check that the values are correct.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x74) # breakpoint right before the first assignment to xmm1
@@ -33,6 +38,12 @@ def test_xmm_floating_point_reading():
     dbg.control.kill_process()   
 
 def test_xmm_floating_point_saving():
+    """
+    Tests writing to xmm registers in the debugged process.
+    We stop before assignment to xmm1 at various points, and modify the value.
+    We then check that the modified value is correctly written and that further reads show the same value.
+    We also check the final results printed at the end, which should be based on the modified values in xmm0 and xmm1.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x74) # breakpoint right before the first assignment to xmm1
@@ -59,6 +70,11 @@ def test_xmm_floating_point_saving():
     assert res2 == pytest.approx(0.8)
 
 def test_st_floating_point_reading():
+    """
+    Tests reading floating point values in st registers in the debugged process.
+    We stop at various points in the program where st0/st1 are modified (when the values are pushed to the stack and added).
+    Each time, we check that the values are correct.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x9a) # breakpoint right before the first assignment to st0
@@ -79,6 +95,12 @@ def test_st_floating_point_reading():
     dbg.control.kill_process()   
 
 def test_st_floating_point_saving():
+    """
+    Tests writing to st registers in the debugged process.
+    We set a breakpoint right before the first assignment to st0, send input, and then modify the value in st0.
+    We check that the modified value is correctly written and that further reads show the same value.
+    We also check that the values the program prints at the end are based on the modified values in st0.
+    """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main + 0x9a) # breakpoint right before the first assignment to st0
