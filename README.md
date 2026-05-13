@@ -8,7 +8,7 @@ Uses the ptrace system call to control the debugged process execution.
 - **GUI** - Graphical interface built using pyside6
 
 ## Prerequisites
-- **OS**: Linux, x86-64 arcgutectyre
+- **OS**: Linux, x86-64 architecture
 - **Python** - 3.10 or later
 - **For building from source**:
     - C++20 compiler
@@ -18,19 +18,22 @@ Uses the ptrace system call to control the debugged process execution.
 ### From PyPI (Recommended)
 TODO, not yet published
 ### From Source (Development)
-`pip install -e .`
+Installed with:
+```bash
+pip install -e .
+```
 This compiles the Pybind11 C++ extensions.
 
 ## Usage
 ### CLI
 `pyx64dbg [/path/to/binary]`
-Starts the IPython console.
+Starts the IPython console.  
 Press `help` within the console for more information on the available commands.
 ## GUI
 `pyx64dbg-gui`
 Opens the graphical interface.
 ## Python API
-Use `pyx64dbg.Debugger` to access the debugger object.
+Use `pyx64dbg.Debugger` to access the debugger object.  
 Example:
 ```python
 from pyx64dbg import Debugger
