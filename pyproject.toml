@@ -10,7 +10,7 @@ authors = [
     { name = "Yoav Shamay", email = "yoavsh97@gmail.com" }
 ]
 readme = "README.md"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "qtconsole"]
 keywords = ["debugger", "ptrace", "x86-64", "linux"]
