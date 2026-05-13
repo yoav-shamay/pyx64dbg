@@ -1,5 +1,5 @@
 # PyX64Dbg
-A Python-based debugger for x64 assembly in linux.
+A Python-based debugger for x64 assembly in linux.  
 Uses the ptrace system call to control the debugged process execution.
 
 ## Features
