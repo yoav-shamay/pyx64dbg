@@ -15,6 +15,7 @@ requires-python = ">=3.10"
 dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "qtconsole"]
 keywords = ["debugger", "ptrace", "x86-64", "linux"]
 classifiers = [
+    "Operating System :: POSIX :: Linux",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -27,6 +28,9 @@ classifiers = [
     "Topic :: Software Development :: Debuggers"
 ]
 
+[project.urls]
+Homepage = "https://github.com/yoav-shamay/pyx64dbg"
+Repository = "https://github.com/yoav-shamay/pyx64dbg"
 
 [project.optional-dependencies]
 dev = ["black", "jinja2", "pytest"]
@@ -34,3 +38,8 @@ dev = ["black", "jinja2", "pytest"]
 [project.scripts]
 pyx64dbg = "pyx64dbg.CLI.main:main"
 pyx64dbg-gui = "pyx64dbg.GUI.main:main"
+
+[tool.setuptools.package-data]
+# Include type stubs, the py.typed marker, and all GUI web/styling assets
+"pyx64dbg" = ["py.typed", "**/*.pyi"]
+"pyx64dbg.GUI" = ["pty_view/*", "styles/*.qss", "assets/*"]

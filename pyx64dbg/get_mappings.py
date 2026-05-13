@@ -6,6 +6,7 @@ Obtained by parsing the auxiliary vector, program headers, dynamic section and l
 
 from typing import TYPE_CHECKING
 from pyx64dbg.number_types import UInt16, UInt32, UInt64
+from pyx64dbg.parse_elf import ELFFileParser
 from pyx64dbg.shared_object import SharedObject
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ DT_NULL = 0
 VDSO_NAME = "linux-vdso.so.1"
 
 
-def _get_auxv(child_pid: int) -> dict[UInt64, UInt64]:
+def get_auxv(child_pid: int) -> dict[UInt64, UInt64]:
     """
     A helper method to get the auxiliary vector of the debugged process.
     Reads it from /proc/<pid>/auxv and parses it into a dictionary mapping from entry types to entry values.
@@ -76,25 +77,23 @@ def _get_auxv(child_pid: int) -> dict[UInt64, UInt64]:
         auxv[entry_type] = entry_value
     return auxv
 
-
-def get_base_address_and_ld_base(
-    child_pid: int, entry_offset: int
-) -> tuple[UInt64, UInt64]:
+def get_entry_address(auxv: dict[UInt64, UInt64]) -> UInt64:
     """
-    Returns the base address of the main executable and the ld of the debugged process.
-    Raises RuntimeError if can't find it in the auxiliary vector (shouldn't happen in a properly running process).
+    A helper method to get the entry point address of the debugged process from its auxiliary vector.
+    Reads the AT_ENTRY entry from the auxiliary vector, which gives the offset of the entry point from the base address.
     """
-    auxv = _get_auxv(child_pid)
-    if AT_ENTRY in auxv:
-        base_address = auxv[AT_ENTRY] - entry_offset
-    else:
-        raise RuntimeError("Cannot find base address from auxiliary vector")
-    if AT_BASE in auxv:
-        ld_base = auxv[AT_BASE]
-    else:
-        raise RuntimeError("Cannot find ld base address from auxiliary vector")
-    return base_address, ld_base
+    return auxv[AT_ENTRY]
 
+def get_ld_base(auxv: dict[UInt64, UInt64]) -> UInt64 | None:
+    """
+    A helper method to get the ld base of the executable in the debugged process from its auxiliary vector.
+    Reads the AT_BASE entry from the auxiliary vector.
+    Returns None for static-linked binaries, as they don't have a ld.
+    """
+    if AT_BASE in auxv and auxv[AT_BASE] != 0: # if the entry isn't present or zero, it's a static-linked binary
+        return auxv[AT_BASE]
+    else:
+        return None
 
 def _get_program_header_address(debugger: "Debugger") -> UInt64:
     """
@@ -106,6 +105,7 @@ def _get_program_header_address(debugger: "Debugger") -> UInt64:
         debugger.base_address + E_PHOFF_OFFSET
     )  # program header table address in the elf header
     e_phoff_value = debugger.memory.read_number(e_phoff_address, UInt64)
+    # as e_phoff value is always an offset, even for non-PIE binaries, we use the base address
     return e_phoff_value + debugger.base_address
 
 
@@ -144,9 +144,8 @@ def _get_dynamic_section_address(debugger: "Debugger") -> UInt64:
             dynamic_section_address = debugger.memory.read_number(
                 entry_address + PROGRAM_HEADER_ENTRY_VALUE_OFFSET, UInt64
             )  # offset of the dynamic section in the elf header
-            return (
-                dynamic_section_address + debugger.base_address
-            )  # add it to the base address to obtain the absolute address
+            # add it to the load bias to obtain the absolute address (as it's already absolute for non-PIE binaries)
+            return dynamic_section_address + debugger.load_bias
     raise RuntimeError("Cannot find dynamic section in program headers")
 
 

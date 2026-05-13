@@ -16,7 +16,7 @@ PLT_STUB_SIZE = 16
 class ELFFileParser:
     """
     Class used to parse an ELF file and extract relevant information.
-    Allows to parse symbols (which also includes got/plt entries) and the entry point offset.
+    Allows to parse symbols (which also includes got/plt entries), the entry point offset, check if it's a PIE binary and get the base address if it's not.
     Uses pyelftools to parse the ELF file.
     """
     def __init__(self, file_name : str):
@@ -46,37 +46,37 @@ class ELFFileParser:
                 # get the symbol type using the mapping, default to OTHER if we don't recognize it
                 symbol_type = elftools_symtypes.get(st_info['type'], SymbolType.OTHER)
                 symbols.append(Symbol(name, address, size, symbol_type))
-        else:
+        elif dynsym is not None:
             # if .symtab is not available, try .dynsym for dynamic symbols
-            if dynsym is not None:
-                for symbol in dynsym.iter_symbols():
-                    name = symbol.name
-                    address = UInt64(symbol['st_value']) # convert the address to UInt64 from the int pyelftools gives us
-                    if address == 0:
-                        continue  # skip symbols with no address, which are likely external or undefined. in this case, we will resolve them through the PLT later
-                    size = symbol['st_size']
-                    st_info = symbol['st_info']
-                    symbol_type = elftools_symtypes.get(st_info['type'], SymbolType.OTHER)
-                    symbols.append(Symbol(name, address, size, symbol_type))
-        # resolve PLT entries for external functions
-        plt_section = self.elffile.get_section_by_name('.plt')
-        rela_plt = self.elffile.get_section_by_name('.rela.plt')
-        if rela_plt is not None and plt_section is not None:
-            # if we have both .rela.plt and .plt sections, we can resolve the PLT entries to get plt and got symbols
-            plt_base = plt_section['sh_addr'] # get the plt base offset, to calculate the address of each PLT entry
-            for i, rel in enumerate(rela_plt.iter_relocations()):
-                symbol_index = rel['r_info_sym'] # the index of the symbol in the .dynsym section
-                # get the symbol from the .dynsym section (always present there, even if .symtab doesn't exist)
-                symbol = dynsym.get_symbol(symbol_index)
-                name = symbol.name # the name of the external symbol
-                # PLT entries are sequential, after the header (16 bytes), each entry is 16 bytes
-                plt_address = plt_base + PLT_HEADER_SIZE + i * PLT_STUB_SIZE
-                plt_sym_name = name + "_plt" # to indicate plt symbols, add a "_plt" suffix to the name
-                symbols.append(Symbol(plt_sym_name, plt_address, PLT_STUB_SIZE,  SymbolType.FUNCTION))
-                # add the got entry for this symbol as well
-                got_address = rel['r_offset'] # the got offset in the ELF is given directly in the relocation entry
-                got_sym_name = name + "_got" # to indicate got symbols, add a "_got" suffix to the name
-                symbols.append(Symbol(got_sym_name, got_address, size, SymbolType.OBJECT))
+            for symbol in dynsym.iter_symbols():
+                name = symbol.name
+                address = UInt64(symbol['st_value']) # convert the address to UInt64 from the int pyelftools gives us
+                if address == 0:
+                    continue  # skip symbols with no address, which are likely external or undefined. in this case, we will resolve them through the PLT later
+                size = symbol['st_size']
+                st_info = symbol['st_info']
+                symbol_type = elftools_symtypes.get(st_info['type'], SymbolType.OTHER)
+                symbols.append(Symbol(name, address, size, symbol_type))
+        # resolve PLT entries for external functions, only if there's a dynsym section (otherwise the binary is static and doesn't have external symbols or a PLT)
+        if dynsym is not None:
+            plt_section = self.elffile.get_section_by_name('.plt')
+            rela_plt = self.elffile.get_section_by_name('.rela.plt')
+            if rela_plt is not None and plt_section is not None:
+                # if we have both .rela.plt and .plt sections, we can resolve the PLT entries to get plt and got symbols
+                plt_base = plt_section['sh_addr'] # get the plt base offset, to calculate the address of each PLT entry
+                for i, rel in enumerate(rela_plt.iter_relocations()):
+                    symbol_index = rel['r_info_sym'] # the index of the symbol in the .dynsym section
+                    # get the symbol from the .dynsym section (always present there, even if .symtab doesn't exist)
+                    symbol = dynsym.get_symbol(symbol_index)
+                    name = symbol.name # the name of the external symbol
+                    # PLT entries are sequential, after the header (16 bytes), each entry is 16 bytes
+                    plt_address = plt_base + PLT_HEADER_SIZE + i * PLT_STUB_SIZE
+                    plt_sym_name = name + "_plt" # to indicate plt symbols, add a "_plt" suffix to the name
+                    symbols.append(Symbol(plt_sym_name, plt_address, PLT_STUB_SIZE,  SymbolType.FUNCTION))
+                    # add the got entry for this symbol as well
+                    got_address = rel['r_offset'] # the got offset in the ELF is given directly in the relocation entry
+                    got_sym_name = name + "_got" # to indicate got symbols, add a "_got" suffix to the name
+                    symbols.append(Symbol(got_sym_name, got_address, size, SymbolType.OBJECT))
         return symbols
     
     def get_entry_point_offset(self) -> int:
@@ -84,6 +84,25 @@ class ELFFileParser:
         Returns the entry point offset of the ELF file.
         """
         return self.elffile.header['e_entry']
+
+    def is_pie(self) -> bool:
+        """
+        Returns True if the ELF file is a PIE binary, False otherwise.
+        """
+        return self.elffile.header['e_type'] == 'ET_DYN'
+    
+    def get_load_base_address(self) -> int:
+        """
+        Returns the load base address of the ELF file, for non-PIE binaries.
+        Raises an exception if the binary is a PIE, as it doesn't have a fixed load base address.
+        """
+        if self.is_pie():
+            raise ValueError("PIE binaries don't have a fixed load base address")
+        # the load base address is the virtual address of the first LOAD segment in the ELF file
+        for segment in self.elffile.iter_segments():
+            if segment['p_type'] == 'PT_LOAD':
+                return segment['p_vaddr']
+        raise ValueError("No LOAD segment found in ELF file")
 
     def close(self) -> None:
         """

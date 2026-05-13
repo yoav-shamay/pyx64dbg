@@ -45,7 +45,6 @@ ALIASES =[
 
 def main(template_path: Path, output_path: Path) -> None:
     # create an environment and load the template.
-    # Set to trim blocks (remove newlines after blocks) and lstrip_blocks (remove leading spaces before blocks) to avoid extra blank lines in the output.
     env = Environment(loader=FileSystemLoader(template_path.parent))
     template = env.get_template(template_path.name)
     # setup global context for the template

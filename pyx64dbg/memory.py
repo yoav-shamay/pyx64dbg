@@ -367,3 +367,13 @@ class Memory:
         null_term = res.index(b"\x00")
         res = res[:null_term]
         return res
+
+    def write_bytes(
+        self, address: int | CIntBase, data: bytes, trigger_updates: bool = True
+    ) -> None:
+        """
+        Writes the given bytes to the given address.
+        Like setitem, but doesn't require end address
+        """
+        self._debugger._ensure_running()
+        self.set_byte_range(data, address, address + len(data), trigger_updates)

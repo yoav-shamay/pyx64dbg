@@ -26,7 +26,7 @@ ext_modules = [
 
 setup(
     ext_modules=ext_modules,
-    packages=find_packages(), 
+    packages=find_packages(include=["pyx64dbg", "pyx64dbg.*"]), 
     # Use the pybind11 build_ext which optimizes for smaller binaries
     cmdclass={"build_ext": build_ext},
 )

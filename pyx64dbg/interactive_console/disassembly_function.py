@@ -3,7 +3,7 @@ This module contains the functions for printing styled disassembly in the intera
 """
 import capstone
 from capstone.x86 import *
-from git import TYPE_CHECKING
+from typing import TYPE_CHECKING
 from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.styles import Style
 

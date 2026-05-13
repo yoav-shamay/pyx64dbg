@@ -17,7 +17,7 @@ from pyx64dbg.parse_elf import ELFFileParser
 from pyx64dbg.symbols import Symbols
 from pyx64dbg.control import Control
 from pyx64dbg.stack import Stack
-from pyx64dbg.get_mappings import get_base_address_and_ld_base, get_shared_objects
+from pyx64dbg.get_mappings import get_auxv, get_entry_address, get_ld_base, get_shared_objects
 
 
 class Debugger:
@@ -70,14 +70,24 @@ class Debugger:
         with ELFFileParser(self.file_path) as elf_parser:
             symbol_list = elf_parser.get_elf_symbols()
             entry_offset = elf_parser.get_entry_point_offset()
-
-        # Init base address and ld base using helper functions
-        base_address, ld_base = get_base_address_and_ld_base(child_pid, entry_offset)
-        self.base_address: UInt64 = base_address
-        self.entry_address: UInt64 = base_address + entry_offset
-        self.ld_base: UInt64 = ld_base
-        self.symbols: Symbols = Symbols(symbol_list, self.base_address)
-
+            self.is_pie: bool = elf_parser.is_pie()
+            if not self.is_pie:
+                # for non-PIE binaries, we can determine the base address from the ELF file, as it's fixed
+                self.base_address: UInt64 = UInt64(elf_parser.get_load_base_address())
+                # if it's a non-PIE binary, all the symbols and addresses are based on the fixed load address, so the offset is 0
+                # Otherwise, they are based on the base address we deduced
+                # This offset between the actual load address and symbol address is called "load bias"
+                self.load_bias: UInt64 = UInt64(0)
+        auxv = get_auxv(self.child_pid)
+        if self.is_pie:
+            # for PIE binaries, we need to deduce the base address from the entry point address and the entry offset
+            entry_address = get_entry_address(auxv)
+            self.base_address: UInt64 = entry_address - entry_offset
+            self.load_bias: UInt64 = self.base_address
+        self.entry_address: UInt64 = self.load_bias + entry_offset
+        self.ld_base: UInt64 | None = get_ld_base(auxv)
+        self.symbols: Symbols = Symbols(symbol_list, self.load_bias) # symbols are based on load bias
+        self.shared_objects: dict[str, SharedObject] = {} # set shared objects to empty for now, as the refresh might fail
         # init shared objects dictionary
         try:
             self.refresh_shared_objects()
@@ -85,6 +95,7 @@ class Debugger:
             # The linker might not have loaded yet, in which case we will get an exception.
             # Just do nothing in this case.
             pass
+        self._init_address_to_symbol_mapping() # anyway initialize the address to symbol mapping, even if there aren't shared objects
 
     @staticmethod
     def _start_as_child(file_name: str, redirect_stdio_to_pty: bool, disable_pty_echo: bool, argv: list[str]) -> Never:
@@ -144,10 +155,12 @@ class Debugger:
         # running as parent
         os.waitpid(child_pid, 0)  # wait for child to start execve, raising a signal
         res = Debugger(child_pid, pty_fd, file_path=file_name) # create a debugger instance
-        # run until the program entry, so the linker finishes execution
-        res.breakpoints.add_breakpoint(res.entry_address)
-        res.control.continue_execution()
-        res.breakpoints.remove_breakpoint(res.entry_address)
+        if res.ld_base is not None:
+            # run until the program entry, so the linker finishes execution
+            # only if there's a dynamic linker (the binary isn't statically linked)
+            res.breakpoints.add_breakpoint(res.entry_address)
+            res.control.continue_execution()
+            res.breakpoints.remove_breakpoint(res.entry_address)
         # refresh shared objects, as the linker loads them during its execution
         res.refresh_shared_objects()
         return res
@@ -167,6 +180,9 @@ class Debugger:
         Refreshes the list of shared objects in the debugger.
         Should be called if a new shared object was dynamically loaded after initialization
         """
+        if self.ld_base is None:
+            # if we don't have an ld base, which is the case for static linked binaries, we don't have shared objects
+            return
         self.shared_objects: dict[str, SharedObject] = {}
         shared_object_list = get_shared_objects(self)
         for shared_object in shared_object_list:

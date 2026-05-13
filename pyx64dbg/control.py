@@ -58,9 +58,10 @@ class Control:
                 self._debugger.stopped_signal = None
                 if not stepped:  # if we just continued, we have hit a breakpoint
                     cur_rip = self._debugger.registers.rip
-                    self._debugger.registers.set(
-                        "rip", cur_rip - 1, trigger_updates=False
-                    )  # move the instruction pointer back to point to the breakpoint instruction, without triggering an update as this is an internal-call only function.
+                    # check if it's really a breakpoint and not a sigtrap in some other code
+                    if cur_rip - 1 in self._debugger.breakpoints.get_breakpoints():
+                        # move the instruction pointer back to point to the breakpoint instruction, without triggering an update as this is an internal-call only function.
+                        self._debugger.registers.set("rip", cur_rip - 1, trigger_updates=False)
             else:
                 self._debugger.stopped_signal = triggered_signal
                 # the stop callback will be triggered by the end of the movement function (as there can be further movements)
