@@ -48,10 +48,10 @@ class BreakpointsView(QWidget):
         Initializes the UI of the view, creating the toolbar and the list widget.
         """
         # toolbar with a + button
-        toolbar = QToolBar()
+        self._toolbar = QToolBar()
         self._add_action = QAction("+", self)
         self._add_action.triggered.connect(self._add_breakpoint)
-        toolbar.addAction(self._add_action)
+        self._toolbar.addAction(self._add_action)
         # list widget with breakpoints
         self._list_widget = QListWidget(self)
         self._list_widget.setAlternatingRowColors(True) # make it easier to read
@@ -60,7 +60,7 @@ class BreakpointsView(QWidget):
         self._list_widget.customContextMenuRequested.connect(self._show_context_menu)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(toolbar)
+        layout.addWidget(self._toolbar)
         layout.addWidget(self._list_widget)
     
     def _show_context_menu(self, pos: QPoint) -> None:

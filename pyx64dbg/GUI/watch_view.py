@@ -43,11 +43,11 @@ class WatchView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0) # no need for margins
 
         # Toolbar for adding watches
-        self.toolbar = QToolBar()
+        self._toolbar = QToolBar()
         add_action = QAction("+", self)
         add_action.triggered.connect(self._add_watch_prompt)
-        self.toolbar.addAction(add_action)
-        layout.addWidget(self.toolbar)
+        self._toolbar.addAction(add_action)
+        layout.addWidget(self._toolbar)
 
         # Table Setup
         self.table = QTableWidget(0, 2)
