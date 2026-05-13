@@ -3,6 +3,8 @@ import os
 import pty
 import termios
 from typing import Never, Optional
+
+from sympy import N
 from pyx64dbg.breakpoint import Breakpoints
 from pyx64dbg.callback_list import CallbackList
 from pyx64dbg.memory import Memory
@@ -213,3 +215,12 @@ class Debugger:
                 self.address_to_symbol[address] = name
             for name, address in sym_class.objects.items():
                 self.address_to_symbol[address] = name
+    
+    def _on_exit(self) -> None:
+        """
+        An internal method that should be called when the process exits.
+        Triggers the exit callbacks and closes the pty if it exists.
+        """
+        if self.child_pty is not None:
+            self.stdio.close_pty()
+        self.exit_callbacks.trigger()

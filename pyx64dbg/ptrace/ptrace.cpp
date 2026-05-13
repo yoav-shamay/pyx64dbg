@@ -229,7 +229,7 @@ Implementation of the write_memory_range method for the python binding.
 Gets the child process id, the start address and a bytes object containing the data to write,and returns nothing.
 Uses /proc/<pid> mem to write to the memory range, as process_vm_writev (the matching function to what we use on read) can't write to RO memory.
 */
-static void write_memory_range(int child_pid, size_t address, std::string data)
+static void write_memory_range(int child_pid, size_t address, std::string & data)
 {
     std::string mem_path = "/proc/" + std::to_string(child_pid) + "/mem";
     int fd = open(mem_path.c_str(), O_RDWR);

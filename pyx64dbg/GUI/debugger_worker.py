@@ -136,8 +136,8 @@ class DebuggerWorker(QObject):
         # push initial aliases
         self._shell.push(self.interactive_console.get_aliases())
         # emit signal that kernel is initialized and pass the connection information to the GUI
-        # do it in a QTimer single shot to ensure it is emitted after the kernel finishes initialization and starts the event loop
-        QTimer.singleShot(0, lambda: self.kernel_initialized.emit(self.kernel_connection_dict))
+        # do it in a QTimer single shot with a slight delay to ensure it is emitted after the kernel finishes initialization and starts the event loop
+        QTimer.singleShot(100, lambda: self.kernel_initialized.emit(self.kernel_connection_dict))
         # start the kernel app (blocking call, should be last)
         self._kernel_app.start()
 

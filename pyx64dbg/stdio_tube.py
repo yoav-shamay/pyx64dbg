@@ -12,12 +12,15 @@ class StdioTube:
     def __init__(self, pty: int) -> None:
         self._pty: int = pty
         self._buf: bytes = b""
+        self._pty_closed = False
 
     def _fill_buf(self, amt: int) -> bool:
         """
         Fills buffer with at most amt bytes of data from the PTY.
         Returns True if data was read, False if not.
         """
+        if self._pty_closed:
+            return False # if we closed the PTY, we can't read any more data, so return False
         try:
             # use select to see if there's data to read, with timeout 0 so it doesn't block if there's no data
             ready, _, _ = select.select([self._pty], [], [], 0)
@@ -119,3 +122,12 @@ class StdioTube:
         res = self._buf
         self._buf = b""
         return res
+
+    def close_pty(self):
+        """
+        Closes the PTY file descriptor.
+        Before reads everything to the buffer so the content isn't lost.
+        """
+        self._buf = self.recvall() # read everything to the buffer before closing to avoid losing data
+        os.close(self._pty)
+        self._pty_closed = True
