@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QMenu, QMessageBox
+from PySide6.QtWidgets import QDockWidget, QFileDialog, QMessageBox
 
 from pyx64dbg.GUI.async_slot import async_slot
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
@@ -15,27 +15,44 @@ if TYPE_CHECKING:
 
 
 class TopMenu:
+    """
+    This class defines the top menu of the main window.
+    Has File menu with an option to open a file,
+    a Window menu with options to save and reset the layout.
+    And a View menu, which is populated with actions to show/hide the different views
+    """
     def __init__(
         self,
         main_window: MainWindow,
     ) -> None:
         self._main_window = main_window
         self._debugger_worker : DebuggerWorker = main_window.debugger_worker
+        self._init_ui()
+        self._create_actions()
+
+    def _init_ui(self) -> None:
+        """
+        Initializes the UI of the top menu, creating the File, View and Window menus.
+        """
         self._file_menu = self._main_window.menuBar().addMenu("&File")
         self._view_menu = self._main_window.menuBar().addMenu("&View")
         self._window_menu = self._main_window.menuBar().addMenu("&Window")
 
-        self._create_core_actions()
+    def add_view_action(self, dock: QDockWidget, title: str) -> None:
+        """
+        A method to add an action tp show/hide a dock widget to the view menu.
+        Should get the dock widget and its title.
+        Called by the main window when creating the views.
+        """
 
-    @property
-    def view_menu(self) -> QMenu:
-        return self._view_menu
-
-    def add_view_action(self, action: QAction) -> None:
+        action = dock.toggleViewAction()
+        action.setText(title)
         self._view_menu.addAction(action)
 
-    def _create_core_actions(self) -> None:
-        """Create and wire File and Window menu actions."""
+    def _create_actions(self) -> None:
+        """
+        Create and wire File and Window menu actions.
+        """
         self._open_action = QAction("Open", self._main_window)
         self._open_action.triggered.connect(self._open_executable)
         self._file_menu.addAction(self._open_action)
@@ -56,12 +73,12 @@ class TopMenu:
         """
         selected_path, _ = QFileDialog.getOpenFileName(
             self._main_window,
-            "Open Executable",
-            "",
-            "All Files (*)",
+            "Open Executable", # window title
+            "", # start in current directory
+            "All Files (*)", # executables has no extension filter, so show all files
         )
         
-        if not selected_path:
+        if not selected_path: # if we didn't select a file, do nothing
             return
 
         # Check if a file is selcted (not a directory)
@@ -73,6 +90,7 @@ class TopMenu:
         if not os.access(selected_path, os.X_OK):
             QMessageBox.warning(self._main_window, "Invalid Executable", "The selected file is not executable.")
             return
+        
         if self._main_window.process_running:
             # if there's a process running, force kill the current process, as the debugger might be blocked and the call won't register
             await self._main_window.force_kill_debugged_process()

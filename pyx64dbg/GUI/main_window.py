@@ -27,17 +27,19 @@ from pyx64dbg.GUI.debugger_worker import DebuggerWorker
 from pyx64dbg.GUI.async_slot import async_slot
 
 import os, signal
+from pathlib import Path
 
 class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._done_cleanup: bool = False # whether we already done the cleanup in the clos  event
-        self.setWindowTitle("PyX64Dbg")
-        self.resize(1280, 720) # a reasonable default size for non-maximized start (for example if the user unmaximizes the window)
-        self.setWindowIcon(QIcon("pyx64dbg/GUI/assets/icon.svg"))
         self.debugger_busy = False # whether the debugger worker is currently busy in a blocking wait call
         self.file_path: str | None = None # file path
         self.process_running: bool = False # whether a process is running or not
+        self.base_path: Path = Path(__file__).parent # base path of the GUI directory, used for assets reference
+        self._done_cleanup: bool = False # whether we already done the cleanup in the clos  event
+        self.setWindowIcon(QIcon(str(self.base_path / "assets" / "icon.png")))
+        self.setWindowTitle("PyX64Dbg")
+        self.resize(1280, 720) # a reasonable default size for non-maximized start (for example if the user unmaximizes the window)
         self._create_debugger_worker_thread_and_connect_init_ui()
 
     def _init_widgets(self) -> None:
@@ -138,10 +140,7 @@ class MainWindow(QMainWindow):
         dock.setObjectName(key)
         dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
         dock.setWidget(widget)
-
-        action = dock.toggleViewAction()
-        action.setText(title)
-        self._top_menu.add_view_action(action)
+        self._top_menu.add_view_action(dock, title)
 
         self.addDockWidget(area, dock)
         self._docks[key] = dock
@@ -237,7 +236,7 @@ class MainWindow(QMainWindow):
         )
         self._place_widget_in_dock(
             "stdio_terminal",
-            "PTY Stdio",
+            "Stdio",
             self.widgets["stdio_terminal_stack"],
             Qt.DockWidgetArea.BottomDockWidgetArea,
         )

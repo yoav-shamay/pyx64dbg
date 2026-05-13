@@ -9,7 +9,7 @@ description = "A debugger implemented in Python"
 authors = [
     { name = "Yoav Shamay", email = "yoavsh97@gmail.com" }
 ]
-dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "qtconsole", "termqt"]
+dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "qtconsole"]
 
 [project.scripts]
 pyx64dbg = "pyx64dbg.CLI.main:main"

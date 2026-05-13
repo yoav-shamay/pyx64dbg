@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="xterm.css" />
+    <script src="xterm.js"></script>
+    <script src="xterm-addon-fit.js"></script>
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+    <style>
+        body, html {
+            /* remove margins*/
+            margin: 0;
+            padding: 0;
+
+            height: 100%; /* Ensure the body takes the exact height of the viewport */
+            background-color: black; /* Set background color to black, as the terminal might still not take the full size */
+        }
+        #terminal {
+            /* Ensure the terminal takes up the full viewport */
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <script>
+        // create the xterm terminal
+        const term = new Terminal({
+            theme: { background: '#000000', foreground: '#ffffff' }, // black background, white text
+            cursorBlink: true, // enable cursor blinking
+            fontFamily: 'monospace', // use a monospace font for better terminal appearance
+            fontSize: 14
+        });
+        // allow resizing the terminal to fit the container, with triggering an event with the exact grid size
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        window.onresize = () => fitAddon.fit();
+        // setup channel to communicate with python
+        new QWebChannel(qt.webChannelTransport, function (channel) {
+            window.bridge = channel.objects.bridge;
+            // From JS to Python
+            term.onData(data => bridge.on_js_input(data));
+            term.onResize(size => bridge.on_js_resize(size.rows, size.cols));
+        });
+
+        // From Python to JS - those functions will just be called directly
+        function writeToTerminal(data) {
+            term.write(data);
+        }
+        function clearTerminal() {
+            term.reset();
+        }
+    </script>
+</body>
+</html>

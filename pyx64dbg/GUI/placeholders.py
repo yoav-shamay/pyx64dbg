@@ -59,6 +59,6 @@ class PlaceholderPtyStdioView(PlaceholderTextEdit):
 
 class PlaceholderWatchView(PlaceholderTextEdit):
     """
-    Placeholder for the watch view, shown when no process is running.
+    Placeholder for the watch view, shown when no file is selected.
     """
-    text = "Run a process to access watch."
+    text = "Select a file to access watch."

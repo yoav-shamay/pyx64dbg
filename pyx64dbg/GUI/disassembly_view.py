@@ -54,7 +54,7 @@ class DisassemblyView(QWidget):
         self._disassemble_address: UInt64 | None = None
 
         self._init_ui()
-        self._init_callbacks()
+        self._register_callbacks()
         self._load_qss()
 
     def _load_qss(self) -> None:
@@ -104,7 +104,7 @@ class DisassemblyView(QWidget):
 
         layout.addWidget(self.table)
 
-    def _init_callbacks(self) -> None:
+    def _register_callbacks(self) -> None:
         """
         Registers the callbacks to update the view on various process events.
         """
