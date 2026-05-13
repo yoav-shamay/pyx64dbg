@@ -17,7 +17,7 @@ It uses the `ptrace` system call to control the debugged process.
 ### From PyPI (Recommended)
 Not published yet.
 ### From Source (Development)
-Installed with:
+Install with:
 ```bash
 pip install -e .
 ```
@@ -60,10 +60,10 @@ dbg.control.kill_process()
 
 ## Limitations
 - The debugger only works for Linux ELF binaries on the x86-64 architecture.
-= The debugger uses the `ptrace` syscall and the `/proc` file system to gain information on the debugged process, and will not work if they aren't available.
+- The debugger uses the `ptrace` syscall and the `/proc` file system to gain information on the debugged process, and will not work if they aren't available.
 - The GUI tool requires a desktop session (X11 or Wayland)
 
 ## Testing
 Some of the tests are integration tests on specific binaries provided in the repository.  
-To compile the binaries use `make` on the `test/executables` directory.  
+To compile them from source use `make` on the `test/executables` directory.  
 The tests might not work on newly compiled binaries due to relying on specific address offsets.
