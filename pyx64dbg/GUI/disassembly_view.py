@@ -300,7 +300,7 @@ class DisassemblyView(QWidget):
                 # specific address - read SPECIFIC_ADDRESS_INSTRUCTION_COUNT instructions from the specific address (similar to from RIP)
                 instructions = await self._debugger_worker.call_async(self._debugger_worker.read_instructions, self._disassemble_address, SPECIFIC_ADDRESS_INSTRUCTION_COUNT)
             self._load_disassembly(instructions)
-        except:
+        except Exception:
             # There might be an error while reading memory (like invalid address). in this case we'll just not update the view.
             pass
 

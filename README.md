@@ -1,11 +1,11 @@
 # PyX64Dbg
-A Python-based debugger for x64 assembly in linux.  
+A Python-based debugger for x64 assembly in Linux.  
 Uses the ptrace system call to control the debugged process execution.
 
 ## Features
 - **Python API** - Programmatically access the debugger and all of its functionality.
 - **CLI tool** - Interactive IPython-based console
-- **GUI** - Graphical interface built using pyside6
+- **GUI** - Graphical interface built using Pyside6
 
 ## Prerequisites
 - **OS**: Linux, x86-64 architecture
@@ -26,12 +26,15 @@ This compiles the Pybind11 C++ extensions.
 
 ## Usage
 ### CLI
-`pyx64dbg [/path/to/binary]`
+```bash
+pyx64dbg [/path/to/binary]
+```
 Starts the IPython console.  
 Press `help` within the console for more information on the available commands.
 ## GUI
-`pyx64dbg-gui`
-Opens the graphical interface.
+```bash
+pyx64dbg-gui
+```
 ## Python API
 Use `pyx64dbg.Debugger` to access the debugger object.  
 Example:
@@ -39,7 +42,7 @@ Example:
 from pyx64dbg import Debugger
 
 # Start Debugging
-dbg = debugger.start_and_debug("./binary")
+dbg = Debugger.start_and_debug("./binary")
 
 # Breakpoints
 # Set breakpoint and run
