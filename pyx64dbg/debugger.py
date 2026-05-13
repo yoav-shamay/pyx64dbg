@@ -1,3 +1,4 @@
+from ast import arg
 import os
 import pty
 import termios
@@ -80,7 +81,7 @@ class Debugger:
         # init shared objects dictionary
         try:
             self.refresh_shared_objects()
-        except:
+        except RuntimeError:
             # The linker might not have loaded yet, in which case we will get an exception.
             # Just do nothing in this case.
             pass
@@ -100,11 +101,11 @@ class Debugger:
             termios.tcsetattr(0, termios.TCSANOW, attrs)
         # start ptrace on this process
         ptrace.traceme()
-        # execve file_name with the given argv - run the process
-        os.execve(file_name, [file_name] + argv, {})
+        # execve file_name with the given argv and existing environment - run the process
+        os.execve(file_name, argv, os.environ)
 
     @staticmethod
-    def start_and_debug(file_name: str, redirect_stdio_to_pty: bool = True, disable_pty_echo: bool = True, argv: list[str] = []) -> "Debugger":
+    def start_and_debug(file_name: str, redirect_stdio_to_pty: bool = True, disable_pty_echo: bool = True, argv: Optional[list[str]] = None) -> "Debugger":
         """
         Starts and debugs the specified file and returns a Debugger instance.
         Options:
@@ -114,6 +115,11 @@ class Debugger:
         Usually set for the API, we don't want the code to recieve echoed input.
         argv - a list of arguments to pass to the process (not including the file name, which is passed separately)
         """
+        # handle argv - if it's None we treat it as no arguments, and add the file name in the beginning of the arguments list
+        if argv is None:
+            argv = [file_name]
+        else:
+            argv = [file_name] + argv
         pty_fd = None
         if redirect_stdio_to_pty:
             # if we want to redirect stdio to a PTY, we first open a PTY

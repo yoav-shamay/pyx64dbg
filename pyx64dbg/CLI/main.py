@@ -22,7 +22,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def main():
     """
-    The entrry point for the CLI tool.
+    The entry point for the CLI tool.
     """
     args = parse_arguments()
     file_name = args.filename

@@ -84,7 +84,7 @@ def get_aliases(console: "InteractiveConsole", process_running: bool) -> dict[st
         if isinstance(target, list): # if the target is a list, it's a path that needs to be resolved
             try:
                 target = _resolve_target(console, target)
-            except:
+            except (KeyError, AttributeError): # exceptions that can happen during resolution if the target isn't available
                 # if we fail to resolve the target, it means it's not available in the current state, so we assign None to it
                 # this can happen for example for the 'libc' command, if libc isn't loaded in the process.
                 target = None
