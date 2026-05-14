@@ -12,7 +12,7 @@ authors = [
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "qtconsole"]
+dependencies = ["capstone", "pyelftools", "ipython", "prompt_toolkit", "pyside6", "nest_asyncio"]
 keywords = ["debugger", "ptrace", "x86-64", "linux"]
 classifiers = [
     "Operating System :: POSIX :: Linux",

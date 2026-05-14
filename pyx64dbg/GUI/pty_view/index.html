@@ -43,6 +43,8 @@
             // From JS to Python
             term.onData(data => bridge.on_js_input(data));
             term.onResize(size => bridge.on_js_resize(size.rows, size.cols));
+            // Send the initial terminal size immediately so the PTY doesn't default to 0x0
+            bridge.on_js_resize(term.rows, term.cols);
         });
 
         // From Python to JS - those functions will just be called directly
@@ -51,6 +53,14 @@
         }
         function clearTerminal() {
             term.reset();
+        }
+        // Set the terminal to read-only or editable mode.
+        function setReadOnly(isReadOnly) {
+            // Disable stdin in xterm.js as an extra JS-side layer of defense
+            term.options.disableStdin = isReadOnly;
+            // Turn off cursor blink and switch to an underline when read-only
+            term.options.cursorBlink = !isReadOnly;
+            term.options.cursorStyle = isReadOnly ? 'underline' : 'block';
         }
     </script>
 </body>

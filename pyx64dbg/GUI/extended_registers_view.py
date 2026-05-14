@@ -235,6 +235,8 @@ class ExtendedRegistersView(QWidget):
         """
         Callback for when we get a new state update from the debugger worker.
         """
+        if self._main_window.debugger_busy or not self._main_window.process_running:
+            return # if the debugger is busy or not running don't try to update as we can't call it
         self._tree.setUpdatesEnabled(False) # disable updates while we update to improve performance and prevent flickering
         await self._update_register_values()
         self._tree.setUpdatesEnabled(True) # reenable updates after we're done

@@ -1,72 +1,47 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QVBoxLayout, QWidget
-from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtconsole.manager import QtKernelManager
-from traitlets.config import Config
-from jupyter_client import KernelClient, KernelConnectionInfo
-from pyx64dbg.debugger import Debugger
+from typing import TYPE_CHECKING
+import pty
+from pyx64dbg.GUI.pty_view import PtyView
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker
-from pyx64dbg.interactive_console.interactive_console import banner
 
 if TYPE_CHECKING:
     from pyx64dbg.GUI.main_window import MainWindow
 
-class InteractiveConsoleView(QWidget):
+class InteractiveConsoleView(PtyView):
     """
     This class defines the interactive console view widget in the GUI.
-    It uses a Jupyter console widget to provide an interactive Python console.
-    This widget only contains the console itself.
-    It connects to a kernel that is set up in the DebuggerWorker thread, and some of the console configuration is done there.
+    Is a pty web view that shows the interactive console IPython shell
     """
     def __init__(self, main_window: MainWindow) -> None:
-        super().__init__(main_window)
-        self.debugger: Debugger | None = None
-        self._main_window: MainWindow = main_window
+        super().__init__(main_window, self._init_shell) # setup _init_shell after the web view is loaded
         self._debugger_worker: DebuggerWorker = main_window.debugger_worker
-        self._kernel_client : KernelClient | None = None
-        self._init_ui()
-
-    def _init_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        # setup the kernel for the interactive console in the debugger worker thread
-        # this method emits a signal when the kernel is initialized, we connect a post-initialization function to that signal.
-        self._debugger_worker.kernel_initialized.connect(self._post_kernel_init)
-        self._debugger_worker.call_from_another_thread(self._debugger_worker.setup_kernel)
-        # initialize the console widget with the appropriate configuration for our use case (that doesn't require the kernel)
-        # attach the kernel later, after it's initialized, in the _post_kernel_init function
-        c = Config()
-        # show completions in a dropdown list
-        c.ConsoleWidget.gui_completion = "droplist"
-
-        self._console_widget: RichJupyterWidget = RichJupyterWidget(config=c)
-
-        # add the newly added console widget to the layout immediately, so it shows up while the kernel is still initializing
-        # instead of being a white empty space
-        layout.addWidget(self._console_widget)
-        # linux colors - similar to a real terminal
-        self._console_widget.set_default_style("linux")
-
-        # setup banner and prompt
-        self._console_widget.in_prompt = "PyX64Dbg> "
-        self._console_widget.banner = banner
-
-    def _post_kernel_init(self, connection_dict: KernelConnectionInfo) -> None:
+        self._register_callbacks()
+    
+    def _register_callbacks(self) -> None:
         """
-        Method that finishes the console initialization after the kernel is initialized in the debugger worker thread.
-        Gets the connection dict from the debugger worker thread.
+        Registers the necessary callbacks to update the console state based on various debugger events.
+        Makes the console read-only when the debugger is busy, and editable when it's ready for input.
         """
-        self.kernel_manager = QtKernelManager()
-        # load the connection info
-        self.kernel_manager.load_connection_info(connection_dict)
-        self._console_widget.kernel_manager = self.kernel_manager
-        # initialize the kernel client
-        self._kernel_client = self.kernel_manager.client()
-        self._kernel_client.start_channels() # init the communication channels with the kernel
-        self._console_widget.kernel_client = self._kernel_client
+        self._debugger_worker.debugger_busy.connect(self._on_debugger_busy)
+        self._debugger_worker.debugger_ready.connect(self._on_debugger_ready)
+        self._debugger_worker.process_exited.connect(self._on_debugger_ready) # when the process exits, the thread is non-blocked too so it's same as ready
 
-        # disconnect the signal after the kernel is initialized to avoid unnecessary calls in the future
-        self._debugger_worker.kernel_initialized.disconnect(self._post_kernel_init)
+    def _init_shell(self) -> None:
+        master_fd, slave_fd = pty.openpty()
+        self._debugger_worker.call_from_another_thread(self._debugger_worker.setup_shell, slave_fd)
+        self._open_pty(master_fd)
+    
+    def _on_debugger_busy(self) -> None:
+        """
+        Callback - when the debugger becomes busy
+        Makes the console read-only to prevent user input while the debugger is busy.
+        """
+        self.read_only = True
+    
+    def _on_debugger_ready(self) -> None:
+        """
+        Callback - when the debugger becomes non-blocked (ready)
+        Makes the console editable again to allow user input.
+        """
+        self.read_only = False

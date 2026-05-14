@@ -1,44 +1,21 @@
 from __future__ import annotations
-from PySide6.QtCore import QObject, Signal, QEventLoop, QTimer
+import os
+from PySide6.QtCore import QObject, Signal, Slot
 import capstone
+from pyx64dbg.CLI.ipython_cli import IPythonCLI
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 from pyx64dbg.number_types import UInt64, CNumBase
 from pyx64dbg.symbols import Symbol
-from typing import Any, Callable, Optional, ParamSpec
-from ipykernel.kernelapp import IPKernelApp
-from ipykernel.eventloops import enable_gui
-from IPython.core.interactiveshell import InteractiveShell
+from typing import Any, Callable, Optional, ParamSpec, TypeVar
 import sys
 from pyx64dbg.GUI.debugger_state import DebuggerState
 from typing import Optional
 import asyncio
-
 from pyx64dbg.vector_register import VectorRegister
-
-class KernelApplication(QObject):
-    """
-    A thread-safe implementation of a Qt application including an event loop for the IPython kernel.
-    The IPython kernel tries to attach itself to the main Qt application.
-    however due to the fact that the kernel is running in a separate thread from the GUI,
-    we need to create a separate event loop for it to allow it to receive signals and execute code while the kernel is running.
-    This class provides an implementation of an application that the kernel IPython application can attach to.
-    This works safely when run on a different thread.
-    This class implements every function that the IPython kernel expects from a Qt application.
-    """
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        # Create a local event loop parented to this object (in the worker thread)
-        self.qt_event_loop: QEventLoop = QEventLoop(self)
-
-    def exit(self):
-        """
-        An exit method that the kernel uses to shut down.
-        Quits the local event loop to allow the kernel to shut down cleanly.
-        """
-        self.qt_event_loop.quit()
-
-P = ParamSpec('P')
+import nest_asyncio
+P = ParamSpec('P') # parametes of a callable
+R = TypeVar('R') # return type of a callable
 
 class DebuggerWorker(QObject):
     """
@@ -66,19 +43,26 @@ class DebuggerWorker(QObject):
     # Signal emitted when the debugger state updates and the GUI should refresh views
     state_update = Signal(DebuggerState)
 
-    # After kernel finishes initialization
-    kernel_initialized = Signal(object)
-
     # When a new file is selected
     file_selected = Signal()
     
     def __init__(self):
         super().__init__()
         self.debugger: Debugger | None = None
-        self.interactive_console: InteractiveConsole | None = None
-        self._kernel_app: IPKernelApp | None = None
-        self._shell: InteractiveShell | None = None
-        self.file_name: str | None = None
+        self._file_name: str | None = None
+        self._ipython_cli: IPythonCLI | None = None
+        self._interactive_console: InteractiveConsole | None = None
+    
+    @Slot()
+    def start_asyncio_loop(self) -> None:
+        """
+        Creates and starts the asyncio event loop for the debugger thread.
+        Called after the thread starts.
+        """
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        nest_asyncio.apply(self._loop) # as IPython creates an event loop, we need to use nest_asyncio to allow nested event loops
+        self._loop.run_forever()
     
     def set_file_name(self, file_name: str) -> None:
         """
@@ -88,82 +72,48 @@ class DebuggerWorker(QObject):
         if self.debugger is not None: # if there's a process running, we should stop it before switching to a new file
             self.stop_debugging()
 
-        self.file_name = file_name
+        self._file_name = file_name
         # update the file in the interactive console as well if it exists
-        if self.interactive_console:
-            self.interactive_console.select_file(file_name, trigger_callbacks = False) # don't trigger the signal, as we emit it manaully (for consistency)
+        if self._interactive_console:
+            self._interactive_console.select_file(file_name, trigger_callbacks = False) # don't trigger the signal, as we emit it manaully (for consistency)
         self.file_selected.emit()  # emit the signal to update the GUI
 
-    def setup_kernel(self):
+    def setup_shell(self, pty_slave_fd: int):
         """
-        Function to setup the IPython kernel for the interactive console.
-        Emits the kernel_initialized signal with the connection information once the kernel is ready.
+        Function to setup the IPython shell for the interactive console.
+        Uses the IPythonCLI class to manage the shell, and redirects the stdio to the provided PTY slave fd.
         """
-        self._kernel_app = IPKernelApp.instance()
-        # initialize with the --quiet flag to prevent initialization messages printing to the console.
-        self._kernel_app.initialize(["--quiet"])
-        # make the kernel not register signal handlers as it isn't the main thread and it can't/
-        # we do it by overriding the methods it uses to register signal handlers to do nothing.
-        self._kernel_app.kernel.pre_handler_hook = lambda: None
-        self._kernel_app.kernel.post_handler_hook = lambda: None
-        # save the connection dict, that will later be emitted to the GUI to connect the console widget to the kernel
-        self.kernel_connection_dict = self._kernel_app.get_connection_info()
-        # set the kernel's application to a custom application that has an event loop, allowing the kernel to operate on a qt event loop
-        self._kernel_app.kernel.app = KernelApplication()
-        # use enable_gui to make the IPython kernel event loop compatible with Qt, allowing the worker to receive signals while the kernel is running.
-        enable_gui('qt6', self._kernel_app.kernel)
-
-        self._shell = self._kernel_app.kernel.shell
-        
-        self._shell.autocall = 2 # autocall - call functions without parenthesis
-        self._shell.show_rewritten_input = False # don't show the input twice when autocall is triggered
-        self._shell.showtraceback = self._show_simple_error # override default IPython traceback to show simpler error messages in the console widget
-        # disable the shell banner and tips, as we have our own banner and IPython tips aren't relevant to our shell.
-        self._shell.banner1 = ""
-        self._shell.banner2 = ""
-        self._shell.enable_tip = False
-
-        # initialize the interactive console object and set up callbacks for synchronization with the worker state
-        
-        self.interactive_console = InteractiveConsole(
-            redirect_stdio_to_pty=True,
-            disable_pty_echo=False, # we want pty echo so the user actually sees what he types in the console
-        )
-        # register the interactive console callbacks
-        self.interactive_console.update_aliases_callbacks.add(self._update_shell_aliases)
-        self.interactive_console.new_debugger_object_callbacks.add(self._new_console_debugger_object)
-        self.interactive_console.file_select_callbacks.add(self._on_console_file_select)
-        # push initial aliases
-        self._shell.push(self.interactive_console.get_aliases())
-        # emit signal that kernel is initialized and pass the connection information to the GUI
-        # do it in a QTimer single shot with a slight delay to ensure it is emitted after the kernel finishes initialization and starts the event loop
-        QTimer.singleShot(100, lambda: self.kernel_initialized.emit(self.kernel_connection_dict))
-        # start the kernel app (blocking call, should be last)
-        self._kernel_app.start()
-
-    def _update_shell_aliases(self, aliases: dict[str, object]) -> None:
+        # redirect stdio to the PTY
+        os.dup2(pty_slave_fd, sys.stdin.fileno())
+        os.dup2(pty_slave_fd, sys.stdout.fileno())
+        os.dup2(pty_slave_fd, sys.stderr.fileno())
+        # start the IPython shell
+        self._ipython_cli = IPythonCLI(use_external_pty = True) # we use an external PTY for STDIO
+        self._interactive_console = self._ipython_cli.interactive_console
+        # register the interactive console callbacks to synchronize state and emit signals for the GUI
+        self._interactive_console.file_select_callbacks.add(self._on_console_file_select)
+        self._interactive_console.new_debugger_object_callbacks.add(self._new_console_debugger_object)
+        self._interactive_console.system_msg_wrapper = self._system_msg_wrapper # set the system message wrapper to wrap system messages in the console
+        # start the IPython CLI (blocking call for this function, has to be last, but doesn't block the asyncio loop itself)
+        self._ipython_cli.start_console()
+    
+    def _system_msg_wrapper(self, msg: str) -> str:
         """
-        Callback - called when the aliases in the interactive console need to be updated (process start / stop)
+        Wraps console system messages so they are printed above the input line and visually distinct from normal output.
         """
-        self._shell.push(aliases)
-
-    def _show_simple_error(self, 
-        exc_tuple=None,
-        filename=None,
-        tb=None,
-        tb_offset=None,
-        exception_only=False,
-        running_compiled_code=False) -> None:
-        """
-        Override for IPython's default traceback to show simpler error messages in the console widget, showing only the exception type and message without the full stack trace.
-        """
-        # if we are not provided exc_tuple, take it from sys.exc_info() to get the current exception
-        if exc_tuple is not None:
-            exc_type, exc_value, _ = exc_tuple
-        else:
-            exc_type, exc_value, _ = sys.exc_info()
-        # use the console printing error message with the name of the exception class and its msg
-        self.interactive_console.print_error(exc_type.__name__, exc_value)
+        # ansi codes for the cursor
+        # Cursor manipulation
+        SAVE_CURSOR = "\x1b7"       # DECSC: Save Cursor
+        RESTORE_CURSOR = "\x1b8"    # DECRC: Restore Cursor
+        # Line Manipulation
+        INSERT_LINE = "\x1b[1L"     # IL: Insert line at current row
+        CURSOR_DOWN = "\x1b[1B"     # CUD: Move cursor down
+        CARRIAGE_RETURN = "\r"
+        # Colors
+        YELLOW = "\x1b[33m"
+        # color in yellow and move the message above the input line, then move the cursor back to the input line
+        sequence = f"{SAVE_CURSOR}{INSERT_LINE}{CARRIAGE_RETURN}{YELLOW}{msg}{RESTORE_CURSOR}{CURSOR_DOWN}"
+        return sequence
     
     def _new_console_debugger_object(self, debugger: Debugger | None) -> None:
         """
@@ -192,7 +142,7 @@ class DebuggerWorker(QObject):
         Callback - called when a file is selected in the interactive console.
         Updates the internal state to synchronize with the console
         """
-        self.file_name = file_name
+        self._file_name = file_name
         self.file_selected.emit()  # emit the signal to update the GUI
     
     def _on_process_exit(self) -> None:
@@ -231,15 +181,15 @@ class DebuggerWorker(QObject):
         Starts debugging the process with the currently selected file.
         """
         # first check if we actually have a file selected.
-        if self.file_name is None:
+        if self._file_name is None:
             raise ValueError("No file selected to debug.")
         # start debugging the process
         # we want pty echo so the user actually sees what he types in the console
-        self.debugger = Debugger.start_and_debug(self.file_name, redirect_stdio_to_pty=True, disable_pty_echo=False) 
+        self.debugger = Debugger.start_and_debug(self._file_name, redirect_stdio_to_pty=True, disable_pty_echo=False) 
         # setup callbacks for the new debugger object
         self._setup_debugger_callbacks()
         # sync the state of the interactive console with the new debugger
-        self.interactive_console.update_debugger(self.debugger)
+        self._interactive_console.update_debugger(self.debugger)
         self.process_started.emit() # emit the process started signal to update the GUI
         self._on_debugger_update() # trigger a state update, as a new process also means a new state
     
@@ -260,16 +210,15 @@ class DebuggerWorker(QObject):
         if self.debugger:
             # if we have a debugger, we think the process is running
             self.debugger = None
-            self.interactive_console.update_debugger(None) # sync the state of the interactive console
+            self._interactive_console.update_debugger(None) # sync the state of the interactive console
             self.process_exited.emit() # emit the process exited signal to update the GUI
     
     def handle_exit(self) -> None:
         """
         Function to handle the exit of the main application.
-        Shuts down the kernel if it's still running to allow clean exit.
+        Exits the asyncio loop to allow the thread to exit.
         """
-        if self._kernel_app:
-            self._kernel_app.kernel.do_shutdown(restart=False)
+        self._loop.stop()
     
     def read_instructions(self, address : int, amt : int) -> list[capstone.CsInsn]:
         """
@@ -308,8 +257,8 @@ class DebuggerWorker(QObject):
         Evaluates an expression in the context of the debugged process using the interactive console shell.
         Returns the result of the evaluation, or None if no interactive shell is active.
         """
-        if self._shell:
-            return self._shell.ev(expression)
+        if self._ipython_cli:
+            return self._ipython_cli.shell.ev(expression)
         return None
     
     def add_breakpoint(self, address: int):
@@ -375,38 +324,34 @@ class DebuggerWorker(QObject):
         """
         return self.debugger.symbols.symbols
 
-    def call_from_another_thread(self, func: Callable[P], *args: P.args, **kwargs: P.kwargs) -> None:
+    def call_from_another_thread(self, func: Callable[P, Any], *args: P.args, **kwargs: P.kwargs) -> None:
         """
         Utility function to call a method in the debugger thread from another thread (e.g. the GUI thread).
         Doesn't wait for the result.
         """
         call_func = lambda: func(*args, **kwargs)
-        # use qtimer single shot to safely call the function without blocking
-        QTimer.singleShot(0, self, call_func)
+        # use call_soon_threadsafe to schedule the function to be called in the debugger thread's event loop
+        self._loop.call_soon_threadsafe(call_func)
     
-    def call_async(self, method : Callable[P], *args: P.args, **kwargs: P.kwargs) -> asyncio.Future:
+    def call_async(self, method : Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> asyncio.Future[R]:
         """
         Executes a method in the debugger thread asynchronously.
         Returns an asyncio.Future that can be awaited in the GUI thread.
         """
-        loop = asyncio.get_running_loop()
+        loop = asyncio.get_running_loop() # The GUI thread's loop (not this thread's loop) is where the future needs to be created
         future = loop.create_future()
-        # use execute_and_resolve to call the 
-        call_func = lambda: self._execute_method(future, loop, method, *args, **kwargs)
-        # use qtimer single shot to safely call the function without blocking
-        QTimer.singleShot(0, self, call_func)
-        # return the created future
-        return future
 
-    def _execute_method(self, future: asyncio.Future, loop: asyncio.AbstractEventLoop, func: Callable[P], *args: P.args, **kwargs: P.kwargs) -> None:
-        """
-        Internal helper that runs in the worker thread. 
-        Executes the target method and pushes the result back to the GUI loop.
-        """
-        try:
-            result = func(*args, **kwargs)
-            # use call_soon_threadsafe to set the result of the future.
-            loop.call_soon_threadsafe(future.set_result, result)
-        except Exception as e:
-            # in case of exception, set the exception in the future to propagate it to the GUI thread.
-            loop.call_soon_threadsafe(future.set_exception, e)
+        def execute():
+            try:
+                # execute the method and set the result in the future
+                result = method(*args, **kwargs)
+                loop.call_soon_threadsafe(future.set_result, result)
+            except Exception as e:
+                # if there's an exception, set it in the future to be raised in the GUI thread
+                loop.call_soon_threadsafe(future.set_exception, e)
+
+        if self._loop and self._loop.is_running():
+            # Safely schedule the synchronous function on the worker's asyncio loop
+            self._loop.call_soon_threadsafe(execute)
+            
+        return future

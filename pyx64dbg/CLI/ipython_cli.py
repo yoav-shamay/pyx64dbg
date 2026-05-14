@@ -2,6 +2,7 @@ from typing import Optional
 
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
+from sympy import use
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole, banner
 import atexit
 import sys
@@ -23,22 +24,23 @@ class IPythonCLI:
     A class that manages the IPython CLI for the debugger.
     Uses the InteractiveConsole class to manage the console state, and uses IPython for the shell itself.
     """
-    def __init__(self, file_name: Optional[str] = None, verbose: bool = False):
+    def __init__(self, file_name: Optional[str] = None, verbose: bool = False, use_external_pty: bool = False) -> None:
         self._verbose: bool = verbose
         # create the interactive console object. We want stdio to appear in the terminal, so we don't redirect it to a PTY.
-        self._interactive_console = InteractiveConsole(
+        self.interactive_console = InteractiveConsole(
             file_name,
-            redirect_stdio_to_pty=False
+            redirect_stdio_to_pty=use_external_pty,
+            disable_pty_echo=False, # if we are using an external PTY, we don't disable the echo as we want to see what we are typing
         )
         # register our callbacks for updating aliases
-        self._interactive_console.update_aliases_callbacks.add(self._refresh_aliases)
+        self.interactive_console.update_aliases_callbacks.add(self._refresh_aliases)
 
     def _refresh_aliases(self, aliases: dict[str, object]) -> None:
         """
         The callback for refreshing the aliases in the interactive console.
         Moves the aliases to the IPython shell's user namespace so that they are accessible to the user.
         """
-        self._shell.push(aliases)
+        self.shell.push(aliases)
     
     def _show_simple_error(
         self,
@@ -59,24 +61,24 @@ class IPythonCLI:
         else:
             exc_type, exc_value, _ = sys.exc_info()
         # use the console printing error message with the name of the exception class and its msg
-        self._interactive_console.print_error(exc_type.__name__, exc_value)
+        self.interactive_console.print_error(exc_type.__name__, exc_value)
 
     def start_console(self) -> None:
         """
         Starts the IPython interactive console.
         """
-        atexit.register(self._interactive_console.handle_exit)  # register the console exit handler using atexit
+        atexit.register(self.interactive_console.handle_exit)  # register the console exit handler using atexit
         # create the InteractiveShellEmbed object for the console, with linux colors and no banner (we have our own banner that we print separately)
-        self._shell = InteractiveShellEmbed(colors="linux", display_banner=False)
+        self.shell = InteractiveShellEmbed(colors="linux", display_banner=False)
         # define custom prompt (PyX64Dbg>) for the console
-        self._shell.prompts = ConsolePrompt(self._shell)
+        self.shell.prompts = ConsolePrompt(self.shell)
         # if verbose mode is disabled, use the custom simple error handler that shows reduced error information to simplify console output
         if not self._verbose:
-            self._shell.showtraceback = self._show_simple_error
+            self.shell.showtraceback = self._show_simple_error
         # allow to call functions without parentheses, e. g. "s" instead of "s()"
-        self._shell.autocall = (2)
+        self.shell.autocall = 2
         # Disable the kernel from printing the autocall expansion to keep the CLI cleaner
-        self._shell.show_rewritten_input = False
+        self.shell.show_rewritten_input = False
         print(banner, end='') # banner already has a newline at the end
         # start the shell with the initial aliases from the interactive console
-        self._shell(local_ns=self._interactive_console.get_aliases())
+        self.shell(local_ns=self.interactive_console.get_aliases())

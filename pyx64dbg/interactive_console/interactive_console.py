@@ -1,5 +1,5 @@
 import sys
-from typing import TextIO, Optional
+from typing import Callable, TextIO, Optional
 
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.interactive_console.console_aliases import (
@@ -59,6 +59,7 @@ class InteractiveConsole:
         self._toolkit_output: Vt100_Output = Vt100_Output(self._output_stream, lambda: (24, 80))
         self._redirect_stdio_to_pty: bool = redirect_stdio_to_pty
         self._disable_pty_echo: bool = disable_pty_echo
+        self.system_msg_wrapper: Callable[[str], str] = lambda msg: msg + "\n" # default wrapper - just add newline, can be modified later
 
     def get_aliases(self) -> dict[str, object]:
         """
@@ -87,10 +88,14 @@ class InteractiveConsole:
             # if this was mistakenly called when there's no debugger, just ignore it and return without doing anything
             return
         if self.debugger.exit_code is not None:
-            print(f"Process exited with code {self.debugger.exit_code}.", file=self._output_stream)
+            msg = f"Process exited with code {self.debugger.exit_code}."
         else:
             exit_signal = self.debugger.error_signal
-            print(f"Process terminated by signal {exit_signal}.", file=self._output_stream)
+            if exit_signal is not None:
+                msg = f"Process terminated by signal {exit_signal}."
+            else:
+                msg = "Process exited."
+        print(self.system_msg_wrapper(msg), end='', file=self._output_stream)
         # remove all callbacks now that we remove the reference to the debugger, as they can still be called
         self.debugger.exit_callbacks.remove(self._handle_process_exit)
         self.debugger.stop_callbacks.remove(self._handle_process_stop)
@@ -108,7 +113,8 @@ class InteractiveConsole:
         stop_signal = self.debugger.stopped_signal
         if stop_signal is not None:
             # if we stopped by a real signal and not a breakpoint
-            print(f"Process stopped by signal {stop_signal}.", file=self._output_stream)
+            msg = f"Process stopped by signal {stop_signal}."
+            print(self.system_msg_wrapper(msg), end='', file=self._output_stream)
 
     def print_error(self, exc_name: str, exc_desc: str) -> None:
         """

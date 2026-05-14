@@ -18,7 +18,7 @@ from pyx64dbg.GUI.placeholders import (
     PlaceholderWatchView,
 )
 from pyx64dbg.GUI.top_menu import TopMenu
-from pyx64dbg.GUI.pty_stdio_view import PtyStdioView
+from pyx64dbg.GUI.stdio_view import StdioView
 from pyx64dbg.GUI.registers_view import RegistersView
 from pyx64dbg.GUI.symbols_view import SymbolsView
 from pyx64dbg.GUI.watch_view import WatchView
@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self.widgets["extended_registers"] = ExtendedRegistersView(self)
         self.widgets["symbols"] = SymbolsView(self)
         self.widgets["disassembly"] = DisassemblyView(self)
-        self.widgets["stdio_terminal"] = PtyStdioView(self)
+        self.widgets["stdio_terminal"] = StdioView(self)
         self.widgets["watch"] = WatchView(self)
         self.widgets["interactive_console"] = InteractiveConsoleView(self)
     
@@ -127,6 +127,7 @@ class MainWindow(QMainWindow):
         # move the worker to its thread and start the thread's event loop
         self.debugger_worker.moveToThread(self.debugger_thread)
         self.debugger_thread.started.connect(self._init_ui) # init the UI only after the debugger thread is running so we can call it safely
+        self.debugger_thread.started.connect(self.debugger_worker.start_asyncio_loop) # start the asyncio loop in the debugger thread when it starts
         self.debugger_thread.start()
 
     def _place_widget_in_dock(
