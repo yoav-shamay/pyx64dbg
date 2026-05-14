@@ -1,13 +1,14 @@
+from __future__ import annotations
 import asyncio
 from functools import wraps
-from typing import Callable, ParamSpec, Awaitable
+from typing import Any, Callable, ParamSpec, Awaitable
 
 P = ParamSpec("P") # parameter specifications of the callables
 
 # save a reference to all background tasks created so they aren't discarded by the garbage collecotr.
-background_tasks: set[asyncio.Task] = set()
+background_tasks: set[asyncio.Task[Any]] = set()
 
-def async_slot(func: Callable[P, Awaitable]) -> Callable[P, None]:
+def async_slot(func: Callable[P, Awaitable[Any]]) -> Callable[P, None]:
     """
     Decorator to connect async methods to standard Qt signals.
     Automatically schedules the coroutine on the active asyncio event loop.

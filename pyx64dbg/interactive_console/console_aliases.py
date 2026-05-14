@@ -1,7 +1,9 @@
-"""
+"""  
 This module defines the console aliases and their resolution logic for the interactive console.
 Has methods to get them based on the state.
 """
+from __future__ import annotations
+
 from pyx64dbg import number_types
 from typing import TYPE_CHECKING
 from pyx64dbg.vector_register import VectorRegister
@@ -58,7 +60,7 @@ ALL_ALIASES: list[tuple[list[str], tuple[list[str | list[str]] | object, list[st
 ]
 
 
-def _resolve_target(console: "InteractiveConsole", target_path: list[str | list[str]]) -> object:
+def _resolve_target(console: InteractiveConsole, target_path: list[str | list[str]]) -> object:
     """
     Safely resolve a target path, created out of list of strings for dot access or lists for indexing.
     Starts from the console object.
@@ -74,7 +76,7 @@ def _resolve_target(console: "InteractiveConsole", target_path: list[str | list[
     return obj
 
 
-def get_aliases(console: "InteractiveConsole", process_running: bool) -> dict[str, object]:
+def get_aliases(console: InteractiveConsole, process_running: bool) -> dict[str, object]:
     """
     Returns a list of (aliases, target) for the commands that are available based on the process state.
     """

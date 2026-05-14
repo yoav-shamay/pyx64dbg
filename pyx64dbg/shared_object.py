@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pyx64dbg.number_types import UInt64
 from pyx64dbg.parse_elf import ELFFileParser
 from pyx64dbg.symbols import Symbols

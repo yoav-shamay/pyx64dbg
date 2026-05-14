@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from elftools.elf.elffile import ELFFile
 from pyx64dbg.number_types import UInt64
 from pyx64dbg.symbols import Symbol, SymbolType

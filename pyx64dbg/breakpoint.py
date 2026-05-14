@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 import pyx64dbg.ptrace as ptrace
 from pyx64dbg.number_types import CIntBase, UInt64
@@ -16,7 +18,7 @@ class Breakpoints:
     Allows to add/remove/get breakpoints.
     Uses software breakpoints, placing an 0xCC byte at the address.
     """
-    def __init__(self, debugger: "Debugger") -> None:
+    def __init__(self, debugger: Debugger) -> None:
         self._addresses: set[UInt64] = set()
         self._original_bytes: dict[UInt64, int] = {}
         self._debugger: Debugger = debugger

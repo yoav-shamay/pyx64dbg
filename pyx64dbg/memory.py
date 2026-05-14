@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pyx64dbg.number_types import CIntBase, CNumBase, UInt8
 import pyx64dbg.ptrace as ptrace
 from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION
@@ -26,7 +28,7 @@ class Memory:
     Can also use memory[start:end:step] for reading/writing with a step.
     """
 
-    def __init__(self, debugger: "Debugger") -> None:
+    def __init__(self, debugger: Debugger) -> None:
         """
         Initializes the Memory object with a reference to the parent Debugger object.
         """

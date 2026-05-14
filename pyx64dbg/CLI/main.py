@@ -2,6 +2,7 @@
 The entry point for the CLI tool.
 Parses command line arguments and starts the IPython CLI for the debugger.
 """
+from __future__ import annotations
 import argparse
 from pyx64dbg.CLI.ipython_cli import IPythonCLI
 

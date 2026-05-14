@@ -3,10 +3,10 @@ Utility functions for obtaining offsets for the executable and linked shared obj
 Used for PIE and ASLR support, and for getting the loaded shared objects and their addresses.
 Obtained by parsing the auxiliary vector, program headers, dynamic section and linker r_debug struct of the debugged process.
 """
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from pyx64dbg.number_types import UInt16, UInt32, UInt64
-from pyx64dbg.parse_elf import ELFFileParser
 from pyx64dbg.shared_object import SharedObject
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ def get_ld_base(auxv: dict[UInt64, UInt64]) -> UInt64 | None:
     else:
         return None
 
-def _get_program_header_address(debugger: "Debugger") -> UInt64:
+def _get_program_header_address(debugger: Debugger) -> UInt64:
     """
     Returns the address of the program header table of the main executable in its virtual address space.
     Requires the debugger object with initialized base address.
@@ -109,7 +109,7 @@ def _get_program_header_address(debugger: "Debugger") -> UInt64:
     return e_phoff_value + debugger.base_address
 
 
-def _get_program_header_entry_count(debugger: "Debugger") -> int:
+def _get_program_header_entry_count(debugger: Debugger) -> int:
     """
     Returns the number of entries in the program header table of the main executable.
     Requires the debugger object with initialized base address.
@@ -122,7 +122,7 @@ def _get_program_header_entry_count(debugger: "Debugger") -> int:
     return int(e_phnum_value)
 
 
-def _get_dynamic_section_address(debugger: "Debugger") -> UInt64:
+def _get_dynamic_section_address(debugger: Debugger) -> UInt64:
     """
     Returns the address of the dynamic section of the main executable in its virtual address space.
     Requires the debugger object with initialized base address.
@@ -149,7 +149,7 @@ def _get_dynamic_section_address(debugger: "Debugger") -> UInt64:
     raise RuntimeError("Cannot find dynamic section in program headers")
 
 
-def _get_r_debug_address(debugger: "Debugger") -> UInt64:
+def _get_r_debug_address(debugger: Debugger) -> UInt64:
     """
     Returns the address of the r_debug struct used by the linker to store information about the loaded shared objects.
     Requires the debugger object with initialized base address.
@@ -175,7 +175,7 @@ def _get_r_debug_address(debugger: "Debugger") -> UInt64:
         cur_entry_address += DYNAMIC_SECTION_ENTRY_SIZE  # move to the next entry
 
 
-def _get_linkmap_address(debugger: "Debugger") -> UInt64:
+def _get_linkmap_address(debugger: Debugger) -> UInt64:
     """
     Returns the address of the link_map struct, which is the head of a linked list of loaded shared objects used by the linker.
     Requires the debugger object with initialized base address.
@@ -189,7 +189,7 @@ def _get_linkmap_address(debugger: "Debugger") -> UInt64:
     return linkmap_address
 
 
-def get_shared_objects(debugger: "Debugger") -> list[SharedObject]:
+def get_shared_objects(debugger: Debugger) -> list[SharedObject]:
     """
     Returns a list of shared objects loaded in the debugged process.
     Requires the debugger object with initialized base address.

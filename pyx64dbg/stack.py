@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, overload
 
 from pyx64dbg.number_types import CNumBase, UInt64, CIntBase, UInt8
@@ -13,10 +15,10 @@ class StackFrame:
     Allows reading and writing using offsets from RBP (As common in x86-64 assembly), and accessing saved RBP/RIP values.
     """
 
-    def __init__(self, rbp: UInt64, rsp: UInt64, debugger: "Debugger"):
+    def __init__(self, rbp: UInt64, rsp: UInt64, debugger: Debugger):
         self.rbp: UInt64 = rbp
         self.rsp: UInt64 = rsp
-        self._debugger: "Debugger" = debugger
+        self._debugger: Debugger = debugger
 
     # overloads for __getitem__ as we return different types based on the key type (slice or number)
     @overload
@@ -171,7 +173,7 @@ class Stack:
     See the help of StackFrame for more information on how to use a specific stack frame.
     """
 
-    def __init__(self, debugger: "Debugger") -> None:
+    def __init__(self, debugger: Debugger) -> None:
         self._debugger = debugger
 
     def current_frame(self) -> StackFrame:

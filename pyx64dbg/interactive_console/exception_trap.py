@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 class ExceptionTrap:
     """
     This class represents an object to return in case the console access an object that is not available based on the process running / not running.

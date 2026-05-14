@@ -1,8 +1,9 @@
 """
 This module contains the functions for printing styled disassembly in the interactive console.
 """
+from __future__ import annotations
 import capstone
-from capstone.x86 import *
+from capstone.x86 import X86_OP_IMM, X86_OP_REG, X86_OP_MEM, X86_REG_RIP, X86Op
 from typing import TYPE_CHECKING
 from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.styles import Style
@@ -25,7 +26,7 @@ disasm_style = Style.from_dict(
 )
 
 
-def _mem_operand_to_str(self: "InteractiveConsole", instruction: capstone.CsInsn, op: X86Op) -> str:
+def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, op: X86Op) -> str:
     """
     Converts an x86 memory operand into a formatted HTML string.
     Structure: segment:[base + index * scale + disp]
@@ -103,7 +104,7 @@ def _mem_operand_to_str(self: "InteractiveConsole", instruction: capstone.CsInsn
     return res
 
 
-def print_disassembly(self: "InteractiveConsole", address: int, instruction_cnt: int) -> None:
+def print_disassembly(self: InteractiveConsole, address: int, instruction_cnt: int) -> None:
     """
     Prints the disassembly of the instructions at the given address.
     Disassembles instruction_cnt instructions.

@@ -2,6 +2,8 @@
 This module contains utility functions for the GUI.
 Currently only contains a function to prompt the user for an expression and evaluate it.
 """
+from __future__ import annotations
+
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QWidget
 from pyx64dbg.GUI.debugger_worker import DebuggerWorker 
 from typing import Any

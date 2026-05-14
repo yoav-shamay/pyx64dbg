@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -39,13 +41,13 @@ class VectorView[T]:
     A proxy that allows indexing, slicing, and assignment to a VectorRegister as if it were a list of a specific type.
     """
 
-    def __init__(self, parent_vec: "VectorRegister", cls: Type[T]) -> None:
+    def __init__(self, parent_vec: VectorRegister, cls: Type[T]) -> None:
         """
         Initializes a VectorView for a specific number type (e.g., Float32, Int16) on a parent VectorRegister.
          - parent_vec: The VectorRegister this view is associated with.
          - cls: The class of the number type
         """
-        self._vec: "VectorRegister" = parent_vec
+        self._vec: VectorRegister = parent_vec
         self._cls: Type[T] = cls
         self._step: int = cls.size
         self._count: int = self._vec.size // self._step

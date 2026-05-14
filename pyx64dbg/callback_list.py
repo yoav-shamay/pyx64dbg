@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable, ParamSpec, Generic
 
 P = ParamSpec("P") # parameter specifications of the callables

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.number_types import UInt64
 

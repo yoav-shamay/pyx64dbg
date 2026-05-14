@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 from pyx64dbg.number_types import (
     Int8, Int16, Int32, Int64, 

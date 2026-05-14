@@ -3,6 +3,8 @@ A script to generate the stubs for the number types in the cnum module, using a 
 The template is located at tools/templates/number_types.pyi.j2.
 Requires the jinja2 and black libraries to be installed.
 """
+from __future__ import annotations
+
 import os
 from jinja2 import Environment, FileSystemLoader
 import black

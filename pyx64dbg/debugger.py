@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 from ast import arg
 import os
 import pty
 import termios
 from typing import Never, Optional
-
-from sympy import N
 from pyx64dbg.breakpoint import Breakpoints
 from pyx64dbg.callback_list import CallbackList
 from pyx64dbg.memory import Memory
@@ -118,7 +118,7 @@ class Debugger:
         os.execve(file_name, argv, os.environ)
 
     @staticmethod
-    def start_and_debug(file_name: str, redirect_stdio_to_pty: bool = True, disable_pty_echo: bool = True, argv: Optional[list[str]] = None) -> "Debugger":
+    def start_and_debug(file_name: str, redirect_stdio_to_pty: bool = True, disable_pty_echo: bool = True, argv: Optional[list[str]] = None) -> Debugger:
         """
         Starts and debugs the specified file and returns a Debugger instance.
         Options:

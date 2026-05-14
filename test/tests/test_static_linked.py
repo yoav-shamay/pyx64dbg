@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pyx64dbg.debugger import Debugger
 
 EXECUTABLE_ADDRESS = "./test/executables/static_linked/test_static_linked"

@@ -7,6 +7,7 @@ are triggered after the movement.
 This is needed because those functions are internally called by other movement functions,
 and we only want to trigger updates after the debugger really finishes.
 """
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION_BYTES
@@ -27,7 +28,7 @@ class Control:
     It also includes methods to kill the process and manage signals.
     """
 
-    def __init__(self, debugger: "Debugger"):
+    def __init__(self, debugger: Debugger):
         self._debugger: Debugger = debugger
 
     def _handle_signal(self, status: int, stepped: bool = False) -> None:

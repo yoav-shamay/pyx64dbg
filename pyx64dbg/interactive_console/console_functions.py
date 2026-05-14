@@ -7,6 +7,7 @@ Includes:
 - run_process: runs the process with optional arguments.
 - select_file: selects a new file to debug, stopping the currently running process if there is
 """
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 import inspect
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 
 
-def print_breakpoints(self: "InteractiveConsole") -> None:
+def print_breakpoints(self: InteractiveConsole) -> None:
     """
     Prints the current breakpoints.
     """
@@ -27,7 +28,7 @@ def print_breakpoints(self: "InteractiveConsole") -> None:
         print(f"0x{bp:016x}", file=self._output_stream)
 
 
-def help(self: "InteractiveConsole", obj: Any = None) -> None:
+def help(self: InteractiveConsole, obj: Any = None) -> None:
     """
     Show help for the given object, or general help if no object is provided.
     If the object is a function, shows its signature.
@@ -49,7 +50,7 @@ def help(self: "InteractiveConsole", obj: Any = None) -> None:
             print(docstring, file=self._output_stream)
 
 
-def run_process(self: "InteractiveConsole", *argv: str) -> None:
+def run_process(self: InteractiveConsole, *argv: str) -> None:
     """
     Run the process. Can give optional arguments to the process, e. g. run_process("arg1", "arg2").
     """
@@ -69,7 +70,7 @@ def run_process(self: "InteractiveConsole", *argv: str) -> None:
     self._on_process_run()  # call the process run handler to set up aliases
 
 
-def select_file(self: "InteractiveConsole", file_name: str, trigger_callbacks: bool = True) -> None:
+def select_file(self: InteractiveConsole, file_name: str, trigger_callbacks: bool = True) -> None:
     """
     Selects a new file to debug.
     Stops the currently running process if there is one, as we switch to a new file.

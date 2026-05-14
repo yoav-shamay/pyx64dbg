@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from setuptools import setup, find_packages
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 

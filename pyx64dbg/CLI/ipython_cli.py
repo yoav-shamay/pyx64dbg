@@ -1,8 +1,7 @@
+from __future__ import annotations
 from typing import Optional
-
 from IPython.terminal.embed import InteractiveShellEmbed
 from IPython.terminal.prompts import Prompts, Token
-from sympy import use
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole, banner
 import atexit
 import sys

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
 
 import pyx64dbg.ptrace as ptrace
@@ -8,7 +10,7 @@ if TYPE_CHECKING:
     from pyx64dbg.debugger import Debugger
 
 # types that we can convert to bytes and assign to a register
-RegisterSettableTypes: TypeAlias = int | float | CNumBase | VectorRegister | list["REGISTER_SETTABLE_TYPES"] | bytes
+RegisterSettableTypes: TypeAlias = int | float | CNumBase | VectorRegister | list["RegisterSettableTypes"] | bytes
 
 def _convert_value_to_bytes(value: RegisterSettableTypes, width_bytes: int) -> bytes:
     """
@@ -82,7 +84,7 @@ class StandardRegister(Generic[T_Reg]):
         self.length: int = length
         self.reg_type: type[T_Reg] = reg_type
 
-    def __get__(self, instance: "Registers | None", owner: type) -> T_Reg:
+    def __get__(self, instance: Registers | None, owner: type) -> T_Reg:
         """
         Getter for the descriptor.
         Returns the value of the register.
@@ -95,14 +97,14 @@ class StandardRegister(Generic[T_Reg]):
         reg_bytes = instance.standard_regs[self.struct_name][self.first_byte : self.first_byte + self.length]
         return self.reg_type.from_bytes(reg_bytes) # convert to the right number type
 
-    def __set__(self, instance: "Registers", value: RegisterSettableTypes) -> None:
+    def __set__(self, instance: Registers, value: RegisterSettableTypes) -> None:
         """
         Setter for the descriptor.
         Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
         """
         self.set_value(instance, value, trigger_updates=True)
 
-    def set_value(self, instance: "Registers", value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
+    def set_value(self, instance: Registers, value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
         """
         A function to set the value of the register (with an option to not trigger callbacks).
         """
@@ -139,7 +141,7 @@ class ExtendedRegister(Generic[T_Reg]):
         """
         self._reg_name = name
 
-    def __get__(self, instance: "Registers | None", owner: type) -> T_Reg:
+    def __get__(self, instance: Registers | None, owner: type) -> T_Reg:
         """
         Getter for the descriptor.
         Returns the value of the register.
@@ -164,14 +166,14 @@ class ExtendedRegister(Generic[T_Reg]):
         else:
             return self.reg_type.from_bytes(reg_bytes)
 
-    def __set__(self, instance: "Registers", value: RegisterSettableTypes) -> None:
+    def __set__(self, instance: Registers, value: RegisterSettableTypes) -> None:
         """
         Setter for the descriptor.
         Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
         """
         self.set_value(instance, value, trigger_updates=True)
 
-    def set_value(self, instance: "Registers", value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
+    def set_value(self, instance: Registers, value: RegisterSettableTypes, trigger_updates: bool = True) -> None:
         """
         A function to set the value of the register (with an option to not trigger callbacks).
         """
@@ -328,7 +330,7 @@ class Registers:
     ymm14 = ExtendedRegister(["xmm14", "ymm14_h"], Vector256)
     ymm15 = ExtendedRegister(["xmm15", "ymm15_h"], Vector256)
 
-    def __init__(self, debugger: "Debugger") -> None:
+    def __init__(self, debugger: Debugger) -> None:
         self._debugger = debugger
         self._refresh_registers()
 
