@@ -2,20 +2,22 @@
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux_x86__64-lightgrey.svg)
-![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 **PyX64Dbg** is a Python-based debugger for x86-64 Linux binaries.
 
-Leveraging the Linux `ptrace` API, PyX64Dbg combines low-level process control with Python's flexibility. It provides essential debugging capabilities (execution control, breakpoints, memory/register inspection) through a **Graphical User Interface (GUI)**, a robust **IPython-based CLI**, and a comprehensive **Python API** for programmatic binary analysis.
+PyX64Dbg utilizes the Linux `ptrace` system call and the `/proc` filesystem (`procfs`) to trace and introspect ELF processes. These low-level operating system primitives are abstracted into a comprehensive Python object model, enabling direct manipulation of process memory, CPU registers, and execution flow.
+
+Leveraging this foundation, the tool delivers its capabilities through three primary interfaces: a **Python API** designed for automated reverse engineering and binary analysis, a **Graphical User Interface (GUI)** for visual debugging, and a robust **IPython-based CLI** for interactive exploration.
 
 ## Key Features
 
-- **Graphical Interface:** Built with PySide6, featuring disassembly views, memory watches, register panels, and an embedded interactive terminal.
+- **Python API:** Automate reverse engineering, exploit development, or testing using a clean, object-oriented interface. Unlike GDB, PyX64Dbg acts as a standard Python library you can import and use anywhere.
+- **Graphical Interface (GUI):** Built with PySide6, featuring disassembly views, memory watches, register panels, and an embedded interactive terminal.
+- **Command Line Interface (CLI):** An interactive IPython REPL that supports live Python syntax, auto-completion, and inline evaluation.
 - **Advanced Target Support:** Native handling of PIE (Position Independent Executables), ASLR, shared libraries (`ld.so`), and dynamic symbols.
 - **C-Like Type System:** A custom extension providing native types (`Int32`, `UInt64`, `Float80`, etc.) that strictly follow C promotion, overflow, and truncation rules.
-- **Extended Registers (AVX/SSE):** Full CPU `xstate` parsing with support for interacting with `XMM`, `YMM`, and FPU (`st`) vector registers.
-- **IPython REPL:** An interactive console that supports live Python syntax, auto-completion, and inline evaluation.
+- **Extended Registers (AVX/SSE):** Full CPU `xstate` parsing with support for `XMM`, `YMM`, and FPU (`st`) vector registers. The API allows you to seamlessly treat vector data as a C-style union across all possible integer and floating-point array representations.
 
 ## Prerequisites
 
@@ -61,7 +63,7 @@ Once inside, simply type `help` to see a list of available commands and aliases 
 
 ## Python API Showcase
 
-PyX64Dbg is built to be scripted. You can automate binary analysis, reverse engineering, or testing using the `Debugger` object.
+PyX64Dbg is built to be scripted. You can easily interact with binaries directly from Python.
 
 ```python
 from pyx64dbg import Debugger
@@ -97,13 +99,14 @@ dbg.control.kill_process()
 
 ## Testing
 
-The repository includes a suite of integration tests against custom-compiled C binaries to verify register states, memory reading, and edge cases.
+The repository includes a suite of integration tests that run against provided pre-compiled C binaries to verify register states, memory reading, and edge cases.
 
-To run the test suite:
-1. Compile the test executables: `cd test/executables && make`
-2. Run `pytest`: `pytest test/`
+To run the tests:
+```bash
+pytest test/
+```
 
-*Note: Tests rely on specific compiled offsets and may fail if rebuilt with significantly different compiler versions.*
+*Note: If you wish to rebuild the test executables from source, a `Makefile` is provided in `test/executables/`. Rebuilding may cause certain tests to fail if the compiler generates different instruction offsets.*
 
 ## License
 
