@@ -3,6 +3,7 @@ import os
 import fcntl
 import struct
 import termios
+import json
 from typing import TYPE_CHECKING, Callable, Optional
 
 from PySide6.QtCore import QObject, Slot, QSocketNotifier, QUrl
@@ -113,7 +114,7 @@ class PtyView(QWidget):
             buf = os.read(self.fd, 1024)
             if buf:
                 # Send data to JS
-                js_code = f"writeToTerminal({repr(buf.decode(errors='ignore'))})"
+                js_code = f"writeToTerminal({json.dumps(buf.decode(errors='ignore'))})" # use json to pass it in a format js understands
                 self._view.page().runJavaScript(js_code)
             else:
                 # empty read means EOF

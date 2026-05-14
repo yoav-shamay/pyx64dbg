@@ -12,13 +12,6 @@ from pyx64dbg.shared_object import SharedObject
 if TYPE_CHECKING:
     from pyx64dbg.debugger import Debugger
 
-# constants for various offsets and sizes used in parsing the auxiliary vector, program headers, dynamic section, r_debug struct and link_map struct to get the shared objects and their addresses.
-AUXV_ENTRY_SIZE = 16
-AUXV_ENTRY_TYPE_OFFSET = 0
-AUXV_ENTRY_TYPE_SIZE = 8
-AUXV_ENTRY_VALUE_OFFSET = 8
-AUXV_ENTRY_VALUE_SIZE = 8
-
 AT_ENTRY = 9
 AT_BASE = 7
 

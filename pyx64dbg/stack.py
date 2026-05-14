@@ -92,13 +92,10 @@ class StackFrame:
         """
         Sets the saved RBP value of the stack frame, which is located at the base of the frame (RBP).
         """
-        # convert value to bytes
-        if isinstance(value, CIntBase):
-            value = value.to_bytes()
-        else:  # if it's int, we need to specify the byte length and endianness to convert it to bytes
-            value = value.to_bytes(8, byteorder="little")
-        # use our __setitem__ to set relative to rbp
-        self[0:8] = value
+        # convert value to bytes by first converting it to a UInt64 as the width is 8 bytes
+        value = UInt64(value)
+        value_bytes = value.to_bytes()
+        self[0:8] = value_bytes
 
     @property
     def saved_rip(self) -> UInt64:

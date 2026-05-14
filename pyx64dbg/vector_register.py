@@ -112,6 +112,11 @@ class VectorView[T]:
             ):  # verify that the value is an iterable, as we expect for slice assignment
                 raise TypeError("Can only assign an iterable to a slice")
 
+            if len(value) != len(indices):
+                raise ValueError(
+                    f"Attempting to assign {len(value)} values to slice of length {len(indices)}"
+                )
+
             for i, val in zip(indices, value):
                 self._update_buffer(updated_data, i, val)
         else:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from ast import arg
 import os
 import pty
 import termios

@@ -133,5 +133,9 @@ class SymbolsView(QWidget):
         address = addr_item.data(Qt.ItemDataRole.UserRole)
         size_item = self.table.item(row, 2)
         size = size_item.data(Qt.ItemDataRole.UserRole)
-        # change disassembly view to disassemble the function memory range
-        await self._main_window.widgets["disassembly"].make_disassemble_memory_range(address, address + size)
+        if size == 0:
+            # if the size is 0, we treat it as an address
+            await self._main_window.widgets["disassembly"].make_disassemble_from_address(address)
+        else:
+            # change disassembly view to disassemble the function memory range
+            await self._main_window.widgets["disassembly"].make_disassemble_memory_range(address, address + size)

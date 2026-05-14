@@ -7,6 +7,7 @@ from capstone.x86 import X86_OP_IMM, X86_OP_REG, X86_OP_MEM, X86_REG_RIP, X86Op
 from typing import TYPE_CHECKING
 from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.styles import Style
+import html
 
 if TYPE_CHECKING:
     from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
@@ -72,7 +73,7 @@ def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, 
         if op.mem.base == 0 and op.mem.index == 0:
             symbol = self.debugger.address_to_symbol.get(op.mem.disp)
             if symbol:
-                parts.append(f"<sym>{symbol}</sym>")
+                parts.append(f"<sym>{html.escape(symbol)}</sym>") # need to escape the symbol name as it can contain special chars
             else:
                 parts.append(f"<imm>{hex(val_to_show)}</imm>")
         else:
@@ -93,7 +94,7 @@ def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, 
             # if there's a symbol, show as (symbol, 0xaddress)
             res += (
                 f" <punct>(</punct>"
-                f"<sym>{symbol}</sym>"
+                f"<sym>{html.escape(symbol)}</sym>"
                 f"<punct>,</punct> "
                 f"<addr>{hex(rip_relative_address)}</addr>"
                 f"<punct>)</punct>"

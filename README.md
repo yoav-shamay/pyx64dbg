@@ -1,69 +1,110 @@
 # PyX64Dbg
-A Python-based debugger for x64 Linux binaries. 
-It uses the `ptrace` system call to control the debugged process.
-## Features
-- **Python API** - Programmatically access the debugger and all of its functionality.
-- **CLI tool** - Interactive IPython-based console
-- **GUI** - Graphical interface built using PySide6
+
+![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
+![Platform](https://img.shields.io/badge/platform-Linux_x86__64-lightgrey.svg)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+**PyX64Dbg** is a Python-based debugger for x86-64 Linux binaries.
+
+Leveraging the Linux `ptrace` API, PyX64Dbg combines low-level process control with Python's flexibility. It provides essential debugging capabilities (execution control, breakpoints, memory/register inspection) through a **Graphical User Interface (GUI)**, a robust **IPython-based CLI**, and a comprehensive **Python API** for programmatic binary analysis.
+
+## Key Features
+
+- **Graphical Interface:** Built with PySide6, featuring disassembly views, memory watches, register panels, and an embedded interactive terminal.
+- **Advanced Target Support:** Native handling of PIE (Position Independent Executables), ASLR, shared libraries (`ld.so`), and dynamic symbols.
+- **C-Like Type System:** A custom extension providing native types (`Int32`, `UInt64`, `Float80`, etc.) that strictly follow C promotion, overflow, and truncation rules.
+- **Extended Registers (AVX/SSE):** Full CPU `xstate` parsing with support for interacting with `XMM`, `YMM`, and FPU (`st`) vector registers.
+- **IPython REPL:** An interactive console that supports live Python syntax, auto-completion, and inline evaluation.
 
 ## Prerequisites
-- **OS**: Linux, x86-64 architecture
-- **Python** - 3.10 or later
-- **For building from source**:
-    - C++20 compiler
-    - Build tools and development headers
+
+- **Operating System**: Linux (x86-64 architecture only)
+- **Python**: 3.10 or later
 
 ## Installation
+
 ### From PyPI (Recommended)
-Not published yet.
-### From Source (Development)
-Install with:
 ```bash
+pip install pyx64dbg
+```
+
+### From Source (Development)
+Building from source compiles the underlying Pybind11 C++ extensions. 
+
+**Additional Requirements:**
+- A C++20 compatible compiler (GCC/Clang)
+- Standard build tools (`make`, Python development headers)
+
+Clone the repository and install it in editable mode:
+```bash
+git clone https://github.com/yoav-shamay/pyx64dbg.git
+cd pyx64dbg
 pip install -e .
 ```
-This compiles the Pybind11 C++ extensions.
 
 ## Usage
-### CLI
-```bash
-pyx64dbg [/path/to/binary]
-```
-Starts the IPython console.  
-Press `help` within the console for more information on the available commands.
-## GUI
+
+### Graphical Interface (GUI)
+Start the visual debugger (requires a desktop session like X11 or Wayland):
 ```bash
 pyx64dbg-gui
 ```
-This opens the graphical interface.
-## Python API
-Use `pyx64dbg.Debugger` to access the debugger object.  
-Example:
+*Tip: The full IPython CLI is embedded directly into the GUI and is available via the "Interactive Console" tab at the bottom.*
+
+### Command Line Interface (CLI)
+Launch the interactive IPython console:
+```bash
+pyx64dbg [/path/to/binary]
+```
+Once inside, simply type `help` to see a list of available commands and aliases (e.g., `run`, `step`, `bps`, `dis`).
+
+## Python API Showcase
+
+PyX64Dbg is built to be scripted. You can automate binary analysis, reverse engineering, or testing using the `Debugger` object.
+
 ```python
 from pyx64dbg import Debugger
-from pyx64dbg.number_types import Int64
+from pyx64dbg.number_types import UInt64
 
-# Start Debugging
-dbg = Debugger.start_and_debug("./binary")
+# 1. Spawn process and attach debugger
+dbg = Debugger.start_and_debug("./target_binary")
 
-# Breakpoints
-# Set breakpoint and run
-dbg.breakpoints.add_breakpoint(0x401000)
+# 2. Set a breakpoint at the 'main' function
+main_addr = dbg.symbols["main"]
+dbg.breakpoints.add_breakpoint(main_addr)
+
+# 3. Run until the breakpoint is hit
 dbg.control.continue_execution()
 
-# Inspect state
-print(f"RIP: 0x{dbg.registers.rip:x}")
-print(f"Memory at RSP: 0x{dbg.memory.read_number(dbg.registers.rsp, Int64):x}")
+# 4. Read memory and native vector registers
+rip = dbg.registers.rip
+rsp_val = dbg.memory.read_number(dbg.registers.rsp, UInt64)
+ymm0_floats = dbg.registers.ymm0.f32  # Access YMM0 as an array of 32-bit floats
 
-# Clean up - kill the process to avoid leaving it hanging
+print(f"[+] Halted at RIP: 0x{rip:x}")
+print(f"[+] Stack pointer value: 0x{rsp_val:x}")
+print(f"[+] YMM0 state: {ymm0_floats}")
+
+# 5. Clean up
 dbg.control.kill_process()
 ```
 
 ## Limitations
-- The debugger only works for Linux ELF binaries on the x86-64 architecture.
-- The debugger uses the `ptrace` syscall and the `/proc` file system to gain information on the debugged process, and will not work if they aren't available.
-- The GUI tool requires a desktop session (X11 or Wayland)
+
+- Supported exclusively on Linux ELF binaries running on `x86-64`.
+- Relies on the `ptrace` system call and the `/proc` filesystem. It will not function in hardened environments where these features are disabled.
 
 ## Testing
-Some of the tests are integration tests on specific binaries provided in the repository.  
-To compile them from source use `make` on the `test/executables` directory.  
-The tests might not work on newly compiled binaries due to relying on specific address offsets.
+
+The repository includes a suite of integration tests against custom-compiled C binaries to verify register states, memory reading, and edge cases.
+
+To run the test suite:
+1. Compile the test executables: `cd test/executables && make`
+2. Run `pytest`: `pytest test/`
+
+*Note: Tests rely on specific compiled offsets and may fail if rebuilt with significantly different compiler versions.*
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

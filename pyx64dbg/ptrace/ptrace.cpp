@@ -6,6 +6,7 @@
 #include <elf.h>
 #include <vector>
 #include <system_error>
+#include <optional>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
