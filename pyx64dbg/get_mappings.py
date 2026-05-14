@@ -19,8 +19,8 @@ AUXV_ENTRY_TYPE_SIZE = 8
 AUXV_ENTRY_VALUE_OFFSET = 8
 AUXV_ENTRY_VALUE_SIZE = 8
 
-AT_ENTRY = UInt64(9)
-AT_BASE = UInt64(7)
+AT_ENTRY = 9
+AT_BASE = 7
 
 PT_DYNAMIC = 2
 
@@ -46,52 +46,21 @@ DT_NULL = 0
 
 VDSO_NAME = "linux-vdso.so.1"
 
-
-def get_auxv(child_pid: int) -> dict[UInt64, UInt64]:
-    """
-    A helper method to get the auxiliary vector of the debugged process.
-    Reads it from /proc/<pid>/auxv and parses it into a dictionary mapping from entry types to entry values.
-    """
-    # read /proc/<pid>/auxv
-    file_path = f"/proc/{child_pid}/auxv"
-    with open(file_path, "rb") as f:
-        auxv_content = f.read()
-    # parse it to a dictionary
-    auxv: dict[UInt64, UInt64] = {}
-    for i in range(0, len(auxv_content), AUXV_ENTRY_SIZE):
-        entry_type_bytes = auxv_content[
-            i
-            + AUXV_ENTRY_TYPE_OFFSET : i
-            + AUXV_ENTRY_TYPE_OFFSET
-            + AUXV_ENTRY_TYPE_SIZE
-        ]
-        entry_value_bytes = auxv_content[
-            i
-            + AUXV_ENTRY_VALUE_OFFSET : i
-            + AUXV_ENTRY_VALUE_OFFSET
-            + AUXV_ENTRY_VALUE_SIZE
-        ]
-        # parse both as UInt64, as they are 8-byte numbers.
-        entry_type = UInt64.from_bytes(entry_type_bytes)
-        entry_value = UInt64.from_bytes(entry_value_bytes)
-        auxv[entry_type] = entry_value
-    return auxv
-
-def get_entry_address(auxv: dict[UInt64, UInt64]) -> UInt64:
+def get_entry_address(auxv: dict[int, int]) -> UInt64:
     """
     A helper method to get the entry point address of the debugged process from its auxiliary vector.
     Reads the AT_ENTRY entry from the auxiliary vector, which gives the offset of the entry point from the base address.
     """
-    return auxv[AT_ENTRY]
+    return UInt64(auxv[AT_ENTRY])
 
-def get_ld_base(auxv: dict[UInt64, UInt64]) -> UInt64 | None:
+def get_ld_base(auxv: dict[int, int]) -> UInt64 | None:
     """
     A helper method to get the ld base of the executable in the debugged process from its auxiliary vector.
     Reads the AT_BASE entry from the auxiliary vector.
     Returns None for static-linked binaries, as they don't have a ld.
     """
     if AT_BASE in auxv and auxv[AT_BASE] != 0: # if the entry isn't present or zero, it's a static-linked binary
-        return auxv[AT_BASE]
+        return UInt64(auxv[AT_BASE])
     else:
         return None
 

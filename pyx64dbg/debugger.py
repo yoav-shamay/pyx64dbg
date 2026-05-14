@@ -19,7 +19,7 @@ from pyx64dbg.parse_elf import ELFFileParser
 from pyx64dbg.symbols import Symbols
 from pyx64dbg.control import Control
 from pyx64dbg.stack import Stack
-from pyx64dbg.get_mappings import get_auxv, get_entry_address, get_ld_base, get_shared_objects
+from pyx64dbg.get_mappings import get_entry_address, get_ld_base, get_shared_objects
 
 
 class Debugger:
@@ -80,7 +80,7 @@ class Debugger:
                 # Otherwise, they are based on the base address we deduced
                 # This offset between the actual load address and symbol address is called "load bias"
                 self.load_bias: UInt64 = UInt64(0)
-        auxv = get_auxv(self.child_pid)
+        auxv = ptrace.get_auxv(self.child_pid)
         if self.is_pie:
             # for PIE binaries, we need to deduce the base address from the entry point address and the entry offset
             entry_address = get_entry_address(auxv)

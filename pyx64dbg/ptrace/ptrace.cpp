@@ -260,9 +260,48 @@ static void kill_child(int child_pid)
         raise_errno_as_os_error();
 }
 
+/*
+Implementation of the get_auxv method for the python binding.
+Gets the child process id and returns a dict containing the auxiliary vector of the child process.
+The keys are ints with entry type, and the values are int with entry value.
+Reads the auxiliary vector from /proc/<pid>/auxv.
+*/
+static py::dict get_auxv(int child_pid)
+{
+    py::dict auxv;
+    std::string path = "/proc/" + std::to_string(child_pid) + "/auxv";
+    int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1) // error in open
+    {
+        raise_errno_as_os_error();
+    }
+    Elf64_auxv_t entry;
+    while (true)
+    {
+        ssize_t read_bytes = read(fd, &entry, sizeof(entry));
+        if (read_bytes == -1) // error reading
+        {
+            close(fd); // close the fd on error
+            raise_errno_as_os_error();
+        }
+        if (read_bytes == 0) // EOF
+        {
+            break;
+        }
+        if (read_bytes != sizeof(entry)) // if we read a partial entry, it's an error
+        {
+            close(fd);
+            throw std::runtime_error("Could not read a full auxv entry from the child process");
+        }
+        auxv[py::cast(entry.a_type)] = entry.a_un.a_val; // add the entry to the dict
+    }
+    close(fd); // close the fd now that we finished
+    return auxv;
+}
+
 PYBIND11_MODULE(ptrace, m)
 {
-    m.doc() = "C++ ptrace wrapper";
+    m.doc() = "C++ wrapper for system interaction to control the process using ptrace, procfs and related syscalls.";
     m.def("traceme", &traceme, "ptrace call with PTRACE_TRACEME");
     m.def("cont", &cont, "ptrace call with PTRACE_CONT", py::arg("child_pid"), py::arg("signal") = py::none());
     m.def("single_step", &single_step, "ptrace call with PTRACE_SINGLESTEP", py::arg("child_pid"), py::arg("signal") = py::none());
@@ -273,4 +312,5 @@ PYBIND11_MODULE(ptrace, m)
     m.def("get_memory_range", &get_memory_range, "read memory range of the child process using process_vm_readv");
     m.def("write_memory_range", &write_memory_range, "write memory range of the child process using /proc/<pid>/mem");
     m.def("kill", &kill_child, "ptrace call with PTRACE_KILL");
+    m.def("get_auxv", &get_auxv, "read the auxiliary vector of the child process from /proc/<pid>/auxv");
 }
