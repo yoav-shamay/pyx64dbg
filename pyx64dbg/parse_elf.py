@@ -14,6 +14,7 @@ elftools_symtypes = {
 # constants for PLT entry sizes, used for resolving PLT symbols
 PLT_HEADER_SIZE = 16
 PLT_STUB_SIZE = 16
+GOT_SYMBOL_SIZE = 8 # we treat got entries as 8 bytes, as they are just addresses
 
 class ELFFileParser:
     """
@@ -78,7 +79,7 @@ class ELFFileParser:
                     # add the got entry for this symbol as well
                     got_address = rel['r_offset'] # the got offset in the ELF is given directly in the relocation entry
                     got_sym_name = name + "_got" # to indicate got symbols, add a "_got" suffix to the name
-                    symbols.append(Symbol(got_sym_name, got_address, size, SymbolType.OBJECT))
+                    symbols.append(Symbol(got_sym_name, got_address, GOT_SYMBOL_SIZE, SymbolType.OBJECT))
         return symbols
     
     def get_entry_point_offset(self) -> int:

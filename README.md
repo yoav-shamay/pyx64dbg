@@ -23,6 +23,7 @@ The tool features through three primary interfaces: a **Python API** designed fo
 
 - **Operating System**: Linux (x86-64 architecture only)
 - **Python**: 3.10 or later
+- **C++ Compiler**: A C++20 compatible compiler (e.g., `g++` or `clang`) and Python development headers are required to compile the `ptrace` and numeric type extensions during installation.
 
 ## Installation
 
@@ -32,12 +33,6 @@ pip install pyx64dbg
 ```
 
 ### From Source (Development)
-Building from source compiles the underlying Pybind11 C++ extensions. 
-
-**Additional Requirements:**
-- A C++20 compatible compiler (GCC/Clang)
-- Standard build tools (`make`, Python development headers)
-
 Clone the repository and install it in editable mode:
 ```bash
 git clone https://github.com/yoav-shamay/pyx64dbg.git

@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel", "pybind11"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "PyX64Dbg"
+name = "pyx64dbg"
 version = "0.1.0"
 description = "A debugger implemented in Python"
 authors = [
