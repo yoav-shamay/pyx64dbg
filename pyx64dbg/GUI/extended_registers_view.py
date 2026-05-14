@@ -200,7 +200,7 @@ class ExtendedRegistersView(QWidget):
         # We fetch it here instead of saving it in the state because this is the only place where it's used, so there's no need to save it and emit it with every state update.
         try:
             reg_value = await self._debugger_worker.call_async(self._debugger_worker.get_register, reg_name)
-        except ValueError:
+        except Exception:
             # register isn't available
             reg_item.setText(1, f"N/A")
             reg_item.setFont(1, self._values_font) # use other font for register values
