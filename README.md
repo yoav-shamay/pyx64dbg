@@ -6,9 +6,9 @@
 
 **PyX64Dbg** is a Python-based debugger for x86-64 Linux binaries.
 
-PyX64Dbg utilizes the Linux `ptrace` system call and the `/proc` filesystem (`procfs`) to trace and introspect ELF processes. These low-level operating system primitives are abstracted into a comprehensive Python object model, enabling direct manipulation of process memory, CPU registers, and execution flow.
+PyX64Dbg utilizes the Linux `ptrace` system call and the `/proc` filesystem (`procfs`) to trace and introspect ELF processes. These low-level operating system primitives are abstracted into an intuitive Python object model, enabling direct manipulation of process memory, CPU registers, and execution flow.
 
-Leveraging this foundation, the tool delivers its capabilities through three primary interfaces: a **Python API** designed for automated reverse engineering and binary analysis, a **Graphical User Interface (GUI)** for visual debugging, and a robust **IPython-based CLI** for interactive exploration.
+The tool features through three primary interfaces: a **Python API** designed for automated reverse engineering and binary analysis, a **Graphical User Interface (GUI)** for visual debugging, and a robust **IPython-based CLI** for debugging from the terminal.
 
 ## Key Features
 
@@ -17,7 +17,7 @@ Leveraging this foundation, the tool delivers its capabilities through three pri
 - **Command Line Interface (CLI):** An interactive IPython REPL that supports live Python syntax, auto-completion, and inline evaluation.
 - **Advanced Target Support:** Native handling of PIE (Position Independent Executables), ASLR, shared libraries (`ld.so`), and dynamic symbols.
 - **C-Like Type System:** A custom extension providing native types (`Int32`, `UInt64`, `Float80`, etc.) that strictly follow C promotion, overflow, and truncation rules.
-- **Extended Registers (AVX/SSE):** Full CPU `xstate` parsing with support for `XMM`, `YMM`, and FPU (`st`) vector registers. The API allows you to seamlessly treat vector data as a C-style union across all possible integer and floating-point array representations.
+- **Extended Registers (AVX/SSE):** Supports CPU `xstate`, including `XMM`, `YMM`, and FPU (`st`) vector registers. The API allows you to seamlessly treat vector data as a C-style union across all possible integer and floating-point array representations.
 
 ## Prerequisites
 
@@ -88,7 +88,7 @@ print(f"[+] Halted at RIP: 0x{rip:x}")
 print(f"[+] Stack pointer value: 0x{rsp_val:x}")
 print(f"[+] YMM0 state: {ymm0_floats}")
 
-# 5. Clean up
+# 5. Clean up - kill the process
 dbg.control.kill_process()
 ```
 
