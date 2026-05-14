@@ -78,7 +78,7 @@ class ExtendedRegistersView(QWidget):
         """
         Loads the QSS stylesheet from extended_registers_view.qss and applies it to the widget.
         """
-        with open("pyx64dbg/GUI/styles/extended_registers_view.qss", "r") as f:
+        with open(str(self._main_window.base_path / "styles" / "extended_registers_view.qss"), "r") as f:
             self.setStyleSheet(f.read())
 
     def _init_ui(self) -> None:

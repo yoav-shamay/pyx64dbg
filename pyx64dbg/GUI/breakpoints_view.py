@@ -40,7 +40,7 @@ class BreakpointsView(QWidget):
         """
         Loads the style sheet for the view from the breakpoints_view.qss file.
         """
-        with open("pyx64dbg/GUI/styles/breakpoints_view.qss", "r") as f:
+        with open(str(self._main_window.base_path / "styles" / "breakpoints_view.qss"), "r") as f:
             self.setStyleSheet(f.read())
     
     def _init_ui(self) -> None:

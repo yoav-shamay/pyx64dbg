@@ -103,7 +103,7 @@ class WatchView(QWidget):
         # setup binds
         add_action.triggered.connect(self._add_watch_prompt)
         remove_action.triggered.connect(self._remove_selected_watch)
-        edit_action.triggered.connect(self._edit_selected_watch)
+        edit_action.triggered.connect(self._on_edit_clicked)
         
         # Disable "Remove" and "Edit" if nothing is actually selected
         selected_items = self.table.selectedItems()
@@ -169,7 +169,6 @@ class WatchView(QWidget):
         self._watch_expressions.pop(row)
         await self._refresh_watches()
     
-    @async_slot
     async def _edit_selected_watch(self):
         """
         Called from the right click menu or on double click.
@@ -186,5 +185,14 @@ class WatchView(QWidget):
     async def _on_double_click(self, row: int, column: int) -> None:
         """
         Double clicking a watch allows editing it, just calls the edit function for the selected watch
+        """
+        await self._edit_selected_watch()
+    
+    @async_slot
+    async def _on_edit_clicked(self) -> None:
+        """
+        Called from the right click menu when clicking "Edit Watch".
+        Just calls the edit function for the selected watch.
+        Needed as _edit_selected_watch isn't async_slot
         """
         await self._edit_selected_watch()

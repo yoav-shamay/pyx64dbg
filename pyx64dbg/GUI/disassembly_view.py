@@ -61,7 +61,7 @@ class DisassemblyView(QWidget):
         """
         Load the style qss file.
         """
-        with open("pyx64dbg/GUI/styles/disassembly_view.qss", "r") as f:
+        with open(str(self._main_window.base_path / "styles" / "disassembly_view.qss"), "r") as f:
             self.setStyleSheet(f.read())
 
     def _init_ui(self) -> None:

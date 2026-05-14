@@ -73,7 +73,7 @@ class MainWindow(QMainWindow):
         """
         Loads the style sheet for the main window from the main_window.qss file.
         """
-        with open("pyx64dbg/GUI/styles/main_window.qss", "r") as f:
+        with open(str(self.base_path / "styles" / "main_window.qss"), "r") as f:
             self.setStyleSheet(f.read())
 
     def _init_ui(self) -> None:
