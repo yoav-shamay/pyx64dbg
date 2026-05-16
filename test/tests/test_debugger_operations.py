@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pyx64dbg.debugger import Debugger
 from pyx64dbg.number_types import Int64
+import signal
 
 EXECUTABLE_ADDRESS = "./test/executables/basic_crackme/test_basic_crackme"
 CRACKME_SOL = 687113069
@@ -169,3 +170,32 @@ def test_finish():
     assert dbg.registers.rip == main + 0x49 # right after printf
     assert dbg.stdio.recvall() == b"Enter password: " # check that we received the prompt which means printf ran
     dbg.control.kill_process()   
+
+def test_signal_passing():
+    """
+    Test that we intercept when the process is stopped by a signal and can pass it to the process to continue execution.
+    """
+    dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
+    dbg.registers.rip = 0 # trigger an error and cause a SIGSEGV
+    dbg.control.single_step() # single step to trigger the signal
+    assert dbg.stopped_signal == signal.SIGSEGV
+    dbg.control.single_step() # pass the signal and single step again
+    assert dbg.process_exited # assert that the process exited after passing the signal to the process
+    assert dbg.error_signal == signal.SIGSEGV # assert that the exit signal is the signal we triggered
+    assert dbg.exit_code == -signal.SIGSEGV # assert that the exit code is -signal number, which is the python convention for exit codes on signals
+
+def test_signal_surpassion():
+    """
+    Test that we can intercept and surpass a signal passed to the process.
+    """
+    dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
+    dbg.registers.rip = 0 # trigger an error and cause a SIGSEGV
+    dbg.control.single_step() # single step to trigger the signal
+    assert dbg.stopped_signal == signal.SIGSEGV
+    dbg.control.surpass_signal() # surpass the signal
+    assert not dbg.stopped_signal # assert that we are no longer stopped on the signal
+    dbg.registers.rip = dbg.entry_address # return the process to normal execution
+    dbg.stdio.sendline("1234")
+    dbg.control.continue_execution() # continue execution to the end
+    dbg.stdio.recvuntil(b"Enter password: ") # receive prompt
+    assert dbg.stdio.recvall() == b"Wrong!\r\n" # check that we received the "Wrong!" message, indicating the process run normally

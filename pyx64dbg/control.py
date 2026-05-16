@@ -45,8 +45,8 @@ class Control:
             self._debugger._on_exit()
         elif os.WIFSIGNALED(status):  # process was killed by a signal (not stopped)
             self._debugger.process_exited = True
-            self._debugger.exit_code = None
             self._debugger.error_signal = os.WTERMSIG(status)
+            self._debugger.exit_code = -self._debugger.error_signal  # python convention is to use negative exit code for signals
             self._debugger.stopped_signal = None
             self._debugger._on_exit()
         elif os.WIFSTOPPED(status):
