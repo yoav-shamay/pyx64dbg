@@ -606,7 +606,7 @@ py::object cnum_str(CNumBase *self) {
         using T = decltype(type_instance);
         auto* self_typed_cnum = static_cast<CNum<T>*>(self); // cast to typed CNum
         std::stringstream ss;
-        ss << self_typed_cnum->value;
+        ss << +self_typed_cnum->value; // use + to print uint8_t and int8_t as numbers instead of characters
         return py::cast(ss.str());
     });
 }
@@ -639,7 +639,22 @@ py::object cnum_repr(py::object self) {
             // for integer types, we also want hex representation
             // format: ClassName(int_value, hex_value)
             // We use + as value might be a char
-            ss << name << "(" << +self_typed_cnum->value << ", 0x" << std::hex << +self_typed_cnum->value << std::dec << ")";
+
+            ss << name << "(" << +self_typed_cnum->value << ", 0x" << std::hex;
+            if (self_typed_cnum->value < 0)
+            {
+                // for negative values, we want to show the hex of the 2's complement representation
+                // However, std::hex converts types smaller than int to int before doing it
+                // So we manually convert it to unsigned instead
+                ss << +static_cast<std::make_unsigned_t<T>>(self_typed_cnum->value);
+            }
+            else
+            {
+                // Otherwise we can just show the hex of the value directly
+                ss << +self_typed_cnum->value;
+            }
+            // close the hex (switch to dec) and the parentheses
+            ss << std::dec << ")";
         }
         return py::cast(ss.str());
     });

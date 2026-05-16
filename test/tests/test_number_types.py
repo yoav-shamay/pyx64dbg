@@ -107,6 +107,13 @@ def test_integer_behavior(cls, num1, num2):
     assert int(abs(b)) == c_wrap(abs(num2), bits, signed)
     assert int(abs(-b)) == c_wrap(abs(c_wrap(-num2, bits, signed)), bits, signed) # we need to do this as negation can cause a wrap and if the number is the minimum negative abs can cause a wrap
 
+    assert str(a) == str(num1)
+    assert str(b) == str(num2)
+    num_1_2_complement = c_wrap(num1, bits, False) # 2 complement of num1, for hex rep
+    num_2_2_complement = c_wrap(num2, bits, False)
+    assert repr(a) == f"{cls.__name__}({num1}, {hex(num_1_2_complement)})"
+    assert repr(b) == f"{cls.__name__}({num2}, {hex(num_2_2_complement)})"
+
 @pytest.mark.parametrize("cls_higher, cls_lower, val1, val2", [
     # Same size, Signed + Unsigned -> Unsigned wins
     (UInt32, Int32, 1, 1),
@@ -178,9 +185,19 @@ def test_float_arithmetic(cls, val1, val2):
     
     # Test unary
     assert float(-a) == pytest.approx(-val1)
+    assert float(-b) == pytest.approx(-val2)
     # test abs
-    assert float(abs(-a)) == pytest.approx(abs(-float(a)))
-
+    assert float(abs(-a)) == pytest.approx(abs(float(a)))
+    assert float(abs(a)) == pytest.approx(abs(float(a)))
+    assert float(abs(-b)) == pytest.approx(abs(float(b)))
+    assert float(abs(b)) == pytest.approx(abs(float(b)))
+    assert abs(a) == abs(-a)
+    assert abs(b) == abs(-b)
+    # test str and repr
+    assert str(a) == str(val1)
+    assert str(b) == str(val2)
+    assert repr(a) == f"{cls.__name__}({val1})"
+    assert repr(b) == f"{cls.__name__}({val2})"
 @pytest.mark.parametrize("cls, val", [
     (Float32, 3.14159),
     (Float64, 3.141592653589793),
