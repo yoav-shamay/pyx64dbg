@@ -131,19 +131,27 @@ T py_object_to_cpp_type(py::handle h) {
     {
         if constexpr(std::is_floating_point_v<T>)
         {
-            // If we are a floating point type, we'll try to cast it directly from python
-            try {
-                return py::cast<T>(h);
-            } catch (py::error_already_set& e) {
-                if (e.matches(PyExc_OverflowError)) {
-                    // If we encoutered an overflow error, we'll assign infinity / -infinity instead of raising an error.
-                    // This is what c does when converting a string.
-                    // we'll check if the number is negative by comparing it to 0 in python
-                    bool is_neg = h.cast<py::object>() < py::int_(0);
-                    return is_neg ? -std::numeric_limits<T>::infinity() 
-                                  :  std::numeric_limits<T>::infinity();
+            // If we are a floating point type, we'll try to cast it directly from python (except for long double)
+            if constexpr(std::is_same_v<T, long double>)
+            {
+                // for long doubles, pybind doesn't support casting directly, so we'll convert it to string first
+                std::string s = py::str(h).cast<std::string>();
+                // we'll use strtold as it correctly handles inf/-inf
+                return std::strtold(s.c_str(), nullptr);
+            }
+            else
+            {
+                try {
+                    return py::cast<T>(h);
+                } catch (py::cast_error& e) {
+                    // A casting error for float / double can only be caused by overflow, so we'll check the sign and return the appropriate infinity
+                    if (h < py::int_(0)) {
+                        return -std::numeric_limits<T>::infinity();
+                    }
+                    else {
+                        return std::numeric_limits<T>::infinity();
+                    }
                 }
-                throw; // if we encoutered an error that is not an overflow error, re-raise it.
             }
         }
         else
@@ -170,17 +178,21 @@ int get_priority(py::handle h) {
 // Safety wrappers around Div/Mod/Shifts, to behave like hardware (in shifts masking) and raise an exception when dividing by zero or overflow (otherwise it'll raise a signal and crash instead of raising a python exception).
 struct SafeDiv { 
     template<typename T> T operator()(T a, T b) const {
-        if (b == 0)
+        if constexpr(std::is_integral_v<T>)
         {
-            // throw zero division error. we need this way as pybind11 doesn't have a py::zero_division_error
-            py::set_error(PyExc_ZeroDivisionError, "division by zero");
-            throw py::error_already_set();
-        }
-        if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
-            if (a == std::numeric_limits<T>::min() && b == -1) {
-                // throw overflow error if we divide the minimum by -1
-                py::set_error(PyExc_OverflowError, "integer overflow in division");
+            // we only need to do those checks on integers, as floats will be inf/-inf/nan instead of crashing
+            if (b == 0)
+            {
+                // throw zero division error. we need this way as pybind11 doesn't have a py::zero_division_error
+                py::set_error(PyExc_ZeroDivisionError, "division by zero");
                 throw py::error_already_set();
+            }
+            if constexpr (std::is_signed_v<T>) {
+                if (a == std::numeric_limits<T>::min() && b == -1) {
+                    // throw overflow error if we divide the minimum by -1
+                    py::set_error(PyExc_OverflowError, "integer overflow in division");
+                    throw py::error_already_set();
+                }
             }
         }
         return a / b; 
@@ -586,6 +598,20 @@ size_t cnum_hash(const CNumBase& self) {
 }
 
 /*
+An implementation of the __str__ method for the python binding.
+Converts the CNum to the underlying C object and use stringstream to convert it to string.
+*/
+py::object cnum_str(CNumBase *self) {
+    return dispatch_callback_with_type_by_id(self->type_id(), [&](auto type_instance) {
+        using T = decltype(type_instance);
+        auto* self_typed_cnum = static_cast<CNum<T>*>(self); // cast to typed CNum
+        std::stringstream ss;
+        ss << self_typed_cnum->value;
+        return py::cast(ss.str());
+    });
+}
+
+/*
 An implementation of the __repr__ method for the python binding.
 Returns a string representation of the CNum object.
 Shows both the integer and hexadecimal representation for integers
@@ -593,11 +619,11 @@ For floats, shows the float representation.
 Has the class name in the beginning to indicate the type of the CNum.
 */
 py::object cnum_repr(py::object self) {
-    auto *self_cnumbase = py::cast<CNumBase*>(self);
+    CNumBase *self_cnumbase = py::cast<CNumBase*>(self);
     return dispatch_callback_with_type_by_id(self_cnumbase->type_id(), [&](auto type_instance) {
         using T = decltype(type_instance);
         // cast to typed CNum
-        auto* self_typed_cnum = py::cast<CNum<T>*>(self);
+        auto* self_typed_cnum = static_cast<CNum<T>*>(self_cnumbase);
         // get the class name for the repr string, using self.__class__.__name__
         std::string name = self.attr("__class__").attr("__name__").cast<std::string>();
         // Uses stringstream to format the result
@@ -737,6 +763,7 @@ Float80 / LongDouble
     base.def("__float__", &cnum_float);
     base.def("__bool__", &cnum_bool);
     base.def("__repr__", &cnum_repr);
+    base.def("__str__", &cnum_str);
     base.def("__hash__", &cnum_hash);
     base.def("__format__", &cnum_format);
     base.def("to_bytes", &cnum_to_bytes, "Returns the byte representation of the CNum.");

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 
 import pytest
 from pyx64dbg.number_types import (
@@ -7,6 +8,8 @@ from pyx64dbg.number_types import (
     Float32, Float64, Float80
 )
 import math
+
+sys.set_int_max_str_digits(0) # some numbers are too big to display in strings for pytest
 
 # Helpers to mimic C behavior for test expectations
 
@@ -209,21 +212,18 @@ def test_number_types_bytes_roundtrip(cls, val):
     (UInt16, 0),
     (UInt32, 0),
     (UInt64, 0),
-    (Float32, 0.0),
-    (Float64, 0.0),
-    (Float80, 0.0)
 ])
 def test_division_by_zero(cls, val):
     """
     Tests that division by zero raises a ZeroDivisionError.
     """
     with pytest.raises(ZeroDivisionError):
-        _ = cls(val) / 0.0
+        _ = cls(val) / 0
 
 @pytest.mark.parametrize("cls", [Float32, Float64, Float80])
 def test_float_specials(cls):
     """
-    Tests the behavior of infinities and NaN on all float types
+    Tests the behavior of infinities and NaN on all float types and operations between them
     """
     inf = cls(float('inf'))
     nan = cls(float('nan'))
@@ -234,8 +234,28 @@ def test_float_specials(cls):
     assert math.isinf(float(ninf)) and float(ninf) < 0
     
     # Operations with inf
-    assert math.isinf(float(inf + 1.0))
-    assert math.isinf(float(ninf + 1.0)) and float(ninf + 1.0) < 0
+    assert float(inf + 1.0) == float('inf')
+    assert float(ninf + 1.0) == float('-inf')
+    assert float(inf + inf) == float('inf')
+    assert float(ninf + ninf) == float('-inf')
+    # comparisions
+    assert nan != nan
+    assert inf == inf
+    assert ninf == ninf
+    assert inf != ninf
+    # operations that should result in nan
+    assert math.isnan(float(inf + nan))
+    assert math.isnan(float(ninf + nan))
+    assert math.isnan(float(inf * 0.0))
+    assert math.isnan(float(ninf * 0.0))
+    assert math.isnan(float(inf / inf))
+    assert math.isnan(float(ninf / ninf))
+    assert math.isnan(float(inf / ninf))
+    assert math.isnan(float(ninf / inf))
+    assert math.isnan(float(inf + ninf))
+    assert math.isnan(float(ninf + inf))
+    assert math.isnan(float(inf - inf))
+    assert math.isnan(float(ninf - ninf))
 
 @pytest.mark.parametrize("cls, bytes_val, expected", [
     # Signed Integers
@@ -350,3 +370,59 @@ def test_division_overflow_exception():
         _ = Int32(-2**31) // -1
     with pytest.raises(OverflowError):
         _ = Int64(-2**63) // -1
+
+# possible operations for the below test
+div = lambda a, b: a / b
+add = lambda a, b: a + b
+
+@pytest.mark.parametrize("cls, val1, val2, result, operator", [
+    (Float32, 0.0, 0.0, float('nan'), div),
+    (Float64, 0.0, 0.0, float('nan'), div),
+    (Float80, 0.0, 0.0, float('nan'), div),
+    (Float32, 1.0, 0.0, float('inf'), div),
+    (Float64, 1.0, 0.0, float('inf'), div),
+    (Float80, 1.0, 0.0, float('inf'), div),
+    (Float32, -1.0, 0.0, float('-inf'), div),
+    (Float64, -1.0, 0.0, float('-inf'), div),
+    (Float80, -1.0, 0.0, float('-inf'), div),
+    (Float32, 2e38, 2e38, float('inf'), add),
+    (Float64, 1e308, 1e308, float('inf'), add),
+    (Float80, 10 ** 4932, 10 ** 4932, float('inf'), add), # too big to fit in float, we need to use an int
+    (Float32, -2e38, -2e38, float('-inf'), add),
+    (Float64, -1e308, -1e308, float('-inf'), add),
+    (Float80, -(10 ** 4932), -(10 ** 4932), float('-inf'), add),
+])
+def test_special_float_result(cls, val1, val2, result, operator):
+    """
+    Tests operations with normal numbers that result in special float values (inf and nan) to ensure they are handled correctly.
+    """
+    a = cls(val1)
+    b = cls(val2)
+    # check that a and b are normal
+    assert not math.isnan(float(a)) # as nan != nan, for nan test we convert to float and check with math.isnan
+    assert not math.isnan(float(b))
+    assert a != float('inf') and a != float('-inf')
+    assert b != float('inf') and b != float('-inf')
+    res = operator(a, b)
+    if math.isnan(result): # nan != nan so we can't compare it
+        assert math.isnan(float(res))
+    else: # inf == inf so we can compare directly
+        assert res == result
+
+def test_inf_initialization():
+    """
+    Test that initializing floats with too big numbers result in infinity (and same for -inf)
+    """
+    assert float(Float32(1e40)) == float('inf')
+    assert float(Float64(10 ** 309)) == float('inf')
+    assert float(Float80(10 ** 4939)) == float('inf')
+    assert float(Float32(-1e40)) == float('-inf')
+    assert float(Float64(-(10 ** 309))) == float('-inf')
+    assert float(Float80(-(10 ** 4939))) == float('-inf')
+
+def test_long_double_to_string():
+    """
+    Test that long double can be converted to string without showing inf
+    """
+    assert str(Float80(10 ** 1000)) == "1e+1000"
+    assert str(Float80(-(10 ** 1000))) == "-1e+1000"
