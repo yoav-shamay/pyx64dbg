@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "utils.hpp"
 #include "xstate.hpp"
@@ -300,9 +301,36 @@ static py::dict get_auxv(int child_pid)
     return auxv;
 }
 
-PYBIND11_MODULE(ptrace, m)
+/*
+Implementation of the get_siginfo method for the python binding.
+Gets the child process id and returns a dict containing the full siginfo_t structure.
+calls ptrace with PTRACE_GETSIGINFO.
+*/
+static py::dict get_siginfo(int child_pid)
 {
-    m.doc() = "C++ wrapper for system interaction to control the process using ptrace, procfs and related syscalls.";
+    siginfo_t signinfo;
+    long res = ptrace(PTRACE_GETSIGINFO, child_pid, nullptr, &signinfo);
+    if (res == -1)
+        raise_errno_as_os_error();
+    
+    py::dict res_dict;
+    res_dict["si_signo"] = signinfo.si_signo;
+    res_dict["si_errno"] = signinfo.si_errno;
+    res_dict["si_code"] = signinfo.si_code;
+    res_dict["si_pid"] = signinfo.si_pid;
+    res_dict["si_uid"] = signinfo.si_uid;
+    res_dict["si_status"] = signinfo.si_status;
+    res_dict["si_utime"] = signinfo.si_utime;
+    res_dict["si_stime"] = signinfo.si_stime;
+    res_dict["si_addr"]  = reinterpret_cast<uintptr_t>(signinfo.si_addr); // cast to uintptr_t to make it convertible to python int
+    res_dict["si_value"] = signinfo.si_value.sival_int; // Interpret signal value as int, python can treat it like a pointer if needed
+    return res_dict;
+}
+
+
+PYBIND11_MODULE(os_interaction, m)
+{
+    m.doc() = "C++ wrapper for OS interaction to control the process using ptrace, procfs and related syscalls.";
     m.def("traceme", &traceme, "ptrace call with PTRACE_TRACEME");
     m.def("cont", &cont, "ptrace call with PTRACE_CONT", py::arg("child_pid"), py::arg("signal") = py::none());
     m.def("single_step", &single_step, "ptrace call with PTRACE_SINGLESTEP", py::arg("child_pid"), py::arg("signal") = py::none());
@@ -314,4 +342,5 @@ PYBIND11_MODULE(ptrace, m)
     m.def("write_memory_range", &write_memory_range, "write memory range of the child process using /proc/<pid>/mem");
     m.def("kill", &kill_child, "ptrace call with PTRACE_KILL");
     m.def("get_auxv", &get_auxv, "read the auxiliary vector of the child process from /proc/<pid>/auxv");
+    m.def("get_siginfo", &get_siginfo, "ptrace call with PTRACE_GETSIGINFO");
 }

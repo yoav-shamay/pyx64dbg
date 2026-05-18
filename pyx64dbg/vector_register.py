@@ -130,7 +130,7 @@ class VectorView[T]:
         # Apply the update back to the main register buffer
         self._vec._data = bytes(updated_data)
 
-        # Trigger the update back to the Registers object (and thus ptrace)
+        # Trigger the update back to the Registers object (and thus ptrace update)
         self._vec._trigger_update()
 
     def _update_buffer(

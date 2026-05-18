@@ -15,13 +15,13 @@ ext_modules = [
         cxx_std=20,
     ),
     Pybind11Extension(
-        'pyx64dbg.ptrace',
+        'pyx64dbg.os_interaction',
         sources=[
-            'pyx64dbg/ptrace/ptrace.cpp', 
-            'pyx64dbg/ptrace/utils.cpp', 
-            'pyx64dbg/ptrace/xstate.cpp'
+            'pyx64dbg/os_interaction/os_interaction.cpp', 
+            'pyx64dbg/os_interaction/utils.cpp', 
+            'pyx64dbg/os_interaction/xstate.cpp'
         ],
-        include_dirs=["pyx64dbg/ptrace"],
+        include_dirs=["pyx64dbg/os_interaction"],
         cxx_std=20,
     )
 ]

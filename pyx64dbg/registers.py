@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
 
-import pyx64dbg.ptrace as ptrace
+import pyx64dbg.os_interaction as os_interaction
 from pyx64dbg.number_types import CNumBase, Int8, Int16, Int32, Int64, Float32, Float64, Float80, CFloatBase, CIntBase
 from pyx64dbg.vector_register import Vector64, Vector128, Vector256, VectorRegister
 
@@ -100,7 +100,7 @@ class StandardRegister(Generic[T_Reg]):
     def __set__(self, instance: Registers, value: RegisterSettableTypes) -> None:
         """
         Setter for the descriptor.
-        Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
+        Sets the value of the register, converting it to bytes and writing it to the debugged process using os_interaction.
         """
         self.set_value(instance, value, trigger_updates=True)
 
@@ -113,9 +113,9 @@ class StandardRegister(Generic[T_Reg]):
         full_reg_value = bytearray(instance.standard_regs[self.struct_name]) # change to bytearray for editing
         full_reg_value[self.first_byte : self.first_byte + self.length] = value_bytes
         instance.standard_regs[self.struct_name] = bytes(full_reg_value) # change back to bytes and assign to the dict
-        # write the modified register struct back to the debugged process using ptrace
+        # write the modified register struct back to the debugged process using os_interaction
         modified_regs_dict = {self.struct_name: instance.standard_regs[self.struct_name]}
-        ptrace.set_standard_regs(instance._debugger.child_pid, modified_regs_dict)
+        os_interaction.set_standard_regs(instance._debugger.child_pid, modified_regs_dict)
         if trigger_updates:
             instance._debugger.update_callbacks.trigger()
 
@@ -169,7 +169,7 @@ class ExtendedRegister(Generic[T_Reg]):
     def __set__(self, instance: Registers, value: RegisterSettableTypes) -> None:
         """
         Setter for the descriptor.
-        Sets the value of the register, converting it to bytes and writing it to the debugged process using ptrace.
+        Sets the value of the register, converting it to bytes and writing it to the debugged process using os_interaction.
         """
         self.set_value(instance, value, trigger_updates=True)
 
@@ -185,10 +185,10 @@ class ExtendedRegister(Generic[T_Reg]):
             low_byte = i * (len(value_bytes) // len(self.act_names))
             high_byte = (i + 1) * (len(value_bytes) // len(self.act_names))
             part_bytes = value_bytes[low_byte : high_byte]
-            # modify both the cached value and the dict we use in ptrace
+            # modify both the cached value and the dict we use in os_interaction
             instance.extended_regs[act_name] = part_bytes
             modified_regs_dict[act_name] = part_bytes
-        ptrace.set_extended_regs(instance._debugger.child_pid, modified_regs_dict)
+        os_interaction.set_extended_regs(instance._debugger.child_pid, modified_regs_dict)
         if trigger_updates:
             instance._debugger.update_callbacks.trigger()
 
@@ -340,8 +340,8 @@ class Registers:
         Should be called after every movement of the debugged process to ensure the register values are up to date.
         """
         self._debugger._ensure_running()
-        self.standard_regs: dict[str, bytes] = ptrace.get_standard_regs(self._debugger.child_pid)
-        self.extended_regs: dict[str, bytes] = ptrace.get_extended_regs(self._debugger.child_pid)
+        self.standard_regs: dict[str, bytes] = os_interaction.get_standard_regs(self._debugger.child_pid)
+        self.extended_regs: dict[str, bytes] = os_interaction.get_extended_regs(self._debugger.child_pid)
 
     def get(self, reg_name: str) -> CNumBase | VectorRegister:
         """

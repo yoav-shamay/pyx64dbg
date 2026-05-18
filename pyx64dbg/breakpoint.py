@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-import pyx64dbg.ptrace as ptrace
+import pyx64dbg.os_interaction as os_interaction
 from pyx64dbg.number_types import CIntBase, UInt64
 
 # the breakpoint instruction in x86_64. It's a single CC byte.
@@ -38,9 +38,9 @@ class Breakpoints:
         address = UInt64(address) # convert to UInt64 if it's another type
         if address in self._addresses:
             return
-        original_byte = ptrace.get_memory_range(self._debugger.child_pid, int(address), 1) # take the original word at the address
+        original_byte = os_interaction.get_memory_range(self._debugger.child_pid, int(address), 1) # take the original word at the address
         self._original_bytes[address] = original_byte[0] # save the original byte for the address (use index 0 as it's bytes object)
-        ptrace.write_memory_range(self._debugger.child_pid, int(address), BREAKPOINT_INSTRUCTION_BYTES) # write the breakpoint instruction at the address
+        os_interaction.write_memory_range(self._debugger.child_pid, int(address), BREAKPOINT_INSTRUCTION_BYTES) # write the breakpoint instruction at the address
         self._addresses.add(address)
         if notify_updates:
             self._debugger.update_callbacks.trigger()
@@ -54,7 +54,7 @@ class Breakpoints:
         if address not in self._addresses: # check if it's actually a breakpoint before trying to remove it
             raise ValueError("Addresses isn't a breakpoint")
         original_byte = self._original_bytes[address] # get the original byte for the address
-        ptrace.write_memory_range(self._debugger.child_pid, int(address), bytes([original_byte])) # write the original byte back to the address
+        os_interaction.write_memory_range(self._debugger.child_pid, int(address), bytes([original_byte])) # write the original byte back to the address
         self._addresses.remove(address) # remove the address from the breakpoints set and original bytes dict
         del self._original_bytes[address]
         if notify_updates:

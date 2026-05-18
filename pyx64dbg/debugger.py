@@ -8,7 +8,7 @@ from pyx64dbg.breakpoint import Breakpoints
 from pyx64dbg.callback_list import CallbackList
 from pyx64dbg.memory import Memory
 from pyx64dbg.number_types import UInt64
-import pyx64dbg.ptrace as ptrace
+import pyx64dbg.os_interaction as os_interaction
 from pyx64dbg.shared_object import SharedObject
 from pyx64dbg.stdio_tube import StdioTube
 from pyx64dbg.registers import Registers
@@ -79,7 +79,7 @@ class Debugger:
                 # Otherwise, they are based on the base address we deduced
                 # This offset between the actual load address and symbol address is called "load bias"
                 self.load_bias: UInt64 = UInt64(0)
-        auxv = ptrace.get_auxv(self.child_pid)
+        auxv = os_interaction.get_auxv(self.child_pid)
         if self.is_pie:
             # for PIE binaries, we need to deduce the base address from the entry point address and the entry offset
             entry_address = get_entry_address(auxv)
@@ -111,8 +111,8 @@ class Debugger:
             attrs = termios.tcgetattr(0)
             attrs[3] &= ~termios.ECHO
             termios.tcsetattr(0, termios.TCSANOW, attrs)
-        # start ptrace on this process
-        ptrace.traceme()
+        # run ptrace with PTRACE_TRACEME to allow tracing this process
+        os_interaction.traceme()
         # execve file_name with the given argv and existing environment - run the process
         os.execve(file_name, argv, os.environ)
 

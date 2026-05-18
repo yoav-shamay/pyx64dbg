@@ -1,5 +1,5 @@
 """
-C++ wrapper for system interaction to control the process using ptrace, procfs and related syscalls.
+C++ wrapper for OS interaction to control the process using ptrace, procfs and related syscalls.
 """
 from typing import Optional
 
@@ -56,5 +56,11 @@ def kill(pid: int) -> None:
 def get_auxv(pid: int) -> dict[int, int]:
     """
     read the auxiliary vector of the child process from /proc/<pid>/auxv
+    """
+    ...
+
+def get_siginfo(pid: int) -> dict[str, int]:
+    """
+    ptrace call with PTRACE_GETSIGINFO, returns a dictionary with the fields of the siginfo struct.
     """
     ...

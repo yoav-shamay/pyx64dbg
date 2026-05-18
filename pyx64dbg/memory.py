@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pyx64dbg.number_types import CIntBase, CNumBase, UInt8
-import pyx64dbg.ptrace as ptrace
+import pyx64dbg.os_interaction as os_interaction
 from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION
 from typing import TYPE_CHECKING, Optional, TypeVar, overload
 import mmap
@@ -38,9 +38,9 @@ class Memory:
         """
         A helper function for getting a single byte from the memory directly.
         Doesn't replace breakpoint bytes with the original byte.
-        We usually use UInt64 for addresses in the API but for internal functions here int is more convinient (as ptrace also uses it, and it prevents double casting)
+        We usually use UInt64 for addresses in the API but for internal functions here int is more convinient (as os_interaction also uses it, and it prevents double casting)
         """
-        memory_bytes = ptrace.get_memory_range(
+        memory_bytes = os_interaction.get_memory_range(
             self._debugger.child_pid, address, 1
         )  # read the memory at this location, returns a bytes object
         return memory_bytes[0]
@@ -53,7 +53,7 @@ class Memory:
         Doesn't replace breakpoint bytes with the original byte.
         """
         if step == 1:
-            result = ptrace.get_memory_range(
+            result = os_interaction.get_memory_range(
                 self._debugger.child_pid, start_address, end_address - start_address
             )
             return list(result)
@@ -124,7 +124,7 @@ class Memory:
         Doesn't handle setting byte on a breakpoint specially.
         """
         value_bytes = bytes([value])
-        ptrace.write_memory_range(self._debugger.child_pid, address, value_bytes)
+        os_interaction.write_memory_range(self._debugger.child_pid, address, value_bytes)
 
     def _set_raw_byte_range(
         self, data: bytes, start_address: int, end_address: int, step: int
@@ -134,7 +134,7 @@ class Memory:
         Doesn't handle setting bytes on breakpoints specially.
         """
         if step == 1:
-            ptrace.write_memory_range(self._debugger.child_pid, start_address, data)
+            os_interaction.write_memory_range(self._debugger.child_pid, start_address, data)
         else:
             # for steps, there is no reason to bother with optimizing, due to rare use and likely small range size, and steps making optimizations frequenytly impossible
             for i, address in enumerate(range(start_address, end_address, step)):

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION_BYTES
-import pyx64dbg.ptrace as ptrace
+import pyx64dbg.os_interaction as os_interaction
 import os
 from capstone import CS_GRP_CALL, CsInsn
 import signal
@@ -19,6 +19,11 @@ from pyx64dbg.number_types import CIntBase, UInt64
 
 if TYPE_CHECKING:
     from pyx64dbg.debugger import Debugger
+
+# constants for siginfo si_code for SIGTRAP, to differentiate between different reasons for hitting a breakpoint
+TRAP_BRKPT = 1  # from hitting a breakpoint
+TRAP_TRACE = 2  # from single stepping
+SI_KERNEL = 128 # breakpoint stop might also have si_code of SI_KERNEL sometimes due to internal reasons
 
 
 class Control:
@@ -31,11 +36,11 @@ class Control:
     def __init__(self, debugger: Debugger):
         self._debugger: Debugger = debugger
 
-    def _handle_signal(self, status: int, stepped: bool = False) -> None:
+    def _handle_signal(self, status: int, stepped_from_breakpoint: bool = False) -> None:
         """
         An internal function to handle signals after a movement.
         It checks if the process exited, was stopped by a signal, or is still running, and updates the state accordingly.
-        Needs to receieve whether the last movement was a single step, to determine a SIGTRAP cause.
+        Needs to receieve whether the last movement was a single step from a breakpoint, to differentiate between our breakpoints and breakpoints that the process itself set
         """
         if os.WIFEXITED(status):  # process exited normally
             self._debugger.process_exited = True
@@ -50,25 +55,40 @@ class Control:
             self._debugger.stopped_signal = None
             self._debugger._on_exit()
         elif os.WIFSTOPPED(status):
-            # if the process was stopped by a signal, only SIGTRAP is treated as a stepping/breakpoint stop
             self._debugger.registers._refresh_registers()  # refresh registers after movement
             triggered_signal = os.WSTOPSIG(status)
-            if (
-                triggered_signal == signal.SIGTRAP
-            ):  # sigtrap - either breakpoint or single step end
-                self._debugger.stopped_signal = None
-                if not stepped:  # if we just continued, we have hit a breakpoint
-                    cur_rip = self._debugger.registers.rip
-                    # check if it's really a breakpoint and not a sigtrap in some other code
-                    if cur_rip - 1 in self._debugger.breakpoints.get_breakpoints():
-                        # move the instruction pointer back to point to the breakpoint instruction, without triggering an update as this is an internal-call only function.
-                        self._debugger.registers.set("rip", cur_rip - 1, trigger_updates=False)
+            if triggered_signal == signal.SIGTRAP:
+                # Might be a breakpoint or a single step, get the siginfo to find the reason
+                siginfo = os_interaction.get_siginfo(self._debugger.child_pid)
+                code = siginfo["si_code"]
+                if code == TRAP_TRACE:
+                    # a single step - we should ignore the signal
+                    self._debugger.stopped_signal = None
+                elif code in (TRAP_BRKPT, SI_KERNEL):
+                    # a breakpoint - we should check if it's our breakpoint
+                    rip = UInt64(self._debugger.registers.rip)
+                    if not stepped_from_breakpoint and rip - 1 in self._debugger.breakpoints.get_breakpoints():
+                        # if the instruction at RIP - 1 is a breakpoint and we haven't just temporarily removed it for stepping
+                        # Then it's a breakpoint that we set and we should ignore the signal
+                        # We need RIP - 1 as running CC would increment RIP by 1
+                        self._debugger.stopped_signal = None
+                        # We need to rewind RIP to the beginning of the breakpoint instruction
+                        self._debugger.registers.set("rip", rip - 1, trigger_updates=False)  # don't trigger updates, the movement function will at the end
+                    else:
+                        # in any other case, it's a breakpoint that already existed in the binary.
+                        # We shouldn't ignore the signal in this case
+                        self._debugger.stopped_signal = triggered_signal
+                else:
+                    # any other code for SIGTRAP is unusual, but we should still treat it as a signal from the process itself
+                    self._debugger.stopped_signal = triggered_signal
+
             else:
+                # if it's not a sigtrap, it's from the process itself
                 self._debugger.stopped_signal = triggered_signal
-                # the stop callback will be triggered by the end of the movement function (as there can be further movements)
+            # the stop callback will be triggered by the end of the movement function (as there can be further movements)
         else:
             raise RuntimeError(
-                "Unexpected status after ptrace movement: " + str(status)
+                "Unexpected status after movement: " + str(status)
             )
 
     def _step_from_breakpoint(self, address: CIntBase | int) -> None:
@@ -79,24 +99,24 @@ class Control:
         """
         address = UInt64(address)  # convert to int64 if it's another type
         original_byte = self._debugger.breakpoints._original_bytes[address]
-        ptrace.write_memory_range(self._debugger.child_pid, int(address), bytes([original_byte]))  # restore the original byte at the breakpoint address to execute the instruction
+        os_interaction.write_memory_range(self._debugger.child_pid, int(address), bytes([original_byte]))  # restore the original byte at the breakpoint address to execute the instruction
         if self._debugger.stopped_signal is not None:
             # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
-            ptrace.single_step(
+            os_interaction.single_step(
                 self._debugger.child_pid, signal=self._debugger.stopped_signal
             )
             self._debugger.stopped_signal = None
         else:
             # otherwise just single step normally
-            ptrace.single_step(self._debugger.child_pid)
+            os_interaction.single_step(self._debugger.child_pid)
         _, status = os.waitpid(
             self._debugger.child_pid, 0
         )  # wait for child to raise a signal, which should be from single stepping
-        self._handle_signal(status, stepped=True)
+        self._handle_signal(status, stepped_from_breakpoint=True)
         if self._debugger.process_exited:
             # if the process exited while we were stepping from the breakpoint, we shouldn't try to restore the breakpoint, as it will cause an error
             return
-        ptrace.write_memory_range(
+        os_interaction.write_memory_range(
             self._debugger.child_pid, int(address), BREAKPOINT_INSTRUCTION_BYTES
         )  # restore the breakpoint instruction after stepping
 
@@ -123,16 +143,16 @@ class Control:
         else:
             if self._debugger.stopped_signal is not None:
                 # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
-                ptrace.single_step(
+                os_interaction.single_step(
                     self._debugger.child_pid, signal=self._debugger.stopped_signal
                 )
                 self._debugger.stopped_signal = None
             else:
-                ptrace.single_step(self._debugger.child_pid)
+                os_interaction.single_step(self._debugger.child_pid)
             _, status = os.waitpid(
                 self._debugger.child_pid, 0
             )  # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
-            self._handle_signal(status, stepped=True)
+            self._handle_signal(status)
         if notify_updates:
             self._notify_update_and_stop()
 
@@ -157,11 +177,11 @@ class Control:
                 return
         if self._debugger.stopped_signal is not None:
             # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
-            ptrace.cont(self._debugger.child_pid, signal=self._debugger.stopped_signal)
+            os_interaction.cont(self._debugger.child_pid, signal=self._debugger.stopped_signal)
             self._debugger.stopped_signal = None
         else:
             # otherwise continue normally
-            ptrace.cont(self._debugger.child_pid)
+            os_interaction.cont(self._debugger.child_pid)
         _, status = os.waitpid(
             self._debugger.child_pid, 0
         )  # wait for child to raise a signal, which can be from hitting a breakpoint or exiting
@@ -242,7 +262,7 @@ class Control:
         """
         self._debugger._ensure_running()
         self._debugger.busy_callbacks.trigger()  # Trigger the busy callback as we wait for the process
-        ptrace.kill(self._debugger.child_pid)  # use ptrace to kill the process
+        os_interaction.kill(self._debugger.child_pid)  # use os_interaction to kill the process
         _, status = os.waitpid(
             self._debugger.child_pid, 0
         )  # wait for child to raise a signal, which should be from killing the process
