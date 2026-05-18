@@ -28,12 +28,13 @@ def test_static_linked_breakpoint():
     assert dbg.breakpoints.get_breakpoints() == set()
     dbg.control.kill_process() # kill the process to avoid leaving orphan process
 
-def test_static_linked_shared_objects():
+def test_static_linked_shared_objects_and_ld_base():
     """
     Test that the shared objects dictionary is empty for a statically linked binary, as it doesn't have shared objects.
     """
     dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
     assert dbg.shared_objects == {} # for a statically linked binary, there are no shared objects, so the dictionary should be empty
+    assert dbg.ld_base == None # verify that there's no linker
     dbg.control.kill_process() # kill the process to avoid leaving orphan process
 
 def test_static_linked_modification():

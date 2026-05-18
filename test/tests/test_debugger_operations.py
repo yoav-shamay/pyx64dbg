@@ -41,7 +41,13 @@ def test_breakpoint():
     assert dbg.registers.rip == main
     dbg.breakpoints.remove_breakpoint(main)
     assert dbg.breakpoints.get_breakpoints() == set()
-    dbg.control.kill_process()
+    # set and remove a breakpoint to see that it functions normally (at printf, which should be called in the beginning)
+    dbg.breakpoints.add_breakpoint(dbg.shared_objects["libc.so.6"].symbols.printf)
+    dbg.breakpoints.remove_breakpoint(dbg.shared_objects["libc.so.6"].symbols.printf)
+    dbg.stdio.sendline("1234")
+    dbg.control.continue_execution()
+    dbg.stdio.recvuntil(b"Enter password: ") # receive prompt
+    assert dbg.stdio.recvall() == b"Wrong!\r\n" # check that we received the "Wrong!" message, indicating the process run normally
 
 def test_next():
     """
@@ -91,6 +97,7 @@ def test_memory_read_write_number():
     read_num_address = dbg.registers.rbp - 0x10
     read_num = dbg.memory.read_number(read_num_address, Int64)
     assert read_num == 123
+    assert dbg.memory[read_num_address:read_num_address+8] == Int64(123).to_bytes() # test byte reading as well
     # write a new number and check it
     dbg.memory.write_number(read_num_address, CRACKME_SOL, 8)
     read_num_after_write = dbg.memory.read_number(read_num_address, Int64)
@@ -199,3 +206,13 @@ def test_signal_surpassion():
     dbg.control.continue_execution() # continue execution to the end
     dbg.stdio.recvuntil(b"Enter password: ") # receive prompt
     assert dbg.stdio.recvall() == b"Wrong!\r\n" # check that we received the "Wrong!" message, indicating the process run normally
+
+def test_base_address():
+    """
+    Test that the reported base address and load bias of the debugged process are correct.
+    """
+    dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
+    main_offset = 0x1179 # offset of main in the binary, obtained from readelf manually
+    assert dbg.base_address + main_offset == dbg.symbols["main"] # check that the base address plus the offset of main equals the address of main, verifying the base address is correct
+    assert dbg.load_bias == dbg.base_address # verify that load bias equals the base address, the behavior fro PIE binaries
+    dbg.control.kill_process() # kill the process to avoid leaving orphan process
