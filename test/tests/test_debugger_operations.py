@@ -225,6 +225,7 @@ def test_existing_breakpoints():
     main = dbg.symbols["main"]
     dbg.breakpoints.add_breakpoint(main)
     dbg.memory[main] = 0xCC # write a CC instruction at the address of main, simulating an existing breakpoint instruction
+    assert dbg.memory[main] == 0xCC # verify write
     dbg.control.continue_execution() # we should hit the breakpoint of the debugger, not the one we manually wrote
     assert dbg.registers.rip == main
     assert dbg.stopped_signal == None # no stopped signal, the breakpoint we manually set isn't triggered yet
@@ -233,6 +234,7 @@ def test_existing_breakpoints():
     assert dbg.stopped_signal == signal.SIGTRAP # check that we actually stopped on a trap signal
     dbg.control.surpass_signal() # surpass the signal to continue execution
     dbg.memory[main + 1] = 0xCC # try to write a breakpoint on an address that we don't set a breakpoint on
+    assert dbg.memory[main + 1] == 0xCC # verify write
     dbg.control.continue_execution() # continue execution, we should hit the breakpoint we just wrote
     assert dbg.registers.rip == main + 2 # Check that rip was actually incremented
     assert dbg.stopped_signal == signal.SIGTRAP # check that we actually stopped on a trap signal
