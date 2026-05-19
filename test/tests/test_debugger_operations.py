@@ -216,3 +216,23 @@ def test_base_address():
     assert dbg.base_address + main_offset == dbg.symbols["main"] # check that the base address plus the offset of main equals the address of main, verifying the base address is correct
     assert dbg.load_bias == dbg.base_address # verify that load bias equals the base address, the behavior fro PIE binaries
     dbg.control.kill_process() # kill the process to avoid leaving orphan process
+
+def test_existing_breakpoints():
+    """
+    Test that existing breakpoints (CC instructions) in the debugged process aren't confused with the breakpoints set by the debugger.
+    """
+    dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
+    main = dbg.symbols["main"]
+    dbg.breakpoints.add_breakpoint(main)
+    dbg.control.continue_execution()
+    assert dbg.registers.rip == main
+    dbg.memory[main] = 0xCC # write a CC instruction at the address of main, simulating an existing breakpoint instruction
+    dbg.control.single_step() # single step, we should hit the breakpoint we just wrote
+    assert dbg.registers.rip == main + 1 # Check that rip was actually incremented, meaning this instruction actually executed
+    assert dbg.stopped_signal == signal.SIGTRAP # check that we actually stopped on a trap signal
+    dbg.control.surpass_signal() # surpass the signal to continue execution
+    dbg.memory[main + 1] = 0xCC # try to write a breakpoint on an address that we don't set a breakpoint on
+    dbg.control.continue_execution() # continue execution, we should hit the breakpoint we just wrote
+    assert dbg.registers.rip == main + 2 # Check that rip was actually incremented
+    assert dbg.stopped_signal == signal.SIGTRAP # check that we actually stopped on a trap signal
+    dbg.control.kill_process() # kill the process to avoid leaving orphan process
