@@ -36,7 +36,7 @@ class Control:
     def __init__(self, debugger: Debugger):
         self._debugger: Debugger = debugger
 
-    def _handle_signal(self, status: int, stepped_from_breakpoint: bool = False) -> None:
+    def _handle_signal(self, status: int) -> None:
         """
         An internal function to handle signals after a movement.
         It checks if the process exited, was stopped by a signal, or is still running, and updates the state accordingly.
@@ -67,8 +67,8 @@ class Control:
                 elif code in (TRAP_BRKPT, SI_KERNEL):
                     # a breakpoint - we should check if it's our breakpoint
                     rip = UInt64(self._debugger.registers.rip)
-                    if not stepped_from_breakpoint and rip - 1 in self._debugger.breakpoints.get_breakpoints():
-                        # if the instruction at RIP - 1 is a breakpoint and we haven't just temporarily removed it for stepping
+                    if rip - 1 in self._debugger.breakpoints.get_breakpoints():
+                        # if the instruction at RIP - 1 is a breakpoint
                         # Then it's a breakpoint that we set and we should ignore the signal
                         # We need RIP - 1 as running CC would increment RIP by 1
                         self._debugger.stopped_signal = None
@@ -97,9 +97,7 @@ class Control:
         Temporarily removes the breakpoint, single steps, and then restores the breakpoint.
         This is needed as otherwise we'd just hit the same breakpoint again without executing any instructions, and we also need to restore the breakpoint immediately as we might hit it again.
         """
-        address = UInt64(address)  # convert to int64 if it's another type
-        original_byte = self._debugger.breakpoints._original_bytes[address]
-        os_interaction.write_memory_range(self._debugger.child_pid, int(address), bytes([original_byte]))  # restore the original byte at the breakpoint address to execute the instruction
+        self._debugger.breakpoints.remove_breakpoint(address, notify_updates=False)  # temporarily remove the breakpoint
         if self._debugger.stopped_signal is not None:
             # if we are currently stopped by a signal, we need to pass it to ptrace to continue execution, otherwise the process will just be stopped again by the same signal without executing any instructions
             os_interaction.single_step(
@@ -112,13 +110,11 @@ class Control:
         _, status = os.waitpid(
             self._debugger.child_pid, 0
         )  # wait for child to raise a signal, which should be from single stepping
-        self._handle_signal(status, stepped_from_breakpoint=True)
+        self._handle_signal(status)
         if self._debugger.process_exited:
             # if the process exited while we were stepping from the breakpoint, we shouldn't try to restore the breakpoint, as it will cause an error
             return
-        os_interaction.write_memory_range(
-            self._debugger.child_pid, int(address), BREAKPOINT_INSTRUCTION_BYTES
-        )  # restore the breakpoint instruction after stepping
+        self._debugger.breakpoints.add_breakpoint(address, notify_updates=False)  # restore the breakpoint immediately
 
     def _notify_update_and_stop(self) -> None:
         """
