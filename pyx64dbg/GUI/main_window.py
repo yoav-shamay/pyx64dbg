@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
         self.process_running: bool = False # whether a process is running or not
         self.base_path: Path = Path(__file__).parent # base path of the GUI directory, used for assets reference
         self._done_cleanup: bool = False # whether we already done the cleanup in the clos  event
-        self.setWindowIcon(QIcon(str(self.base_path / "assets" / "icon.png")))
+        self.setWindowIcon(QIcon(str(self.base_path / "assets" / "icon.svg")))
         self.setWindowTitle("PyX64Dbg")
         self.resize(1280, 720) # a reasonable default size for non-maximized start (for example if the user unmaximizes the window)
         self._create_debugger_worker_thread_and_connect_init_ui()
