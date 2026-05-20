@@ -4,6 +4,7 @@ import os
 import pty
 import termios
 from typing import Never, Optional
+from pyx64dbg.utils import validate_file
 from pyx64dbg.breakpoint import Breakpoints
 from pyx64dbg.callback_list import CallbackList
 from pyx64dbg.memory import Memory
@@ -127,6 +128,8 @@ class Debugger:
         Usually set for the API, we don't want the code to recieve echoed input.
         argv - a list of arguments to pass to the process (not including the file name, which is passed separately)
         """
+        # validate file before forking
+        validate_file(file_name)
         # handle argv - if it's None we treat it as no arguments, and add the file name in the beginning of the arguments list
         if argv is None:
             argv = [file_name]

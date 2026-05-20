@@ -9,9 +9,11 @@ Includes:
 """
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 import inspect
 from pyx64dbg.debugger import Debugger
+from pyx64dbg.utils import validate_file
 from pyx64dbg.interactive_console.exceptions import FileNotSelectedError
 
 if TYPE_CHECKING:
@@ -75,6 +77,8 @@ def select_file(self: InteractiveConsole, file_name: str, trigger_callbacks: boo
     Selects a new file to debug.
     Stops the currently running process if there is one, as we switch to a new file.
     """
+    # validate the file before selecting
+    validate_file(file_name)
     self.file_name = file_name
     if self.debugger is not None:
         # if the process is running, we need to stop it before switching to a new file
