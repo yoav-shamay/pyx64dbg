@@ -164,8 +164,11 @@ class DebuggerWorker(QObject):
         Callback - when the debugger state updates (or called manually after process start).
         Emits the state_update signal with the new state for the GUI to update views.
         """
-        if self.debugger is None:
-            return # if process already exited, we should do nothing
+        if self.debugger is None or self.debugger.exit_code is not None:
+            # if process already exited, we should do nothing
+            # process exited might not be updated in the state yet if the update callback was triggered before the exit callback
+            # So we checked both the debugger being None and the exit code being not None
+            return 
         debugger_state = DebuggerState(self.debugger)
         self.state_update.emit(debugger_state)
     

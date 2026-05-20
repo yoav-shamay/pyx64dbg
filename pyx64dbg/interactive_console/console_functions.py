@@ -89,8 +89,9 @@ def select_file(self: InteractiveConsole, file_name: str, trigger_callbacks: boo
         # set that there's no active debugger / process
         self.debugger = None
         self._on_process_exit()  # call the process exit handler to update aliases
-        # call the new debugger object callbacks as we updated debugger to None
-        self.new_debugger_object_callbacks.trigger(None)
+        # call the new debugger object callbacks as we updated debugger to None, if we want to trigger them
+        if trigger_callbacks:
+            self.new_debugger_object_callbacks.trigger(None)
     # call the file select callbacks to notify about the file change
     if trigger_callbacks:
         self.file_select_callbacks.trigger(file_name)
