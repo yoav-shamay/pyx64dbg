@@ -100,18 +100,12 @@ class Debugger:
         self._init_address_to_symbol_mapping() # anyway initialize the address to symbol mapping, even if there aren't shared objects
 
     @staticmethod
-    def _start_as_child(file_name: str, disable_pty_echo: bool, argv: list[str]) -> Never:
+    def _start_as_child(file_name: str, argv: list[str]) -> Never:
         """
         An internal method that runs as the child process.
         Runs the provided file with the provided arguments using execve.
-        First sets up the pty stdio settings if relevant, and runs ptrace with PTRACE_TRACEME to allow tracing this process.
+        Runs ptrace with PTRACE_TRACEME to allow tracing this process.
         """
-        if disable_pty_echo:
-            # disable echo on the PTY if we want to.
-            # Usually set for the API, we don't want the code to recieve echoed input.
-            attrs = termios.tcgetattr(0)
-            attrs[3] &= ~termios.ECHO
-            termios.tcsetattr(0, termios.TCSANOW, attrs)
         # run ptrace with PTRACE_TRACEME to allow tracing this process
         os_interaction.traceme()
         # execve file_name with the given argv and existing environment - run the process
@@ -147,6 +141,12 @@ class Debugger:
                 os.dup2(slave_fd, 1)  # redirect stdout to the slave fd of the pty
                 os.dup2(slave_fd, 2)  # redirect stderr to the slave fd of the pty
                 os.close(slave_fd)  # close the slave fd in the child, as it's now duplicated to stdio
+                if disable_pty_echo:
+                    # disable echo on the PTY if we want to.
+                    # Usually set for the API, we don't want the code to recieve echoed input.
+                    attrs = termios.tcgetattr(0)  # get current terminal attributes
+                    attrs[3] = attrs[3] & ~termios.ECHO  # disable ECHO flag in local modes
+                    termios.tcsetattr(0, termios.TCSANOW, attrs)  # set the modified attributes immediately
             else: # running as parent
                 os.close(slave_fd)  # close the slave fd in the parent, as it's only used by the child
                 pty_fd = master_fd
@@ -154,7 +154,7 @@ class Debugger:
             # if we don't want, we just fork and do nothing else
             child_pid = os.fork()
         if child_pid == 0:  # If running as child, do the initialization and execve in the _start_as_child method
-            Debugger._start_as_child(file_name, disable_pty_echo, argv)
+            Debugger._start_as_child(file_name, argv)
             # this function runs execve, which means its execution doesn't continue after calling the function
         # running as parent
         os.waitpid(child_pid, 0)  # wait for child to start execve, raising a signal
