@@ -1,6 +1,3 @@
-
-import os
-
 from pyx64dbg.GUI.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 import PySide6.QtAsyncio as QtAsyncio

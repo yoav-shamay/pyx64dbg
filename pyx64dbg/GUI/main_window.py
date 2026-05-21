@@ -33,7 +33,6 @@ class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.debugger_busy = False # whether the debugger worker is currently busy in a blocking wait call
-        self.file_path: str | None = None # file path
         self.process_running: bool = False # whether a process is running or not
         self.base_path: Path = Path(__file__).parent # base path of the GUI directory, used for assets reference
         self._done_cleanup: bool = False # whether we already done the cleanup in the clos  event

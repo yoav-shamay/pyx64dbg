@@ -9,7 +9,6 @@ Includes:
 """
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, Any
 import inspect
 from pyx64dbg.debugger import Debugger

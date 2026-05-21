@@ -100,13 +100,13 @@ class Debugger:
         self._init_address_to_symbol_mapping() # anyway initialize the address to symbol mapping, even if there aren't shared objects
 
     @staticmethod
-    def _start_as_child(file_name: str, redirect_stdio_to_pty: bool, disable_pty_echo: bool, argv: list[str]) -> Never:
+    def _start_as_child(file_name: str, disable_pty_echo: bool, argv: list[str]) -> Never:
         """
         An internal method that runs as the child process.
         Runs the provided file with the provided arguments using execve.
         First sets up the pty stdio settings if relevant, and runs ptrace with PTRACE_TRACEME to allow tracing this process.
         """
-        if redirect_stdio_to_pty and disable_pty_echo:
+        if disable_pty_echo:
             # disable echo on the PTY if we want to.
             # Usually set for the API, we don't want the code to recieve echoed input.
             attrs = termios.tcgetattr(0)
@@ -154,7 +154,7 @@ class Debugger:
             # if we don't want, we just fork and do nothing else
             child_pid = os.fork()
         if child_pid == 0:  # If running as child, do the initialization and execve in the _start_as_child method
-            Debugger._start_as_child(file_name, redirect_stdio_to_pty, disable_pty_echo, argv)
+            Debugger._start_as_child(file_name, disable_pty_echo, argv)
             # this function runs execve, which means its execution doesn't continue after calling the function
         # running as parent
         os.waitpid(child_pid, 0)  # wait for child to start execve, raising a signal

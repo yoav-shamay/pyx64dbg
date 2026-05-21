@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, TypeAlias, Union
+from typing import TYPE_CHECKING, TypeAlias, Union
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView
 from PySide6.QtCore import Qt

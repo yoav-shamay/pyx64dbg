@@ -2,11 +2,11 @@
 #include <elf.h>
 #include <cpuid.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <sys/ptrace.h>
 #include <sys/uio.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <string.h>
+#include <string>
 
 #include "xstate.hpp"
 #include "utils.hpp"
@@ -127,15 +127,13 @@ void modify_xstate_buffer_from_dict(std::string &xstate_buffer, const py::dict &
     // use a loop with snprintf for the st_mm registers as they are equivalent except for index
     for (int i = 0; i < 8; i++)
     {
-        char st_key[16];
-        snprintf(st_key, sizeof(st_key), "st_mm%d", i);
-        read_bytes_field_from_dict(regs_dict, st_key, legacy_region->st_mm[i].st_mm, sizeof(legacy_region->st_mm[i].st_mm));
+        std::string st_mm_key = "st_mm" + std::to_string(i);
+        read_bytes_field_from_dict(regs_dict, st_mm_key, legacy_region->st_mm[i].st_mm, sizeof(legacy_region->st_mm[i].st_mm));
     }
     // similarly use a loop for xmm
     for (int i = 0; i < 16; i++)
     {
-        char xmm_key[16];
-        snprintf(xmm_key, sizeof(xmm_key), "xmm%d", i);
+        std::string xmm_key = "xmm" + std::to_string(i);
         read_bytes_field_from_dict(regs_dict, xmm_key, legacy_region->xmm[i], sizeof(legacy_region->xmm[i]));
     }
     // xsave header - contains what fields are present
@@ -155,8 +153,7 @@ void modify_xstate_buffer_from_dict(std::string &xstate_buffer, const py::dict &
         // use a loop to get all ymm registers, similar to xmm and st_mm
         for (int i = 0; i < 16; i++)
         {
-            char ymmh_key[16];
-            snprintf(ymmh_key, sizeof(ymmh_key), "ymm%d_h", i);
+            std::string ymmh_key = "ymm" + std::to_string(i) + "_h";
             read_bytes_field_from_dict(regs_dict, ymmh_key, avx->ymm_h[i], sizeof(avx->ymm_h[i]));
         }
     }
@@ -182,16 +179,14 @@ py::dict parse_xstate_buffer_to_dict(std::string &buffer)
     // use a loop with snprintf for the st_mm registers as they are equivalent except for index
     for (int i = 0; i < 8; i++)
     {
-        char st_key[16];
-        snprintf(st_key, sizeof(st_key), "st_mm%d", i);
-        res_dict[st_key] = bytes_from_field(legacy_region->st_mm[i].st_mm, sizeof(legacy_region->st_mm[i].st_mm));
+        std::string st_mm_key = "st_mm" + std::to_string(i);
+        res_dict[st_mm_key.data()] = bytes_from_field(legacy_region->st_mm[i].st_mm, sizeof(legacy_region->st_mm[i].st_mm));
     }
     // similarly use a loop for xmm
     for (int i = 0; i < 16; i++)
     {
-        char xmm_key[16];
-        snprintf(xmm_key, sizeof(xmm_key), "xmm%d", i);
-        res_dict[xmm_key] = bytes_from_field(legacy_region->xmm[i], sizeof(legacy_region->xmm[i]));
+        std::string xmm_key = "xmm" + std::to_string(i);
+        res_dict[xmm_key.data()] = bytes_from_field(legacy_region->xmm[i], sizeof(legacy_region->xmm[i]));
     }
     // xsave header - contains what fields are present
     // verify the buffer is large enough
@@ -210,9 +205,8 @@ py::dict parse_xstate_buffer_to_dict(std::string &buffer)
         // use a loop to get all ymm registers, similar to xmm and st_mm
         for (int i = 0; i < 16; i++)
         {
-            char ymmh_key[16];
-            snprintf(ymmh_key, sizeof(ymmh_key), "ymm%d_h", i);
-            res_dict[ymmh_key] = bytes_from_field(avx->ymm_h[i], sizeof(avx->ymm_h[i]));
+            std::string ymmh_key = "ymm" + std::to_string(i) + "_h";
+            res_dict[ymmh_key.data()] = bytes_from_field(avx->ymm_h[i], sizeof(avx->ymm_h[i]));
         }
     }
     return res_dict;

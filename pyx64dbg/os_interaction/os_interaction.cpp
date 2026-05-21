@@ -5,11 +5,9 @@
 #include <sys/uio.h>
 #include <elf.h>
 #include <vector>
-#include <system_error>
 #include <optional>
 #include <unistd.h>
-#include <errno.h>
-#include <string.h>
+#include <cstring>
 #include <fcntl.h>
 #include <signal.h>
 

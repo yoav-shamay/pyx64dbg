@@ -19,4 +19,4 @@ py::bytes bytes_from_field(void *field_ptr, size_t field_size);
 An utility function to read a bytes object from a python dictionary and write it to a destination buffer.
 Does nothing if the key isn't present, as it is used to update a register if it exists in the dictionary
 */
-void read_bytes_field_from_dict(py::dict dict, const char *key, void *destination, const size_t size);
+void read_bytes_field_from_dict(py::dict dict, const std::string &key, void *destination, const size_t size);
