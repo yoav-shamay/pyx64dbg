@@ -38,19 +38,18 @@ class Symbols:
     Allows looking up symbols by name or by address, and also provides convenient access to function and object symbols separately.
     The address of the symbols is absolute, including the base address of the executable / shared object.
     """
-    def __init__(self, symbols: list[Symbol], base_address: UInt64=UInt64(0)) -> None:
+    def __init__(self, symbols: list[Symbol], load_bias: UInt64=UInt64(0)) -> None:
         self.symbols: list[Symbol] = symbols
-        self._base_address: UInt64 = base_address
-        self._setup_base_address()
+        self._setup_load_bias(load_bias)
         self._init_symbol_dicts()
         self._init_sorted_symbols()
     
-    def _setup_base_address(self):
+    def _setup_load_bias(self, load_bias: UInt64):
         """
         A helper function that adds the base address to the symbol addresses (which are offsets at initialization).
         """
         for symbol in self.symbols:
-            symbol.address += self._base_address
+            symbol.address += load_bias
 
     def _init_symbol_dicts(self):
         """
