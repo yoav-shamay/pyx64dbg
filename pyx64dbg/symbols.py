@@ -68,12 +68,12 @@ class Symbols:
         A helper function that initializes a sorted list of symbols by address, for efficient lookup by address.
         The list is a list of tuples of (address, symbol), sorted by address.
         """
-        self.sorted_addresses: list[tuple[UInt64, Symbol]] = []
+        self._sorted_addresses: list[tuple[UInt64, Symbol]] = []
         for symbol in self.symbols:
             if symbol.type in (SymbolType.FUNCTION, SymbolType.OBJECT): # only include relevant symbols
-                self.sorted_addresses.append((symbol.address, symbol))
+                self._sorted_addresses.append((symbol.address, symbol))
             
-        self.sorted_addresses.sort(key=lambda x: x[0]) # sort by address
+        self._sorted_addresses.sort(key=lambda x: x[0]) # sort by address
 
     
     def get_symbol_by_address(self, address: CNumBase) -> Symbol | None:
@@ -84,9 +84,9 @@ class Symbols:
         address = UInt64(address) # convert to UInt64 if it's something else
         # find the closest symbol with an address less than or equal to the given address
         # we need to subtract 1 as it returns the first greater than it
-        closest_symbol = bisect.bisect_right(self.sorted_addresses, address, key=lambda x: x[0]) - 1
+        closest_symbol = bisect.bisect_right(self._sorted_addresses, address, key=lambda x: x[0]) - 1
         if closest_symbol > 0: # if we found a symbol (the index isn't negative)
-            symbol_address, symbol = self.sorted_addresses[closest_symbol]
+            symbol_address, symbol = self._sorted_addresses[closest_symbol]
             if symbol_address <= address < symbol_address + symbol.size:
                 return symbol
         return None # if we didn't find a symbol that contains the given address, return None
