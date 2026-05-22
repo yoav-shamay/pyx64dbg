@@ -56,36 +56,10 @@ pyx64dbg [/path/to/binary]
 ```
 Once inside, simply type `help` to see a list of available commands and aliases (e.g., `run`, `step`, `bps`, `dis`).
 
-## Python API Showcase
+## Python API
 
-PyX64Dbg is built to be scripted. You can easily interact with binaries directly from Python.
-
-```python
-from pyx64dbg import Debugger
-from pyx64dbg.number_types import UInt64
-
-# 1. Spawn process and attach debugger
-dbg = Debugger.start_and_debug("./target_binary")
-
-# 2. Set a breakpoint at the 'main' function
-main_addr = dbg.symbols["main"]
-dbg.breakpoints.add_breakpoint(main_addr)
-
-# 3. Run until the breakpoint is hit
-dbg.control.continue_execution()
-
-# 4. Read memory and native vector registers
-rip = dbg.registers.rip
-rsp_val = dbg.memory.read_number(dbg.registers.rsp, UInt64)
-ymm0_floats = dbg.registers.ymm0.f32  # Access YMM0 as an array of 32-bit floats
-
-print(f"[+] Halted at RIP: 0x{rip:x}")
-print(f"[+] Stack pointer value: 0x{rsp_val:x}")
-print(f"[+] YMM0 state: {ymm0_floats}")
-
-# 5. Clean up - kill the process
-dbg.control.kill_process()
-```
+PyX64Dbg is built to be scripted. You can easily interact with binaries directly from Python.  
+See example.py for an example on how to use the debugger.
 
 ## Limitations
 
