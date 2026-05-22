@@ -9,6 +9,8 @@ from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.styles import Style
 import html
 
+from pyx64dbg.number_types import CIntBase
+
 if TYPE_CHECKING:
     from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 
@@ -105,7 +107,7 @@ def mem_operand_to_str(console: InteractiveConsole, instruction: capstone.CsInsn
     return res
 
 
-def print_disassembly(console: InteractiveConsole, address: int, instruction_cnt: int) -> None:
+def print_disassembly(console: InteractiveConsole, address: int | CIntBase, instruction_cnt: int) -> None:
     """
     Prints the disassembly of the instructions at the given address.
     Disassembles instruction_cnt instructions.

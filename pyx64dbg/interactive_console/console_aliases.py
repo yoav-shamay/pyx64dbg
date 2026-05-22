@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 # format - ([aliases], (["active_path"] or object, ["inactive_path"] or object), "help_description" (or None for not showing)
 # Paths are list of strings / lists of strings, where strings indicate attribute access and lists indicate indexing.
 # Those are evaluated with the console as the root object.
+# Object can also be a function that needs to be called with the console as the first argument
 ALL_ALIASES: list[tuple[list[str], tuple[list[str | list[str]] | object, list[str | list[str]] | object], str | None]] = [
     (["run_process", "run", "r"], (["_process_already_running_trap"], console_functions.run_process), "Run the process"),
     (["single_step", "step", "s"], (["debugger", "control", "single_step"], ["_process_not_running_trap"]), "Step into the next instruction."),
