@@ -15,9 +15,9 @@ class ProcessExitedError(Exception):
         """
         Produces a string representation of the error, indicating the exit code or signal if available.
         """
-        if self.exit_code is not None:
-            return f"Process exited with code {self.exit_code}"
         if self.signal is not None:
             return f"Process terminated by signal {self.signal}"
+        if self.exit_code is not None:
+            return f"Process exited with code {self.exit_code}"
         return "Process exited"
 
