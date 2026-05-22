@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import bisect
 from enum import Enum
-
+import heapq
 from pyx64dbg.number_types import CIntBase, UInt64
 
 class SymbolType(Enum):
@@ -66,14 +66,46 @@ class Symbols:
     def _init_sorted_symbols(self):
         """
         A helper function that initializes a sorted list of symbols by address, for efficient lookup by address.
-        The list is a list of tuples of (address, symbol), sorted by address.
+        Creates a disjoint sorted list of tuples (start_address, end_address, symbol) sorted by start_address, where end_address is start_address + size.
+        If multiple symbols overlap, the ranges will still be disjoint, and in each range the smallest symbol containing that range will be used.
+        Therefore, the same symbol can appear multiple times in the list.
         """
-        self._sorted_addresses: list[tuple[UInt64, Symbol]] = []
+        events: list[tuple[UInt64, Symbol, bool]] = [] # list of (address, symbol, is_start) for the start and end of each symbol
         for symbol in self.symbols:
-            if symbol.type in (SymbolType.FUNCTION, SymbolType.OBJECT): # only include relevant symbols
-                self._sorted_addresses.append((symbol.address, symbol))
-            
-        self._sorted_addresses.sort(key=lambda x: x[0]) # sort by address
+            if symbol.type not in (SymbolType.FUNCTION, SymbolType.OBJECT) or symbol.size == 0:
+                # we only include function and object symbols in the sorted list, as other symbols can be confusing to access by address and aren't as useful for most use cases
+                # Also symbols with size 0 can't include addresses (their range is empty) so we skip them as well
+                continue
+            events.append((symbol.address, symbol, True)) # start of the symbol
+            events.append((symbol.address + symbol.size, symbol, False)) # end of the symbol
+        events.sort(key=lambda x: x[0]) # sort by address
+        active_symbols: set[Symbol] = set() # set of currently active symbols (symbols that have started but not ended yet)
+        # A heap of active symbols sorted by size, to efficiently get the smallest active symbol
+        # Uses a lazy deletion approach, where the heap might include inactive symbols. We'll delete only the top symbol when it isn't active.
+        # Contains a tuple of (size, id, name) to sort by size, and if sizes are equal, sort by id to ensure consistency.
+        active_symbols_heap: list[tuple[int, int, Symbol]] = []
+        # Tuple of (start_address, end_address, symbol_name) sorted by start_address, representing the disjoint ranges of addresses covered by the symbols, and the smallest symbol covering that range.
+        # the range is [start_address, end_address) (inclusive of start_address and exclusive of end_address)
+        self._sorted_ranges: list[tuple[UInt64, UInt64, Symbol]] = []
+        last_address: UInt64 | None = None
+        for address, symbol, is_start in events:
+            if last_address is not None and last_address < address:
+                # if we have a last address and it's less than the current address, we have a range of addresses between last_address and address that is covered by the currently active symbols
+                # Before accessing the top remove any inactive symbols from the top of the heap (lazy deletion)
+                while active_symbols_heap and active_symbols_heap[0][2] not in active_symbols:
+                    heapq.heappop(active_symbols_heap)
+                if len(active_symbols_heap) > 0:
+                    # if the list isn't empty, the smallest active symbol is the one at the top of the heap
+                    smallest_active_symbol = active_symbols_heap[0][2]
+                    self._sorted_ranges.append((last_address, address, smallest_active_symbol))
+            last_address = address
+            if is_start:
+                # if a start, add to heap and active symbols set
+                active_symbols.add(symbol)
+                heapq.heappush(active_symbols_heap, (symbol.size, id(symbol), symbol))
+            else:
+                # if an end, remove from active symbols set
+                active_symbols.remove(symbol)
 
     
     def get_symbol_by_address(self, address: int | CIntBase) -> Symbol | None:
@@ -84,10 +116,11 @@ class Symbols:
         address = UInt64(address) # convert to UInt64 if it's something else
         # find the closest symbol with an address less than or equal to the given address
         # we need to subtract 1 as it returns the first greater than it
-        closest_symbol = bisect.bisect_right(self._sorted_addresses, address, key=lambda x: x[0]) - 1
-        if closest_symbol > 0: # if we found a symbol (the index isn't negative)
-            symbol_address, symbol = self._sorted_addresses[closest_symbol]
-            if symbol_address <= address < symbol_address + symbol.size:
+        closest_symbol = bisect.bisect_right(self._sorted_ranges, address, key=lambda x: x[0]) - 1
+        if closest_symbol >= 0: # if we found a symbol (the index isn't negative)
+            start_address, end_address, symbol = self._sorted_ranges[closest_symbol]
+            if start_address <= address < end_address:
+                # verify that the address is actually within the range
                 return symbol
         return None # if we didn't find a symbol that contains the given address, return None
     

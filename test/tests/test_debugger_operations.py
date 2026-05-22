@@ -239,3 +239,23 @@ def test_existing_breakpoints():
     assert dbg.registers.rip == main + 2 # Check that rip was actually incremented
     assert dbg.stopped_signal == signal.SIGTRAP # check that we actually stopped on a trap signal
     dbg.control.kill_process() # kill the process to avoid leaving orphan process
+
+def test_symbol_by_address_access():
+    """
+    Test the get_symbol_by_address function for looking up symbols by their address.
+    We check that we can get the correct symbol for an address in the middle of the symbol's range, and that we get None for an address outside of any symbol's range.
+    """
+    dbg = Debugger.start_and_debug(EXECUTABLE_ADDRESS)
+    main = dbg.symbols["main"]
+    # check an address in the middle of main's range
+    symbol = dbg.symbols.get_symbol_by_address(main + 0x10)
+    assert symbol is not None
+    assert symbol.name == "main"
+    # check an address outside of any symbol's range (main + size of main)
+    assert dbg.symbols.get_symbol_by_address(main + symbol.size) is None
+    # check an object symbol - got entry
+    printf_got = dbg.symbols["printf_got"]
+    symbol = dbg.symbols.get_symbol_by_address(printf_got + 1)
+    assert symbol is not None
+    assert symbol.name == "printf_got"
+    dbg.control.kill_process()
