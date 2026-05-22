@@ -13,16 +13,16 @@ Float32 / Float,
 Float64 / Double,
 Float80 / LongDouble
 """
-from typing import Union, ClassVar, Self, overload, TypeVar
+from typing import Union, ClassVar, Self, overload, TypeVar, TypeAlias
 
 # Types that can be converted into our C types
 _IntNumeric = Union[int, "CIntBase"] # in operators for integer types
 _Numeric = Union[int, float, "CNumBase"]  # in operators
+_AboveInt = Union[float, "CNumBase"] # all types but python int, used for overloads where we want to exclude int
 _Constructable = Union[_Numeric, bytes] # in constructors (allows constructing from bytes as well)
 
 # Binary operations return either a CNum or a standard Python float
 _Return = Union["CNumBase", float]
-_IntReturn = Union["CIntBase", int]
 
 class CNumBase:
     """
@@ -56,10 +56,20 @@ class CNumBase:
     def __eq__(self, other: object) -> bool: ...
     def __ne__(self, other: object) -> bool: ...
 
-    # define __op__, __rop__ and __iop__ for all universal operations (other is _Numeric, return is _Return)
+    # define __op__, __rop__ and __iop__ for all universal operations (other is _Numeric, return is _Return). int always returns Self as it's the lowest priority
     {% for op in universal_ops %}
+    @overload
+    def __{{ op }}__(self, other: int) -> Self: ...
+    @overload
+    def __{{ op }}__(self, other: _AboveInt) -> _Return: ...
     def __{{ op }}__(self, other: _Numeric) -> _Return: ...
+
+    @overload
+    def __r{{ op }}__(self, other: int) -> Self: ...
+    @overload
+    def __r{{ op }}__(self, other: _AboveInt) -> _Return: ...
     def __r{{ op }}__(self, other: _Numeric) -> _Return: ...
+
     def __i{{ op }}__(self, other: _Numeric) -> Self: ...
     {% endfor %}
 
@@ -90,10 +100,20 @@ class CIntBase(CNumBase):
     def __invert__(self) -> Self: ...
     def __index__(self) -> int: ...
 
-    # define __op__, __rop__ and __iop__ for all integer-only operations (other is _IntNumeric, return is _IntReturn)
+    # define __op__, __rop__ and __iop__ for all integer-only operations (other is _IntNumeric, return is CIntBase)
     {% for op in integer_ops %}
-    def __{{ op }}__(self, other: _IntNumeric) -> _IntReturn: ...
-    def __r{{ op }}__(self, other: _IntNumeric) -> _IntReturn: ...
+    @overload
+    def __{{ op }}__(self, other: int) -> Self: ...
+    @overload
+    def __{{ op }}__(self, other: CIntBase) -> CIntBase: ...
+    def __{{ op }}__(self, other: _IntNumeric) -> CIntBase: ...
+
+    @overload
+    def __r{{ op }}__(self, other: int) -> Self: ...
+    @overload
+    def __r{{ op }}__(self, other: CIntBase) -> CIntBase: ...
+    def __r{{ op }}__(self, other: _IntNumeric) -> CIntBase: ...
+
     def __i{{ op }}__(self, other: _IntNumeric) -> Self: ...
     {% endfor %}
 
@@ -109,39 +129,27 @@ class CFloatBase(CNumBase):
 
 {# A macro to generate the operator overloads for each type, avoiding repetition.
 Assumes _{{ t.name }}_LTE and _{{ t.name }}_GT_TypeVar are defined for usage in annotations.#}
-{% macro generate_op_overloads(t, op, gt_name="", has_gt=True, is_integer_only=False) %}
-{% set return_type = "_IntReturn" if is_integer_only else "_Return" %} {# for integer types we can use a reduced return/param type #}
+{% macro generate_op_overloads(t, op, gt_name="", gt_union_name="", has_gt=True, is_integer_only=False) %}
+{% set return_type = "CIntBase" if is_integer_only else "_Return" %} {# for integer types we can use a reduced return/param type #}
 {% set numeric_type = "_IntNumeric" if is_integer_only else "_Numeric" %}
-{% set float_overload = not t.is_float and t.prio < python_float_prio and not is_integer_only %}
-{% set should_overload = float_overload or has_gt %} {# we only need the @overload if there's more than one signature, otherwise we'll only use the catch-all #}
-{% if should_overload %}
+
+{# we only need to overload if we have gt, otherwise there's only one signature #}
+{% if has_gt %}
 @overload
 def __{{ op }}__(self, other: _{{ t.name }}_LTE) -> Self: ...
-{% endif %}
-
-{# Overload for float, only for types that are prioritized less than floats and operations that can be done with floats #}
-{% if float_overload %}
-@overload {# if we reach here, we need the overload as there's more than one signature #}
-def __{{ op }}__(self, other: float) -> float: ...
-{% endif %}
 
 {# Include Greater-Than operation, using a typevar to signal return value, only if there are greater types #}
-{% if has_gt %}
 @overload
 def __{{ op }}__(self, other: {{ gt_name }}) -> {{ gt_name }}: ...
 {% endif %}
+# We need to silence the error due to the fact that int is included in both the _LTE and _GT sometimes due to float including int (PEP 484)
+# However int and float return strictly different types, so the only way to prevent an error is to ignore it.
+def __{{ op }}__(self, other: {{ numeric_type }}) -> {% if has_gt %}{{ gt_union_name }} | {% endif %}Self: ... #type: ignore
 
-{# last catch-all - returns only gte types #}
-def __{{ op }}__(self, other: {{ numeric_type }}) -> {% if has_gt %}{{ gt_name }} | {% endif %}Self: ...
 {# Right-hand version, fully equivalent #}
-{% if should_overload %}
+{% if has_gt %}
 @overload
 def __r{{ op }}__(self, other: _{{ t.name }}_LTE) -> Self: ...
-{% endif %}
-
-{% if float_overload %}
-@overload
-def __r{{ op }}__(self, other: float) -> float: ...
 {% endif %}
 
 {% if has_gt %}
@@ -149,7 +157,7 @@ def __r{{ op }}__(self, other: float) -> float: ...
 def __r{{ op }}__(self, other: {{ gt_name }}) -> {{ gt_name }}: ...
 {% endif %}
 
-def __r{{ op }}__(self, other: {{ numeric_type }}) -> {% if has_gt %}{{ gt_name }} | {% endif %}Self: ...
+def __r{{ op }}__(self, other: {{ numeric_type }}) -> {% if has_gt %}{{ gt_union_name }} | {% endif %}Self: ... #type: ignore
 {% endmacro %}
 
 
@@ -170,15 +178,29 @@ def __r{{ op }}__(self, other: {{ numeric_type }}) -> {% if has_gt %}{{ gt_name 
         {% endif %}
     {% endif %}
 {% endfor %}
+{# add python float to gt / lte types #}
+{% if t.prio < python_float_prio %}
+{% set _ = gt_types.append('float') %}
+{% else %}
+{% set _ = lte_types.append('float') %}
+{% endif %}
 {# LTE types - always also includes int and includes float for stuff with prio > python_float_prio #}
 _{{ t.name }}_LTE = Union[int, {{ lte_types|join(', ') }} {% if t.prio > python_float_prio %}, float {% endif %}]
-{% if gt_types|length > 0 %}
+{% if gt_types|length > 1 %}
 _{{ t.name }}_GT = TypeVar("_{{ t.name }}_GT", {{ gt_types|join(', ') }})
+_{{ t.name }}_GT_UNION = Union[{{ gt_types|join(', ') }}]
+{% elif gt_types|length == 1 %}
+_{{ t.name }}_GT: TypeAlias = {{ gt_types[0] }}
+_{{ t.name }}_GT_UNION: TypeAlias = {{ gt_types[0] }}
 {% endif %}
 {# define int GT types if the type is integer-only, for integer-only operations #}
 {% if not t.is_float %}
-    {% if gt_int_types|length > 0 %}
+    {% if gt_int_types|length > 1 %}
 _{{ t.name }}_INT_GT = TypeVar("_{{ t.name }}_INT_GT", {{ gt_int_types|join(', ') }})
+_{{ t.name }}_INT_GT_UNION = Union[{{ gt_int_types|join(', ') }}]
+    {% elif gt_int_types|length == 1 %}
+_{{ t.name }}_INT_GT: TypeAlias = {{ gt_int_types[0] }}
+_{{ t.name }}_INT_GT_UNION: TypeAlias = {{ gt_int_types[0] }}
     {% endif %}
 {% endif %}
 
@@ -204,13 +226,13 @@ class {{ t.name }}({% if t.is_float %}CFloatBase{% else %}CIntBase{% endif %}):
 
     {# Universal operator overloads #}
     {% for op in universal_ops %}
-{{ generate_op_overloads(t, op, "_" ~ t.name ~ "_GT", has_gt) | indent(4, True) }} {# we use indent to give indention to the macro content, and skip the indention at the call to prevent double-indent #}
+{{ generate_op_overloads(t, op, "_" ~ t.name ~ "_GT", "_" ~ t.name ~ "_GT_UNION", has_gt) | indent(4, True) }} {# we use indent to give indention to the macro content, and skip the indention at the call to prevent double-indent #}
     {% endfor %}
 
     {# Integer-only operator overloads, if the type is int type. uses the macro with _INT_GT instead of _GT, and has_integer_only=True #}
     {% if not t.is_float %}
     {% for op in integer_ops %}
-{{ generate_op_overloads(t, op, "_" ~ t.name ~ "_INT_GT", has_int_gt, is_integer_only=True) | indent(4, True) }}
+{{ generate_op_overloads(t, op, "_" ~ t.name ~ "_INT_GT", "_" ~ t.name ~ "_INT_GT_UNION", has_int_gt, is_integer_only=True) | indent(4, True) }}
     {% endfor %}
     {% endif %}
 {% endfor %}

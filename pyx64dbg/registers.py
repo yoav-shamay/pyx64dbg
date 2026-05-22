@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
+from collections.abc import Collection
 
 import pyx64dbg.os_interaction as os_interaction
 from pyx64dbg.number_types import CNumBase, Int8, Int16, Int32, Int64, Float32, Float64, Float80, CFloatBase, CIntBase
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from pyx64dbg.debugger import Debugger
 
 # types that we can convert to bytes and assign to a register
-RegisterSettableTypes: TypeAlias = int | float | CNumBase | VectorRegister | list["RegisterSettableTypes"] | bytes
+RegisterSettableTypes: TypeAlias = int | float | CNumBase | VectorRegister | Collection["RegisterSettableTypes"] | bytes
 
 def _convert_value_to_bytes(value: RegisterSettableTypes, width_bytes: int) -> bytes:
     """
@@ -48,13 +49,6 @@ def _convert_value_to_bytes(value: RegisterSettableTypes, width_bytes: int) -> b
         res = value.to_bytes()
         res = res.ljust(width_bytes, b'\x00') # pad with zeros if the float/vector is smaller than the required width
         return res[:width_bytes]
-    elif isinstance(value, list):
-        # for a list, recursively convert each element to bytes and concatenate
-        # this is needed for example for easy assignments to vectors
-        res = b""
-        for part in value:
-            res += _convert_value_to_bytes(part, width_bytes // len(value))
-        return res
     elif isinstance(value, bytes):
         # for bytes, we either pad with zeros or crop to fit the required width
         if len(value) < width_bytes:
@@ -62,6 +56,13 @@ def _convert_value_to_bytes(value: RegisterSettableTypes, width_bytes: int) -> b
             return value.ljust(width_bytes, b'\x00')
         else:
             return value[:width_bytes]
+    elif isinstance(value, Collection):
+        # for a list, recursively convert each element to bytes and concatenate
+        # this is needed for example for easy assignments to vectors
+        res = b""
+        for part in value:
+            res += _convert_value_to_bytes(part, width_bytes // len(value))
+        return res
     else:
         # for any other type, raise an error as we don't know how to convert it to bytes for register assignment
         raise TypeError(f"Cannot convert value of type {type(value)} to bytes for register assignment")
