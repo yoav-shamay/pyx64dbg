@@ -43,7 +43,7 @@ pip install -e .
 ## Usage
 
 ### Graphical Interface (GUI)
-Start the visual debugger (requires a desktop session like X11 or Wayland):
+Start the visual debugger (requires a desktop environment):
 ```bash
 pyx64dbg-gui
 ```
