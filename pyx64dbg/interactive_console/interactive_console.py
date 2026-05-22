@@ -35,7 +35,7 @@ class InteractiveConsole:
     def __init__(
         self,
         file_name: Optional[str] = None,
-        redirect_stdio_to_pty : bool = True,
+        redirect_stdio_to_pty : bool = False,
         disable_pty_echo: bool = True,
         stdout_stream: Optional[TextIO]=None,
     ):
@@ -169,14 +169,3 @@ class InteractiveConsole:
             self._on_process_exit()
         else:
             self._on_process_run()
-
-    from pyx64dbg.interactive_console.disassembly_function import (
-        print_disassembly,
-        _mem_operand_to_str,
-    )
-    from pyx64dbg.interactive_console.console_functions import (
-        print_breakpoints,
-        help,
-        run_process,
-        select_file,
-    )

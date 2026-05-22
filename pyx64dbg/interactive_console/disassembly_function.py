@@ -27,7 +27,7 @@ disasm_style = Style.from_dict(
 )
 
 
-def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, op: X86Op) -> str:
+def mem_operand_to_str(console: InteractiveConsole, instruction: capstone.CsInsn, op: X86Op) -> str:
     """
     Converts an x86 memory operand into a formatted HTML string.
     Structure: segment:[base + index * scale + disp]
@@ -71,7 +71,7 @@ def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, 
         val_to_show = abs(op.mem.disp) if parts else op.mem.disp
         # Determine if the displacement is a known symbol when there's no base/index
         if op.mem.base == 0 and op.mem.index == 0:
-            symbol = self.debugger.address_to_symbol.get(op.mem.disp)
+            symbol = console.debugger.address_to_symbol.get(op.mem.disp)
             if symbol:
                 parts.append(f"<sym>{html.escape(symbol)}</sym>") # need to escape the symbol name as it can contain special chars
             else:
@@ -89,7 +89,7 @@ def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, 
     if op.mem.base == X86_REG_RIP and op.mem.index == 0:
         rip_relative_address = instruction.address + instruction.size + op.mem.disp
         # potentially resolve this RIP-relative address for a symbol
-        symbol = self.debugger.address_to_symbol.get(rip_relative_address)
+        symbol = console.debugger.address_to_symbol.get(rip_relative_address)
         if symbol:
             # if there's a symbol, show as (symbol, 0xaddress)
             res += (
@@ -105,15 +105,15 @@ def _mem_operand_to_str(self: InteractiveConsole, instruction: capstone.CsInsn, 
     return res
 
 
-def print_disassembly(self: InteractiveConsole, address: int, instruction_cnt: int) -> None:
+def print_disassembly(console: InteractiveConsole, address: int, instruction_cnt: int) -> None:
     """
     Prints the disassembly of the instructions at the given address.
     Disassembles instruction_cnt instructions.
     """
-    instructions = self.debugger.memory.read_instruction(address, instruction_cnt)
+    instructions = console.debugger.memory.read_instruction(address, instruction_cnt)
 
     # get RIP to highlight the current instruction
-    current_rip = self.debugger.registers.rip
+    current_rip = console.debugger.registers.rip
 
     for insn in instructions:
         is_current = insn.address == current_rip
@@ -127,7 +127,7 @@ def print_disassembly(self: InteractiveConsole, address: int, instruction_cnt: i
         for op in insn.operands:
             if op.type == X86_OP_IMM:
                 # Immediate value (e.g., call 0x401000) - try to resolve symbol, otherwise just show 0xaddress
-                sym = self.debugger.address_to_symbol.get(op.imm)
+                sym = console.debugger.address_to_symbol.get(op.imm)
                 if sym:
                     operands_html.append(
                         f"<sym>{sym}</sym> <addr>({hex(op.imm)})</addr>"
@@ -141,7 +141,7 @@ def print_disassembly(self: InteractiveConsole, address: int, instruction_cnt: i
 
             elif op.type == X86_OP_MEM:
                 # Memory Reference (e.g., [rax + rdi*4]) - use helper method
-                operands_html.append(self._mem_operand_to_str(insn, op))
+                operands_html.append(mem_operand_to_str(console, insn, op))
 
         # Assemble the line by joining every operand
         ops_str = "<punct>, </punct>".join(operands_html)
@@ -155,4 +155,4 @@ def print_disassembly(self: InteractiveConsole, address: int, instruction_cnt: i
             line_html = f"<current>{line_html}</current>"
 
         # print using prompt_toolkit with the defined style
-        print_formatted_text(HTML(line_html), style=disasm_style, output=self._toolkit_output)
+        print_formatted_text(HTML(line_html), style=disasm_style, output=console._toolkit_output)

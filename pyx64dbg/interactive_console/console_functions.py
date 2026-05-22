@@ -19,17 +19,17 @@ if TYPE_CHECKING:
     from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 
 
-def print_breakpoints(self: InteractiveConsole) -> None:
+def print_breakpoints(console: InteractiveConsole) -> None:
     """
     Prints the current breakpoints.
     """
-    breakpoints = self.debugger.breakpoints.get_breakpoints()
-    print("Current breakpoints:", file=self._output_stream)
+    breakpoints = console.debugger.breakpoints.get_breakpoints()
+    print("Current breakpoints:", file=console._output_stream)
     for bp in breakpoints:
-        print(f"0x{bp:016x}", file=self._output_stream)
+        print(f"0x{bp:016x}", file=console._output_stream)
 
 
-def help(self: InteractiveConsole, obj: Any = None) -> None:
+def help(console: InteractiveConsole, obj: Any = None) -> None:
     """
     Show help for the given object, or general help if no object is provided.
     If the object is a function, shows its signature.
@@ -37,60 +37,60 @@ def help(self: InteractiveConsole, obj: Any = None) -> None:
     """
     if obj is None:
         # if we didn't ask help for a specific object, print the general message
-        print(self.help_message, file=self._output_stream)
+        print(console.help_message, file=console._output_stream)
     else:
         # if a function, print its signature
         if callable(obj):
-            print(f"{obj.__name__}{inspect.signature(obj)}", file=self._output_stream)
+            print(f"{obj.__name__}{inspect.signature(obj)}", file=console._output_stream)
         # print the docstring of the object
         docstring = obj.__doc__
         if docstring is None:  # no docstring, print a default message
-            print("No help available for this object.", file=self._output_stream)
+            print("No help available for this object.", file=console._output_stream)
         else:
             docstring = docstring.strip()  # strip leading and trailing newlines
-            print(docstring, file=self._output_stream)
+            print(docstring, file=console._output_stream)
 
 
-def run_process(self: InteractiveConsole, *argv: str) -> None:
+def run_process(console: InteractiveConsole, *argv: str) -> None:
     """
     Run the process. Can give optional arguments to the process, e. g. run_process("arg1", "arg2").
     """
-    if self.file_name is None:
+    if console.file_name is None:
         # no file is selected - we can't run
         raise FileNotSelectedError()
     argv_list = list(argv) # convert to list for usage in the API
     # create the debugger object using start_and_debug
-    self.debugger = Debugger.start_and_debug(
-        self.file_name,
-        redirect_stdio_to_pty=self._redirect_stdio_to_pty,
-        disable_pty_echo=self._disable_pty_echo,
+    console.debugger = Debugger.start_and_debug(
+        console.file_name,
+        redirect_stdio_to_pty=console._redirect_stdio_to_pty,
+        disable_pty_echo=console._disable_pty_echo,
         argv=argv_list,
     )
     # call the debugger update callbacks
-    self.new_debugger_object_callbacks.trigger(self.debugger)
-    self._on_process_run()  # call the process run handler to set up aliases
+    console.new_debugger_object_callbacks.trigger(console.debugger)
+    console._on_process_run()  # call the process run handler to set up aliases
 
 
-def select_file(self: InteractiveConsole, file_name: str, trigger_callbacks: bool = True) -> None:
+def select_file(console: InteractiveConsole, file_name: str, trigger_callbacks: bool = True) -> None:
     """
     Selects a new file to debug.
     Stops the currently running process if there is one, as we switch to a new file.
     """
     # validate the file before selecting
     validate_file(file_name)
-    self.file_name = file_name
-    if self.debugger is not None:
+    console.file_name = file_name
+    if console.debugger is not None:
         # if the process is running, we need to stop it before switching to a new file
         # remove the exit callback to avoid printing exit message after exiting
-        self.debugger.exit_callbacks.remove(self._handle_process_exit)
+        console.debugger.exit_callbacks.remove(console._handle_process_exit)
         # kill the running process
-        self.debugger.control.kill_process()
+        console.debugger.control.kill_process()
         # set that there's no active debugger / process
-        self.debugger = None
-        self._on_process_exit()  # call the process exit handler to update aliases
+        console.debugger = None
+        console._on_process_exit()  # call the process exit handler to update aliases
         # call the new debugger object callbacks as we updated debugger to None, if we want to trigger them
         if trigger_callbacks:
-            self.new_debugger_object_callbacks.trigger(None)
+            console.new_debugger_object_callbacks.trigger(None)
     # call the file select callbacks to notify about the file change
     if trigger_callbacks:
-        self.file_select_callbacks.trigger(file_name)
+        console.file_select_callbacks.trigger(file_name)
