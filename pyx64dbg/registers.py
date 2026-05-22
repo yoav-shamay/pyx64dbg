@@ -80,10 +80,10 @@ class StandardRegister(Generic[T_Reg]):
         Initializes the descriptor.
         Requires the name in the standard_regs dictionary, the first and last byte of the register in that struct, and the type of the register (Int64, Int32, etc.).
         """
-        self.struct_name: str = dict_name
-        self.first_byte: int = first_byte
-        self.length: int = length
-        self.reg_type: type[T_Reg] = reg_type
+        self._name_in_dict: str = dict_name
+        self._first_byte: int = first_byte
+        self._length: int = length
+        self._reg_type: type[T_Reg] = reg_type
 
     def __get__(self, instance: Registers | None, owner: type) -> T_Reg:
         """
@@ -95,8 +95,8 @@ class StandardRegister(Generic[T_Reg]):
             raise AttributeError("Can only access registers through an instance")
         instance._debugger._ensure_running()
         # get the bytes from the dict using slicing
-        reg_bytes = instance.standard_regs[self.struct_name][self.first_byte : self.first_byte + self.length]
-        return self.reg_type.from_bytes(reg_bytes) # convert to the right number type
+        reg_bytes = instance.standard_regs[self._name_in_dict][self._first_byte : self._first_byte + self._length]
+        return self._reg_type.from_bytes(reg_bytes) # convert to the right number type
 
     def __set__(self, instance: Registers, value: RegisterSettableTypes) -> None:
         """
@@ -110,12 +110,12 @@ class StandardRegister(Generic[T_Reg]):
         A function to set the value of the register (with an option to not trigger callbacks).
         """
         instance._debugger._ensure_running()
-        value_bytes = _convert_value_to_bytes(value, self.reg_type.size) # convert to bytes using the helper method
-        full_reg_value = bytearray(instance.standard_regs[self.struct_name]) # change to bytearray for editing
-        full_reg_value[self.first_byte : self.first_byte + self.length] = value_bytes
-        instance.standard_regs[self.struct_name] = bytes(full_reg_value) # change back to bytes and assign to the dict
+        value_bytes = _convert_value_to_bytes(value, self._reg_type.size) # convert to bytes using the helper method
+        full_reg_value = bytearray(instance.standard_regs[self._name_in_dict]) # change to bytearray for editing
+        full_reg_value[self._first_byte : self._first_byte + self._length] = value_bytes
+        instance.standard_regs[self._name_in_dict] = bytes(full_reg_value) # change back to bytes and assign to the dict
         # write the modified register struct back to the debugged process using os_interaction
-        modified_regs_dict = {self.struct_name: instance.standard_regs[self.struct_name]}
+        modified_regs_dict = {self._name_in_dict: instance.standard_regs[self._name_in_dict]}
         os_interaction.set_standard_regs(instance._debugger.child_pid, modified_regs_dict)
         if trigger_updates:
             instance._debugger.update_callbacks.trigger()
@@ -131,8 +131,8 @@ class ExtendedRegister(Generic[T_Reg]):
         Initializes the descriptor.
         Requires the list of names in the extended_regs dictionary that compose the register.
         """
-        self.act_names: list[str] = act_names
-        self.reg_type: type[T_Reg] = reg_type
+        self._act_names: list[str] = act_names
+        self._reg_type: type[T_Reg] = reg_type
         self._reg_name: str = ""
 
     def __set_name__(self, owner: type, name: str) -> None:
@@ -154,7 +154,7 @@ class ExtendedRegister(Generic[T_Reg]):
         # combine the various parts and check if it really exists
         exists = True
         reg_bytes = b""
-        for act_name in self.act_names:
+        for act_name in self._act_names:
             if act_name not in instance.extended_regs:
                 exists = False
                 break
@@ -162,10 +162,10 @@ class ExtendedRegister(Generic[T_Reg]):
         if not exists:
             raise ValueError(f"Register {self._reg_name} not available")
         # initialization for VectorRegister is different as it needs the parent instance and name
-        if issubclass(self.reg_type, VectorRegister):
-            return self.reg_type.from_bytes(reg_bytes, instance, self._reg_name)
+        if issubclass(self._reg_type, VectorRegister):
+            return self._reg_type.from_bytes(reg_bytes, instance, self._reg_name)
         else:
-            return self.reg_type.from_bytes(reg_bytes)
+            return self._reg_type.from_bytes(reg_bytes)
 
     def __set__(self, instance: Registers, value: RegisterSettableTypes) -> None:
         """
@@ -179,12 +179,12 @@ class ExtendedRegister(Generic[T_Reg]):
         A function to set the value of the register (with an option to not trigger callbacks).
         """
         instance._debugger._ensure_running()
-        value_bytes = _convert_value_to_bytes(value, self.reg_type.size) # convert to bytes using the helper method
+        value_bytes = _convert_value_to_bytes(value, self._reg_type.size) # convert to bytes using the helper method
         # iterate over every part and write the corresponding part of the value bytes to the matching register
         modified_regs_dict: dict[str, bytes] = {}
-        for i, act_name in enumerate(self.act_names):
-            low_byte = i * (len(value_bytes) // len(self.act_names))
-            high_byte = (i + 1) * (len(value_bytes) // len(self.act_names))
+        for i, act_name in enumerate(self._act_names):
+            low_byte = i * (len(value_bytes) // len(self._act_names))
+            high_byte = (i + 1) * (len(value_bytes) // len(self._act_names))
             part_bytes = value_bytes[low_byte : high_byte]
             # modify both the cached value and the dict we use in os_interaction
             instance.extended_regs[act_name] = part_bytes
@@ -350,7 +350,9 @@ class Registers:
         """
         self._debugger._ensure_running()
         try:
-            return getattr(self, reg_name) # use the getattr method to get the register from the descriptor attribute
+            res = getattr(self, reg_name) # use the getattr method to get the register from the descriptor attribute
+            if not isinstance(res, (CNumBase, VectorRegister)):
+                raise KeyError(reg_name) # if it's not a CNum or VectorRegister, it's not a register we can return, so we raise a KeyError
         except AttributeError:
             raise KeyError(reg_name) # if the descriptor didn't find the register, we raise a KeyError for consistency with dict-like access
     

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
-    Collection,
-    Iterator,
+    Generic,
     Self,
     Type,
     Any,
@@ -27,6 +26,8 @@ from pyx64dbg.number_types import (
     UInt8,
 )
 
+from collections.abc import Collection, Sequence
+
 if TYPE_CHECKING:
     from pyx64dbg.registers import Registers
 
@@ -36,7 +37,7 @@ T = TypeVar("T", bound=CNumBase)
 num_types_constructible = int | float | CNumBase | bytes
 
 
-class VectorView[T]:
+class VectorView(Sequence[T], Generic[T]):
     """
     A proxy that allows indexing, slicing, and assignment to a VectorRegister as if it were a list of a specific type.
     """
@@ -85,13 +86,13 @@ class VectorView[T]:
     ) -> None: ...
     @overload
     def __setitem__(
-        self, idx: slice, value: Iterable[num_types_constructible]
+        self, idx: slice, value: Collection[num_types_constructible]
     ) -> None: ...
 
     def __setitem__(
         self,
         idx: int | CIntBase | slice,
-        value: Iterable[num_types_constructible] | num_types_constructible,
+        value: Collection[num_types_constructible] | num_types_constructible,
     ) -> None:
         """
         Square bracket assignment for the view.
@@ -108,9 +109,9 @@ class VectorView[T]:
             )  # use range with slice.indices, which handles negative-indices and other cases properly
             # Ensure value is an iterable when slicing
             if not isinstance(
-                value, Iterable
-            ):  # verify that the value is an iterable, as we expect for slice assignment
-                raise TypeError("Can only assign an iterable to a slice")
+                value, Collection
+            ):  # verify that the value is a Collection, as we expect for slice assignment
+                raise TypeError("Can only assign a Collection to a slice")
 
             if len(value) != len(indices):
                 raise ValueError(
@@ -158,14 +159,7 @@ class VectorView[T]:
         """
         return str(list(self))
 
-    def __iter__(self) -> Iterator[T]:
-        """
-        Returns an iterator over the elements in the view, allowing iteration in for loops and other contexts.
-        """
-        for i in range(self._count):
-            yield self[i]
-
-    def __eq__(self, other: Iterable[Any]) -> bool:
+    def __eq__(self, other: Collection[Any]) -> bool:
         """
         Allows comparison with other collection of numbers, comparing element-wise.
         """
@@ -203,6 +197,8 @@ class VectorRegister:
         Constructs a VectorRegister with the given bytes data.
         For internal updates, parent_regs and name should be provided so that changes there trigger a proper ptrace update.
         """
+        if len(data) != self.size:
+            raise ValueError(f"Data length {len(data)} does not match VectorRegister size {self.size}")
         self._data: bytes = data
         self._parent: Registers | None = parent_regs
         self._name: str | None = name
@@ -391,7 +387,7 @@ class VectorRegister:
         Shows the type and the raw bytes in hex for simplicity.
         Access subviews for more detailed representations.
         """
-        return f"Vector{self.size}({self._data.hex()})"
+        return f"Vector{self.size * 8}({self._data.hex()})"
 
     @classmethod
     def from_bytes(

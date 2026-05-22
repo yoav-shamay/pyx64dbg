@@ -83,41 +83,28 @@ class StackFrame:
         """
         Returns the saved RBP value of the stack frame, which is located at the base of the frame (RBP).
         """
-        return UInt64.from_bytes(
-            self[0:8]
-        )  # use our __getitem__ to read relative to rbp
+        return self.read_number(0, UInt64)  # use our read_number to read relative to rbp
 
     @saved_rbp.setter
     def saved_rbp(self, value: int | CIntBase) -> None:
         """
         Sets the saved RBP value of the stack frame, which is located at the base of the frame (RBP).
         """
-        # convert value to bytes by first converting it to a UInt64 as the width is 8 bytes
-        value = UInt64(value)
-        value_bytes = value.to_bytes()
-        self[0:8] = value_bytes
+        self.write_number(0, value, 8)  # use our write_number to write relative to rbp, set width to 8 in case user provides an int
 
     @property
     def saved_rip(self) -> UInt64:
         """
         Returns the saved RIP value of the stack frame, which is located at RBP + 8 (after the saved RBP).
         """
-        return UInt64.from_bytes(
-            self[8:16]
-        )  # use our __getitem__ to read relative to rbp
+        return self.read_number(8, UInt64)  # use our read_number to read relative to rbp
 
     @saved_rip.setter
     def saved_rip(self, value: int | CIntBase) -> None:
         """
         Sets the saved RIP value of the stack frame, which is located at RBP + 8 (after the saved RBP).
         """
-        # convert value to bytes
-        if isinstance(value, CIntBase):
-            value_bytes = value.to_bytes()
-        else:  # if it's int, we need to specify the byte length and endianness to convert it to bytes
-            value_bytes = value.to_bytes(8, byteorder="little")
-
-        self[8:16] = value_bytes  # use our __setitem__ to set relative to rbp
+        self.write_number(8, value, 8)  # use our write_number to write relative to rbp, set width to 8 in case user provides an int
 
     # overloads for read_number as we return different types based on the cnt parameter (single number or list of numbers)
     @overload
@@ -137,23 +124,23 @@ class StackFrame:
         Type should be one of the number types defined in number_types, such as Int32, UInt64, Float32, etc.
         If cnt is provided, reads cnt numbers of the given type and returns them as a list
         """
-        act_cnt = (
-            1 if cnt is None else cnt
-        )  # if cnt is None, we read a single number, otherwise we read cnt numbers
-        type_byte_width = type.size // 8
-        byte_cnt = act_cnt * type_byte_width
-        data = self[offset : offset + byte_cnt]
-        res: list[bytes] = []
-        for i in range(act_cnt):
-            res.append(
-                type.from_bytes(data[i * type_byte_width : (i + 1) * type_byte_width])
-            )
-        if (
-            cnt is None
-        ):  # if the user didn't specify a count, return a single number instead of a list
-            return res[0]
-        else:
-            return res
+        return self._debugger.memory.read_number(self.rbp + offset, type, cnt)
+
+    def write_number(
+        self,
+        offset: int | CIntBase,
+        value: int | CIntBase,
+        width: Optional[int] = None,
+        trigger_updates: bool = True,
+    ) -> None:
+        """
+        Writes a number to the given stack position, relative to RBP.
+        Value can be an int or a CIntBase. If it's a CIntBase, the width will be determined from the type.
+        Otherwise, the width should be provided as a parameter (in bytes)
+        """
+        self._debugger.memory.write_number(
+            self.rbp + offset, value, width, trigger_updates
+        )
 
     def __repr__(self) -> str:
         """

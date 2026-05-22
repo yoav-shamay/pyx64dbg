@@ -90,7 +90,7 @@ class Control:
                 "Unexpected status after movement: " + str(status)
             )
 
-    def _step_from_breakpoint(self, address: CIntBase | int) -> None:
+    def _step_from_breakpoint(self, address: UInt64) -> None:
         """
         An internal function to single step when on a breakpoint.
         Temporarily removes the breakpoint, single steps, and then restores the breakpoint.
