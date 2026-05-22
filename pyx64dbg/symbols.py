@@ -174,6 +174,6 @@ class Symbols:
         """
         res_str = "Symbols([\n"
         for symbol in self.symbols:
-            res_str += f"  {symbol}\n"
+            res_str += f"  {repr(symbol)}\n"
         res_str += "])"
         return res_str
