@@ -62,11 +62,12 @@ class IPythonCLI:
         # use the console printing error message with the name of the exception class and its msg
         self.interactive_console.print_error(exc_type.__name__, exc_value)
 
-    def start_console(self) -> None:
+    def start_console(self, register_exit_handler: bool = True) -> None:
         """
         Starts the IPython interactive console.
         """
-        atexit.register(self.interactive_console.handle_exit)  # register the console exit handler using atexit
+        if register_exit_handler:
+            atexit.register(self.interactive_console.handle_exit)  # register the console exit handler using atexit
         # create the InteractiveShellEmbed object for the console, with linux colors and no banner (we have our own banner that we print separately)
         self.shell = InteractiveShellEmbed(colors="linux", display_banner=False)
         # define custom prompt (PyX64Dbg>) for the console

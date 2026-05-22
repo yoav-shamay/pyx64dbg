@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 import capstone
 from pyx64dbg.CLI.ipython_cli import IPythonCLI
 from pyx64dbg.debugger import Debugger
+from pyx64dbg.interactive_console import console_functions
 from pyx64dbg.interactive_console.interactive_console import InteractiveConsole
 from pyx64dbg.number_types import UInt64, CNumBase
 from pyx64dbg.symbols import Symbol
@@ -75,7 +76,7 @@ class DebuggerWorker(QObject):
         self._file_name = file_name
         # update the file in the interactive console as well if it exists
         if self._interactive_console:
-            self._interactive_console.select_file(file_name, trigger_callbacks = False) # don't trigger the signal, as we emit it manaully (for consistency)
+            console_functions.select_file(self._interactive_console, file_name, trigger_callbacks = False) # don't trigger the signal, as we emit it manaully (for consistency)
         self.file_selected.emit()  # emit the signal to update the GUI
 
     def setup_shell(self, pty_slave_fd: int):
@@ -95,7 +96,7 @@ class DebuggerWorker(QObject):
         self._interactive_console.new_debugger_object_callbacks.add(self._new_console_debugger_object)
         self._interactive_console.system_msg_wrapper = self._system_msg_wrapper # set the system message wrapper to wrap system messages in the console
         # start the IPython CLI (blocking call for this function, has to be last, but doesn't block the asyncio loop itself)
-        self._ipython_cli.start_console()
+        self._ipython_cli.start_console(register_exit_handler=False) # we don't want to register the exit handler as we handle it ourselves in the GUI
     
     def _system_msg_wrapper(self, msg: str) -> str:
         """
