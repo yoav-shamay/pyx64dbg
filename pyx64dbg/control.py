@@ -10,7 +10,6 @@ and we only want to trigger updates after the debugger really finishes.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from pyx64dbg.breakpoint import BREAKPOINT_INSTRUCTION_BYTES
 import pyx64dbg.os_interaction as os_interaction
 import os
 from capstone import CS_GRP_CALL, CsInsn

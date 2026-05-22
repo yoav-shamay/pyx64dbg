@@ -232,9 +232,8 @@ class Memory:
             )  # we choose to trigger updates in the end by ourselves, as the pattern is to not call it by intermediate functions
         else:
             if isinstance(value, bytes):
-                value = value[
-                    0
-                ]  # if it's a bytes object, take the first byte as the value to write
+                # if it's a bytes object, take the first byte as the value to write
+                value = value[0]  
             self.set_byte(key, value, trigger_updates=False)
         self._debugger.update_callbacks.trigger()  # as it's an operator, we can't have an optional parameter, so we trigger in the end anyway
 

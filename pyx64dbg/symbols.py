@@ -3,7 +3,7 @@ from __future__ import annotations
 import bisect
 from enum import Enum
 
-from pyx64dbg.number_types import CNumBase, UInt64
+from pyx64dbg.number_types import CIntBase, UInt64
 
 class SymbolType(Enum):
     """
@@ -76,7 +76,7 @@ class Symbols:
         self._sorted_addresses.sort(key=lambda x: x[0]) # sort by address
 
     
-    def get_symbol_by_address(self, address: CNumBase) -> Symbol | None:
+    def get_symbol_by_address(self, address: int | CIntBase) -> Symbol | None:
         """
         A function to lookup a symbol by its address.
         Uses binary search on the sorted list of symbols by address for efficient lookup.
