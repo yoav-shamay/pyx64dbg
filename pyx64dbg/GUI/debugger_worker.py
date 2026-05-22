@@ -94,27 +94,24 @@ class DebuggerWorker(QObject):
         # register the interactive console callbacks to synchronize state and emit signals for the GUI
         self._interactive_console.file_select_callbacks.add(self._on_console_file_select)
         self._interactive_console.new_debugger_object_callbacks.add(self._new_console_debugger_object)
-        self._interactive_console.system_msg_wrapper = self._system_msg_wrapper # set the system message wrapper to wrap system messages in the console
+        self._interactive_console.system_msg_printer = self._system_msg_printer # set the system message wrapper to wrap system messages in the console
         # start the IPython CLI (blocking call for this function, has to be last, but doesn't block the asyncio loop itself)
         self._ipython_cli.start_console(register_exit_handler=False) # we don't want to register the exit handler as we handle it ourselves in the GUI
     
-    def _system_msg_wrapper(self, msg: str) -> str:
+    def _system_msg_printer(self, msg: str) -> None:
         """
-        Wraps console system messages so they are printed above the input line and visually distinct from normal output.
+        Prints console system messages.
+        Makes sure to print the message in its own line, make it colored and that the prompt is correctly redrawn after it.
         """
         # ansi codes for the cursor
-        # Cursor manipulation
-        SAVE_CURSOR = "\x1b7"       # DECSC: Save Cursor
-        RESTORE_CURSOR = "\x1b8"    # DECRC: Restore Cursor
-        # Line Manipulation
-        INSERT_LINE = "\x1b[1L"     # IL: Insert line at current row
-        CURSOR_DOWN = "\x1b[1B"     # CUD: Move cursor down
         CARRIAGE_RETURN = "\r"
-        # Colors
+        CLEAR_LINE = "\x1b[2K"
         YELLOW = "\x1b[33m"
-        # color in yellow and move the message above the input line, then move the cursor back to the input line
-        sequence = f"{SAVE_CURSOR}{INSERT_LINE}{CARRIAGE_RETURN}{YELLOW}{msg}{RESTORE_CURSOR}{CURSOR_DOWN}"
-        return sequence
+        RESET = "\x1b[0m"
+        # replace the text in the current line with the message, print it in yellow, and move to the next line
+        sequence = f"{CARRIAGE_RETURN}{CLEAR_LINE}{YELLOW}{msg}{RESET}\n"
+        print(sequence, end='') # print the message, without extra newline as already included in the sequence
+        self._ipython_cli.shell.pt_app.app.invalidate() # force the IPython shell to redraw to show the prompt correctly afterwards
     
     def _new_console_debugger_object(self, debugger: Debugger | None) -> None:
         """

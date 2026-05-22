@@ -60,7 +60,7 @@ class IPythonCLI:
         else:
             exc_type, exc_value, _ = sys.exc_info()
         # use the console printing error message with the name of the exception class and its msg
-        self.interactive_console.print_error(exc_type.__name__, exc_value)
+        self.interactive_console.print_error(exc_type.__name__, str(exc_value))
 
     def start_console(self, register_exit_handler: bool = True) -> None:
         """

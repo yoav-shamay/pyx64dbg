@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
         # load a saved state, or create the default layout if no saved state exists
         state_exists = self._load_layout()
         if not state_exists:
-            self._create_default_layout()
+            self.create_default_layout()
         self.showMaximized() # show the window maximized after we finished initalization
 
     def _create_debugger_worker_thread_and_connect_init_ui(self) -> None:
@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
             Qt.DockWidgetArea.BottomDockWidgetArea,
         )
 
-    def _create_default_layout(self) -> None:
+    def create_default_layout(self) -> None:
         """
         Creates the default window layout.
         Uses splitting and tabification of docks to create the default arrangement of the views.
@@ -313,7 +313,7 @@ class MainWindow(QMainWindow):
     def save_layout(self) -> None:
         """
         Save the current dock layout to QSettings.
-        This can be loaded later with load_settings() or reset to default with reset_layout().
+        This can be loaded later with load_settings() or reset to default with create_default_layout().
         """
         settings = QSettings()
         settings.setValue("windowState", self.saveState())
@@ -330,12 +330,6 @@ class MainWindow(QMainWindow):
             self.restoreState(state)
             return True
         return False
-
-    def reset_layout(self) -> None:
-        """
-        Change the layout to the default layout.
-        """
-        self._create_default_layout()
 
     def _on_file_select(self) -> None:
         """
@@ -370,13 +364,6 @@ class MainWindow(QMainWindow):
         self.widgets["disassembly_stack"].setCurrentIndex(1)
         self.debugger_busy = False
         self.process_running = True
-    
-    def _on_process_update(self, new_debugger_state: DebuggerState) -> None:
-        """
-        Callback - update the UI to reflect an update in the debugged process state (e.g. new breakpoint, new register values, etc).
-        """
-        self.debugger_state = new_debugger_state
-        self.widgets["disassembly"].update_view(new_debugger_state)
     
     def closeEvent(self, event: QCloseEvent) -> None:
         """

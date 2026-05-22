@@ -360,9 +360,8 @@ class Memory:
             chunk = self._debugger.memory[address : address + until_end_of_page]
             res += chunk
             address += until_end_of_page
-            if (
-                b"\x00" in chunk
-            ):  # if we got a null terminator in the chunk, we can stop reading more memory
+            if (b"\x00" in chunk):
+                # if we got a null terminator in the chunk, we can stop reading more memory
                 break
         # trim the string at the null terminator
         null_term = res.index(b"\x00")

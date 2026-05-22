@@ -62,7 +62,7 @@ class TopMenu:
         self._window_menu.addAction(self._save_layout_action)
 
         self._reset_layout_action = QAction("Reset Layout", self._main_window)
-        self._reset_layout_action.triggered.connect(self._main_window.reset_layout)
+        self._reset_layout_action.triggered.connect(self._main_window.create_default_layout)
         self._window_menu.addAction(self._reset_layout_action)
 
     @async_slot

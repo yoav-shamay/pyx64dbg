@@ -61,7 +61,14 @@ class InteractiveConsole:
         self._toolkit_output: Vt100_Output = Vt100_Output(self._output_stream, lambda: (24, 80))
         self._redirect_stdio_to_pty: bool = redirect_stdio_to_pty
         self._disable_pty_echo: bool = disable_pty_echo
-        self.system_msg_wrapper: Callable[[str], str] = lambda msg: msg + "\n" # default wrapper - just add newline, can be modified later
+        self.system_msg_printer: Callable[[str], None] = self.print_system_msg # default print system messages-  just normal printing
+    
+    def print_system_msg(self, msg: str) -> None:
+        """
+        A default system message printer.
+        Just prints to the console without any special formatting.
+        """
+        print(msg, file=self._output_stream)
 
     def get_aliases(self) -> dict[str, object]:
         """
@@ -97,7 +104,7 @@ class InteractiveConsole:
                 msg = f"Process terminated by signal {exit_signal}."
             else:
                 msg = "Process exited."
-        print(self.system_msg_wrapper(msg), end='', file=self._output_stream)
+        self.system_msg_printer(msg) # print the exit message using the system message printer
         # remove all callbacks now that we remove the reference to the debugger, as they can still be called
         self.debugger.exit_callbacks.remove(self._handle_process_exit)
         self.debugger.stop_callbacks.remove(self._handle_process_stop)
@@ -116,7 +123,7 @@ class InteractiveConsole:
         if stop_signal is not None:
             # if we stopped by a real signal and not a breakpoint
             msg = f"Process stopped by signal {stop_signal}."
-            print(self.system_msg_wrapper(msg), end='', file=self._output_stream)
+            self.system_msg_printer(msg)
 
     def print_error(self, exc_name: str, exc_desc: str) -> None:
         """
