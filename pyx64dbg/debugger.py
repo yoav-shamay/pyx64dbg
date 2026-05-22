@@ -213,11 +213,11 @@ class Debugger:
         for so in self.shared_objects.values():
             sym_classes.append(so.symbols)
         for sym_class in sym_classes:
-            for name, address in sym_class.functions.items():
-                self.address_to_symbol[address] = name
-            for name, address in sym_class.objects.items():
-                self.address_to_symbol[address] = name
-    
+            for name, symbol in sym_class.functions.items():
+                self.address_to_symbol[symbol.address] = name
+            for name, symbol in sym_class.objects.items():
+                self.address_to_symbol[symbol.address] = name
+
     def _on_exit(self) -> None:
         """
         An internal method that should be called when the process exits.

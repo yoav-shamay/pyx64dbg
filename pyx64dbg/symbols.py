@@ -55,13 +55,13 @@ class Symbols:
         """
         A helper function that initializes the dictionaries for function and object symbols, for convenient access by name.
         """
-        self.functions: dict[str, UInt64] = {}
-        self.objects: dict[str, UInt64] = {}
+        self.functions: dict[str, Symbol] = {}
+        self.objects: dict[str, Symbol] = {}
         for symbol in self.symbols:
             if symbol.type == SymbolType.FUNCTION:
-                self.functions[symbol.name] = symbol.address
+                self.functions[symbol.name] = symbol
             elif symbol.type == SymbolType.OBJECT:
-                self.objects[symbol.name] = symbol.address
+                self.objects[symbol.name] = symbol
     
     def _init_sorted_symbols(self):
         """
@@ -91,9 +91,9 @@ class Symbols:
                 return symbol
         return None # if we didn't find a symbol that contains the given address, return None
     
-    def get_symbol_by_name(self, name: str) -> UInt64 | None:
+    def get_symbol_by_name(self, name: str) -> Symbol | None:
         """
-        Returns the address of the symbol with the given name, or None if it doesn't exist.
+        Returns the symbol with the given name, or None if it doesn't exist.
         Checks both function and object symbols.
         Doesn't check other symbols, as they are not relevant for most use cases and can cause confusion if accessed by name.
         """
@@ -107,24 +107,26 @@ class Symbols:
     def __getattr__(self, name: str) -> UInt64:
         """
         Allow accessing symbols as attributes of the Symbols object, for convenience.
+        Returns the address of the symbol with the given name.
         For example, if there's a function symbol named 'main', it can be accessed as symbols.main to get its address.
         Checks both function and object symbols, but not other symbols, for the same reason as in get_symbol_by_name.
         """
         res = self.get_symbol_by_name(name)
         if res is not None:
-            return res
+            return res.address
         else: # we didn't find a symbol
             raise AttributeError(f"Symbol '{name}' not found")
     
     def __getitem__(self, name: str) -> UInt64:
         """
         Allow accessing symbols using dictionary-like syntax as well, for convenience.
+        Returns the address of the symbol with the given name.
         For example, symbols['main'] would return the address of the 'main' function symbol.
         Checks both function and object symbols, but not other symbols, for the same reason as in get_symbol_by_name.
         """
         res = self.get_symbol_by_name(name)
         if res is not None:
-            return res
+            return res.address
         else: # we didn't find a symbol
             raise KeyError(name)
     
