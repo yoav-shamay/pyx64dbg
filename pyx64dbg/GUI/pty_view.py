@@ -101,6 +101,13 @@ class PtyView(QWidget):
         # Setup Read Notifier
         self._notifier = QSocketNotifier(self.fd, QSocketNotifier.Read, self)
         self._notifier.activated.connect(self._handle_read)
+    
+    def _write_to_terminal(self, data: bytes) -> None:
+        """
+        Utility function to write data to the terminal by calling a JS function to write it.
+        """
+        js_code = f"writeToTerminal({json.dumps(data.decode(errors='ignore'))})" # use json to pass it in a format js understands
+        self._view.page().runJavaScript(js_code)
 
     def _handle_read(self) -> None:
         """
@@ -114,8 +121,7 @@ class PtyView(QWidget):
             buf = os.read(self.fd, 1024)
             if buf:
                 # Send data to JS
-                js_code = f"writeToTerminal({json.dumps(buf.decode(errors='ignore'))})" # use json to pass it in a format js understands
-                self._view.page().runJavaScript(js_code)
+                self._write_to_terminal(buf)
             else:
                 # empty read means EOF
                 self._close_pty()

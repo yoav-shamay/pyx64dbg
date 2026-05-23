@@ -54,14 +54,6 @@
         function clearTerminal() {
             term.reset();
         }
-        // Set the terminal to read-only or editable mode.
-        function setReadOnly(isReadOnly) {
-            // Disable stdin in xterm.js as an extra JS-side layer of defense
-            term.options.disableStdin = isReadOnly;
-            // Turn off cursor blink and switch to an underline when read-only
-            term.options.cursorBlink = !isReadOnly;
-            term.options.cursorStyle = isReadOnly ? 'underline' : 'block';
-        }
     </script>
 </body>
 </html>

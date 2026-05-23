@@ -53,6 +53,8 @@ class DebuggerWorker(QObject):
         self._file_name: str | None = None
         self._ipython_cli: IPythonCLI | None = None
         self._interactive_console: InteractiveConsole | None = None
+        # buffer to store any leftover data from the PTY when the process is killed, as we still want to show it in the stdio view
+        self._leftover_data: bytes = b''
     
     @Slot()
     def start_asyncio_loop(self) -> None:
@@ -118,6 +120,11 @@ class DebuggerWorker(QObject):
         Callback - called when a new debugger object is created in the interactive console, when a process starts / exits
         Updates the internal state to synchronize with the console and emits signals to update the GUI.
         """
+        if debugger is None and self.debugger is not None:
+            # process exited - save leftover data from the PTY
+            self._leftover_data = self.debugger.stdio.recvall()
+        else:
+            self._leftover_data = b''  # clear leftover data when starting a new process
         self.debugger = debugger
         if debugger is not None: # process started
             self._setup_debugger_callbacks()
@@ -184,6 +191,8 @@ class DebuggerWorker(QObject):
         # first check if we actually have a file selected.
         if self._file_name is None:
             raise ValueError("No file selected to debug.")
+        # clear leftover data when starting a new process
+        self._leftover_data = b''
         # start debugging the process
         # we want pty echo so the user actually sees what he types in the console
         self.debugger = Debugger.start_and_debug(self._file_name, redirect_stdio_to_pty=True, disable_pty_echo=False) 
@@ -210,6 +219,8 @@ class DebuggerWorker(QObject):
         """
         if self.debugger:
             # if we have a debugger, we think the process is running
+            # take the leftover data from the PTY (appears in stdio _buf) as it might be needed to be printed
+            self._leftover_data = self.debugger.stdio.recvall()
             self.debugger = None
             self._interactive_console.update_debugger(None) # sync the state of the interactive console
             self.process_exited.emit() # emit the process exited signal to update the GUI
@@ -324,6 +335,14 @@ class DebuggerWorker(QObject):
         Gets all symbols from the debugger, used for populating the symbols view in the GUI.
         """
         return self.debugger.symbols.symbols
+
+    def get_leftover_data(self) -> bytes:
+        """
+        Gets the leftover data from the PTY when the process is killed, used to show in the stdio view after the process exits.
+        """
+        res = self._leftover_data
+        self._leftover_data = b'' # clear the leftover data, it's now irrelevant.
+        return res
 
     def call_from_another_thread(self, func: Callable[P, Any], *args: P.args, **kwargs: P.kwargs) -> None:
         """

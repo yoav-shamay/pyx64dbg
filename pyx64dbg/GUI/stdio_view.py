@@ -37,8 +37,11 @@ class StdioView(PtyView):
     async def _on_process_exit(self) -> None:
         """
         Callback - when a process exits.
+        Receives leftover data from the PTY to show in the terminal.
         Closes the PTY (without clearing the buffer, as the user might want to see the output of the process that just exited).
         """
+        # write leftover data from the PTY to the terminal, so the user can see it after the process exits
+        self._write_to_terminal(self._debugger_worker.get_leftover_data())
         self._close_pty()
 
     def _on_file_select(self) -> None:
