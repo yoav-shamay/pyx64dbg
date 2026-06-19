@@ -353,6 +353,7 @@ class Registers:
             res = getattr(self, reg_name) # use the getattr method to get the register from the descriptor attribute
             if not isinstance(res, (CNumBase, VectorRegister)):
                 raise KeyError(reg_name) # if it's not a CNum or VectorRegister, it's not a register we can return, so we raise a KeyError
+            return res
         except AttributeError:
             raise KeyError(reg_name) # if the descriptor didn't find the register, we raise a KeyError for consistency with dict-like access
     
